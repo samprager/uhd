@@ -365,4 +365,3 @@ time_spec_t radio_ctrl_impl::get_time_last_pps()
 {
     return _time64->get_time_last_pps();
 }
-
