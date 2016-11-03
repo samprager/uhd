@@ -209,9 +209,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, file, format, wavegenid, blockid, blockid2, blockid3;
+    std::string args, file, format, awg_policy, awg_source, wavegenid, blockid, blockid2, blockid3;
     size_t total_num_samps, spb, spp;
-    double rate, total_time, setup_time, block_rate;
+    double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -220,6 +220,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("args", po::value<std::string>(&args)->default_value("type=x300"), "multi uhd device address args")
         ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to, set to stdout to print")
         ("null", "run without writing to file")
+        ("awglen", po::value<double>(&awg_sample_len)->default_value(64), "total number samples to load into waveform generator")
+        ("policy", po::value<std::string>(&awg_policy)->default_value("manual"), "AWG Operational mode: manual or auto ")
+        ("source", po::value<std::string>(&awg_source)->default_value("awg"), "AWG Source Select: awg or chirp ")
+        ("prf", po::value<double>(&awg_prf)->default_value(1), "AWG Radar PRF in seconds")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
         ("time", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
@@ -373,17 +377,26 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     wavegen_ctrl->set_rate(rate);
 
-    std::cout << "Setting AWG Policy..."<<std::endl;
+    std::cout << "Setting AWG Policy to Manual for Setup..."<<std::endl;
     wavegen_ctrl->set_policy_manual();
     std::string policy_str = wavegen_ctrl->get_policy();
     std::cout << "AWG Policy set to: "<<policy_str<<std::endl;
 
     std::cout << "Setting Src Ctrl"<<std::endl;
-    wavegen_ctrl->set_src_awg();
+    if(awg_source == "awg"){
+        wavegen_ctrl->set_src_awg();
+    }
+    else if (awg_source == "chirp") {
+        wavegen_ctrl->set_src_chirp();
+    }
+    else {
+        std::cout<<"Error: Invalid Source Selection: "<<awg_source<<std::endl;
+        return ~0;
+    }
     std::string src_str = wavegen_ctrl->get_src();
-    std::cout << "AWG Src Ctrl set to: "<<src_str<<std::endl;
+    std::cout << "Src Ctrl set to: "<<src_str<<std::endl;
 
-    int num_awg_samples = 128;
+    int num_awg_samples = (int)awg_sample_len;
     std::vector<boost::uint32_t> samples;
     for (int i=0;i<num_awg_samples;i++) {
         // samples.push_back(boost::uint32_t(i));
@@ -391,6 +404,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         samples.push_back(boost::uint32_t(0xFEED000 + boost::uint16_t(i)));
     }
     wavegen_ctrl->set_waveform(samples);
+    wavegen_ctrl->set_chirp_counter(boost::uint32_t(num_awg_samples-1));
 
     std::cout << "Checking Uploaded Waveform Length"<<std::endl;
     boost::uint32_t wfrm_len = wavegen_ctrl->get_waveform_len();
@@ -401,7 +415,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         return ~0;
     }
 
-    boost::uint32_t total_rx_samples = 528;
+    boost::uint32_t total_rx_samples = num_awg_samples+32;
     wavegen_ctrl->set_rx_len(total_rx_samples);
 
     std::cout << "Checking Total RX sample Length"<<std::endl;
@@ -414,15 +428,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
 
     std::cout << "Setting AWG PRF..."<<std::endl;
-    //wavegen_ctrl->set_policy_manual();
-    boost::uint64_t prf_count = rate;
+    boost::uint64_t prf_count = boost::uint64_t(rate*awg_prf);
     wavegen_ctrl->set_prf_count(prf_count);
     boost::uint64_t prf_read = wavegen_ctrl->get_prf_count();
     std::cout << "AWG PRF set to: "<<prf_read<<"("<< prf_read/rate <<" sec)"<<std::endl;
 
-    std::cout << "Setting AWG Policy to Auto..."<<std::endl;
-    wavegen_ctrl->set_policy_auto();
-    std::cout << "AWG Policy set to: "<<wavegen_ctrl->get_policy()<<std::endl;
+    if (awg_policy == "auto") {
+        std::cout << "Setting AWG Policy to Auto..."<<std::endl;
+        wavegen_ctrl->set_policy_auto();
+        std::cout << "AWG Policy set to: "<<wavegen_ctrl->get_policy()<<std::endl;
+    }
 
     /////////////////////////////////////////////////////////////////////////
     //////// 5. Connect blocks //////////////////////////////////////////////

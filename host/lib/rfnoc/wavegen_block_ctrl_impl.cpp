@@ -164,7 +164,7 @@ public:
         sr_write(SR_RADAR_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
         sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
 
-        send_pulse();
+       // send_pulse();
     }
 
     void set_rate(double rate){
