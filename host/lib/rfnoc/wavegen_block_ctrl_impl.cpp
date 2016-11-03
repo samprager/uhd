@@ -173,9 +173,9 @@ public:
 
     void send_pulse(){
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::send_pulse()" << std::endl;
-        boost::uint32_t pulse_cmd_imm = 0x80000000;
+        boost::uint32_t cmd_word_imm = 0x80000000;
         /* Start immediately */
-        sr_write(SR_RADAR_CTRL_TIME_HI, pulse_cmd_imm);
+        sr_write(SR_RADAR_CTRL_COMMAND, cmd_word_imm);
         /* Write TIME_LO register to initiate */
         sr_write(SR_RADAR_CTRL_TIME_LO, 0);
     }
