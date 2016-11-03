@@ -37,6 +37,16 @@ using namespace uhd::rfnoc;
 class wavegen_block_ctrl_impl : public wavegen_block_ctrl
 {
 public:
+    /* Timekeeper */
+    static const boost::uint32_t SR_TIME_HI = 128;
+    static const boost::uint32_t SR_TIME_LO = 129;
+    static const boost::uint32_t SR_TIME_CTRL = 130;
+
+    /* Wavegen */
+    static const boost::uint32_t SR_CH_COUNTER_ADDR = 200;
+    static const boost::uint32_t SR_CH_TUNING_COEF_ADDR = 201;
+    static const boost::uint32_t SR_CH_FREQ_OFFSET_ADDR = 202;
+
     static const boost::uint32_t SR_CH_COUNTER_ADDR = 200;
     static const boost::uint32_t SR_CH_TUNING_COEF_ADDR = 201;
     static const boost::uint32_t SR_CH_FREQ_OFFSET_ADDR = 202;
@@ -54,8 +64,11 @@ public:
     static const boost::uint32_t SR_AWG_RELOAD = 212;
     static const boost::uint32_t SR_AWG_RELOAD_LAST = 213;
 
-    /* Control readback registers */
 
+    /* Timekeeper readback registers */
+    static const boost::uint32_t RB_VITA_TIME              = 0;
+
+    /* Control readback registers */
     static const boost::uint32_t RB_AWG_LEN              = 5;
     static const boost::uint32_t RB_ADC_LEN              = 6;
     static const boost::uint32_t RB_AWG_CTRL             = 7;
@@ -399,6 +412,14 @@ public:
 
     double get_rate(){
       return _tick_rate;
+    }
+
+    boost::uint64_t get_vita_time(){
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_vita_time()" << std::endl;
+        boost::uint64_t vita_time = boost::uint64_t(user_reg_read64(RB_VITA_TIME));
+        UHD_MSG(status) << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
+        UHD_ASSERT_THROW(vita_time);
+        return vita_time;
     }
 
 private:

@@ -69,6 +69,7 @@ public:
     virtual boost::uint32_t get_waveform_len() = 0;
     virtual boost::uint64_t get_prf_count() = 0;
     virtual boost::uint64_t get_state() = 0;
+    virtual boost::uint64_t get_vita_time() = 0;
     virtual double get_rate() = 0;
 
 
