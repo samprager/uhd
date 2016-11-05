@@ -43,6 +43,7 @@ void sig_int_handler(int){stop_signal_called = true;}
 
 
 template<typename samp_type> void recv_to_file(
+    uhd::rfnoc::wavegen_block_ctrl::sptr wavegen_ctrl,
     uhd::rx_streamer::sptr rx_stream,
     const std::string &file,
     size_t samps_per_buff,
@@ -86,6 +87,9 @@ template<typename samp_type> void recv_to_file(
         not stop_signal_called
         and (num_requested_samples != num_total_samps or num_requested_samples == 0)
     ) {
+
+        wavegen_ctrl->send_pulse();
+        
         boost::system_time now = boost::get_system_time();
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
@@ -481,7 +485,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     //wavegen_ctrl->send_pulse();
 
 #define recv_to_file_args() \
-        (rx_stream, file, spb, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
+        (wavegen_ctrl, rx_stream, file, spb, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
     //recv to file
     if (format == "fc64") recv_to_file<std::complex<double> >recv_to_file_args();
     else if (format == "fc32") recv_to_file<std::complex<float> >recv_to_file_args();

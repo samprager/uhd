@@ -143,7 +143,7 @@ public:
     }
     void issue_stream_cmd(const uhd::stream_cmd_t &stream_cmd, const size_t)
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block_ctrl::issue_stream_cmd() " << char(stream_cmd.stream_mode) << std::endl;
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block_ctrl::issue_stream_cmd(). stream_mode:" << char(stream_cmd.stream_mode) << std::endl;
 
         //setup the mode to instruction flags
         typedef boost::tuple<bool, bool, bool, bool> inst_t;
