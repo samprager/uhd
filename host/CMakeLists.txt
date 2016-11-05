@@ -246,6 +246,7 @@ SET(BOOST_REQUIRED_COMPONENTS
     system
     unit_test_framework
     serialization
+    random
 )
 IF(MINGW)
     LIST(APPEND BOOST_REQUIRED_COMPONENTS thread_win32)

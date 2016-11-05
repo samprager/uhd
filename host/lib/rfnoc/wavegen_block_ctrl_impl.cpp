@@ -27,6 +27,8 @@
 #include <uhd/types/stream_cmd.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
+#include <boost/random.hpp>
+#include <boost/random/random_device.hpp>
 #include "time_core_3000.hpp"
 #include <math.h>
 
@@ -86,9 +88,12 @@ public:
         _item_type("sc16") // We only support sc16 in this block
     {
         wfrm_header.cmd = WAVEFORM_WRITE_CMD;
-        wfrm_header.id = 0;
+        // Fix so that upload id from previous program run is not repeated -- Causes FPGA to ignore waveform upload
+        boost::random_device rdev;
+        wfrm_header.id = rdev();
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
+        std::cout << boost::format("\nWFRM.ID: %02X\n") % wfrm_header.id <<std::endl;
     }
 
     void set_waveform(const std::vector<boost::uint32_t> &samples)
