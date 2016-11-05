@@ -47,6 +47,8 @@ template<typename samp_type> void recv_to_file(
     uhd::rx_streamer::sptr rx_stream,
     const std::string &file,
     size_t samps_per_buff,
+    double prf,
+    int num_pulses,
     unsigned long long num_requested_samples,
     double time_requested = 0.0,
     bool bw_summary = false,
@@ -83,14 +85,26 @@ template<typename samp_type> void recv_to_file(
     boost::system_time last_update = start;
     unsigned long long last_update_samps = 0;
 
+    boost::posix_time::time_duration pulse_diff;
+    boost::system_time last_pulse = start;
+    int pulse_count = 0;
+
     while(
         not stop_signal_called
         and (num_requested_samples != num_total_samps or num_requested_samples == 0)
     ) {
 
-        wavegen_ctrl->send_pulse();
-
         boost::system_time now = boost::get_system_time();
+
+        pulse_diff = now - last_pulse;
+        double pulse_diff_sec = (double)pulse_diff.total_microseconds() / 1000000.0;
+        if (((pulse_count<num_pulses)||(num_requested_samples == 0))&&(pulse_diff_sec >= prf)) {
+          wavegen_ctrl->send_pulse();
+          std::cout << boost::format("\tpulse_count: %i/%i. pulse_diff: %f sec.") % pulse_count % num_pulses % pulse_diff_sec << std::endl;
+          last_pulse = now;
+          pulse_count++;
+        }
+
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
 
@@ -133,6 +147,7 @@ template<typename samp_type> void recv_to_file(
                 last_update = now;
             }
         }
+
 
         ticks_diff = now - start;
         if (ticks_requested > 0){
@@ -400,12 +415,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     std::string src_str = wavegen_ctrl->get_src();
     std::cout << "Src Ctrl set to: "<<src_str<<std::endl;
 
+    std::cout << "Uploading Waveform Samples: "<<std::endl;
     int num_awg_samples = (int)awg_sample_len;
     std::vector<boost::uint32_t> samples;
     for (int i=0;i<num_awg_samples;i++) {
         // samples.push_back(boost::uint32_t(i));
         //samples.push_back(boost::uint32_t(0xFEEDBEEF));
-        samples.push_back(boost::uint32_t(0xFEED0000 + boost::uint16_t(i)));
+         samples.push_back(boost::uint32_t(0xFEED0000 + boost::uint16_t(i)));
+        // samples.push_back(boost::uint32_t(0x1234ABCD));
+      //  std::cout<<boost::format("sample %i: %02X\n") % i % samples[i] <<std::endl;
     }
     wavegen_ctrl->set_waveform(samples);
     wavegen_ctrl->set_chirp_counter(boost::uint32_t(num_awg_samples-1));
@@ -414,10 +432,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     boost::uint32_t wfrm_len = wavegen_ctrl->get_waveform_len();
     std::cout << "Uploaded Waveform Length set to: "<<wfrm_len<<std::endl;
 
-    if(wfrm_len != num_awg_samples){
+    if((int)wfrm_len != num_awg_samples){
         std::cout<<"Error: read incorrect waveform len: "<<wfrm_len<<" Expected: "<<num_awg_samples<<std::endl;
         return ~0;
     }
+    int num_pulses = (int)ceil((double)total_num_samps/awg_sample_len);
 
     boost::uint32_t total_rx_samples = num_awg_samples+32;
     wavegen_ctrl->set_rx_len(total_rx_samples);
@@ -485,7 +504,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     //wavegen_ctrl->send_pulse();
 
 #define recv_to_file_args() \
-        (wavegen_ctrl, rx_stream, file, spb, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
+        (wavegen_ctrl, rx_stream, file, spb, awg_prf, num_pulses, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
     //recv to file
     if (format == "fc64") recv_to_file<std::complex<double> >recv_to_file_args();
     else if (format == "fc32") recv_to_file<std::complex<float> >recv_to_file_args();

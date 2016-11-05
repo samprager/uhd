@@ -169,9 +169,9 @@ public:
 
         //issue the stream command
         const boost::uint64_t ticks = (stream_cmd.stream_now)? 0 : stream_cmd.time_spec.to_ticks(get_rate());
-        sr_write(SR_RADAR_CTRL_COMMAND, cmd_word);
-        sr_write(SR_RADAR_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
-        sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
+        // sr_write(SR_RADAR_CTRL_COMMAND, cmd_word);
+        // sr_write(SR_RADAR_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
+        // sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
 
        // send_pulse();
     }
