@@ -89,7 +89,7 @@ template<typename samp_type> void recv_to_file(
     ) {
 
         wavegen_ctrl->send_pulse();
-        
+
         boost::system_time now = boost::get_system_time();
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
@@ -405,7 +405,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     for (int i=0;i<num_awg_samples;i++) {
         // samples.push_back(boost::uint32_t(i));
         //samples.push_back(boost::uint32_t(0xFEEDBEEF));
-        samples.push_back(boost::uint32_t(0xFEED000 + boost::uint16_t(i)));
+        samples.push_back(boost::uint32_t(0xFEED0000 + boost::uint16_t(i)));
     }
     wavegen_ctrl->set_waveform(samples);
     wavegen_ctrl->set_chirp_counter(boost::uint32_t(num_awg_samples-1));
