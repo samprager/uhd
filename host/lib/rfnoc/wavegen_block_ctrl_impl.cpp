@@ -46,10 +46,6 @@ public:
     static const boost::uint32_t SR_CH_COUNTER_ADDR = 200;
     static const boost::uint32_t SR_CH_TUNING_COEF_ADDR = 201;
     static const boost::uint32_t SR_CH_FREQ_OFFSET_ADDR = 202;
-
-    static const boost::uint32_t SR_CH_COUNTER_ADDR = 200;
-    static const boost::uint32_t SR_CH_TUNING_COEF_ADDR = 201;
-    static const boost::uint32_t SR_CH_FREQ_OFFSET_ADDR = 202;
     static const boost::uint32_t SR_AWG_CTRL_WORD_ADDR = 203;
 
     static const boost::uint32_t SR_PRF_INT_ADDR = 204;
