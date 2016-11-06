@@ -26,6 +26,8 @@
 #include <uhd/exception.hpp>
 #include <uhd/rfnoc/block_ctrl.hpp>
 #include <uhd/rfnoc/radio_ctrl.hpp>
+#include <uhd/types/tune_request.hpp>
+#include <uhd/types/sensors.hpp>
 //#include <uhd/rfnoc/null_block_ctrl.hpp>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
@@ -50,6 +52,7 @@ template<typename samp_type> void recv_to_file(
     size_t samps_per_buff,
     double prf,
     int num_pulses,
+    bool mode_manual,
     unsigned long long num_requested_samples,
     double time_requested = 0.0,
     bool bw_summary = false,
@@ -97,6 +100,7 @@ template<typename samp_type> void recv_to_file(
 
         boost::system_time now = boost::get_system_time();
 
+        if (mode_manual){
         pulse_diff = now - last_pulse;
         double pulse_diff_sec = (double)pulse_diff.total_microseconds() / 1000000.0;
         if (((pulse_count<num_pulses)||(num_requested_samples == 0))&&(pulse_diff_sec >= prf)) {
@@ -105,6 +109,7 @@ template<typename samp_type> void recv_to_file(
           last_pulse = now;
           pulse_count++;
         }
+      }
 
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
@@ -231,7 +236,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     //variables to be set by po
     std::string args, file, format, ant, ref, wirefmt, streamargs,radio_args, awg_policy, awg_source, wavegenid, blockid, blockid2, blockid3, blockid4;
     size_t total_num_samps, spb, radio_id, radio_chan;
-    double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf, freq, gain, bw;
+    double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf, freq, gain, bw, tuning_word;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -259,6 +264,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("policy", po::value<std::string>(&awg_policy)->default_value("manual"), "AWG Operational mode: manual or auto ")
         ("source", po::value<std::string>(&awg_source)->default_value("awg"), "AWG Source Select: awg or chirp ")
         ("prf", po::value<double>(&awg_prf)->default_value(1), "AWG Radar PRF in seconds")
+        ("tuneword", po::value<double>(&tuning_word)->default_value(1), "AWG Radar Tuning Word Coefficient")
 
         ("radio-id", po::value<size_t>(&radio_id)->default_value(0), "Radio ID to use (0 or 1).")
         ("radio-chan", po::value<size_t>(&radio_chan)->default_value(0), "Radio channel")
@@ -275,8 +281,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
         ("wavegenid", po::value<std::string>(&wavegenid)->default_value("wavegen"), "The block ID for the null source.")
         ("blockid", po::value<std::string>(&blockid)->default_value("FIFO"), "The block ID for the processing block.")
-        ("blockid2", po::value<std::string>(&blockid2)->default_value("DmaFIFO"), "Optional: The block ID for the 2nd processing block.")
-        ("blockid3", po::value<std::string>(&blockid3)->default_value("FIFO_1"), "Optional: The block ID for the 3rd processing block.")
+        ("blockid2", po::value<std::string>(&blockid2)->default_value("FIFO_1"), "Optional: The block ID for the 2nd processing block.")
+        ("blockid3", po::value<std::string>(&blockid3)->default_value("DmaFIFO"), "Optional: The block ID for the 3rd processing block.")
         ("blockid4", po::value<std::string>(&blockid4)->default_value("FIFO_2"), "Optional: The block ID for the 4th processing block.")
     ;
     po::variables_map vm;
@@ -293,7 +299,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     bool bw_summary = vm.count("progress") > 0;
     bool stats = vm.count("stats") > 0;
-    bool continue_on_bad_packet = vm.count("continue") > 0;
     if (vm.count("null") > 0) {
         file = "";
     }
@@ -315,9 +320,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         std::cout << "Must specify a valid block ID for the null source." << std::endl;
         return ~0;
     }
-    if (not uhd::rfnoc::block_id_t::is_valid_block_id(blockid)) {
-        std::cout << "Must specify a valid block ID for the processing block." << std::endl;
-        return ~0;
+    if (not blockid.empty()) {
+        if (not uhd::rfnoc::block_id_t::is_valid_block_id(blockid)) {
+            std::cout << "Invalid block ID for the processing block." << std::endl;
+            return ~0;
+        }
     }
     if (not blockid2.empty()) {
         if (not uhd::rfnoc::block_id_t::is_valid_block_id(blockid2)) {
@@ -366,6 +373,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         //usrp->set_clock_source(ref);
     }
 
+
     //set the sample rate
     if (rate <= 0.0){
         std::cerr << "Please specify a valid sample rate" << std::endl;
@@ -384,6 +392,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         }
         radio_ctrl->set_rx_frequency(freq, radio_chan);
         std::cout << boost::format("Actual RX Freq: %f MHz...") % (radio_ctrl->get_rx_frequency(radio_chan)/1e6) << std::endl << std::endl;
+        radio_ctrl->set_tx_frequency(freq, radio_chan);
+        std::cout << boost::format("Actual TX Freq: %f MHz...") % (radio_ctrl->get_tx_frequency(radio_chan)/1e6) << std::endl << std::endl;
+
     }
 
     //set the rf gain
@@ -416,6 +427,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
     size_t spp = radio_ctrl->get_arg<int>("spp");
 
+
+
+  // Connect combat-prog-siggen -> radio
+
     /************************************************************************
      * Set up streaming
      ***********************************************************************/
@@ -425,6 +440,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     // Reset device streaming state
     usrp->clear();
     uhd::rfnoc::graph::sptr rx_graph = usrp->create_graph("wavegen_graph");
+    uhd::rfnoc::graph::sptr tx_graph = usrp->create_graph("tx_graph");
 
     /////////////////////////////////////////////////////////////////////////
     //////// 2. Get block control objects ///////////////////////////////////
@@ -445,10 +461,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     // For the processing blocks, we don't care what type the block is,
     // so we make it a block_ctrl_base (default):
     uhd::rfnoc::block_ctrl_base::sptr proc_block_ctrl, proc_block_ctrl2, proc_block_ctrl3, proc_block_ctrl4;
-    if (usrp->has_block(blockid)) {
+    if (not blockid.empty() and usrp->has_block(blockid)) {
         proc_block_ctrl = usrp->get_block_ctrl(blockid);
         blocks.push_back(proc_block_ctrl->get_block_id());
     }
+
+    blocks.push_back(radio_ctrl->get_block_id());
+
     if (not blockid2.empty() and usrp->has_block(blockid2)) {
         proc_block_ctrl2 = usrp->get_block_ctrl(blockid2);
         blocks.push_back(proc_block_ctrl2->get_block_id());
@@ -468,20 +487,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //////// 3. Set channel definitions /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////
-    uhd::device_addr_t streamer_args(streamargs);
     //
     // Here, we define that there is only 1 channel, and it points
     // to the final processing block.
     if (proc_block_ctrl4 and proc_block_ctrl3 and proc_block_ctrl2) {
         streamer_args["block_id"] = blockid4;
-        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
+        spp = proc_block_ctrl4->get_args().cast<size_t>("spp", spp);
     }
     else if (proc_block_ctrl3 and proc_block_ctrl2) {
         streamer_args["block_id"] = blockid3;
-        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
+        spp = proc_block_ctrl3->get_args().cast<size_t>("spp", spp);
     } else if (proc_block_ctrl2) {
         streamer_args["block_id"] = blockid2;
-        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
+        spp = proc_block_ctrl2->get_args().cast<size_t>("spp", spp);
     } else {
         streamer_args["block_id"] = radio_ctrl_id.to_string();
         streamer_args["block_port"] = str(boost::format("%d") % radio_chan);
@@ -549,10 +567,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     boost::uint64_t prf_read = wavegen_ctrl->get_prf_count();
     std::cout << "AWG PRF set to: "<<prf_read<<"("<< prf_read/rate <<" sec)"<<std::endl;
 
+    std::cout << "Setting Tuing Word for Chirp to "<<tuning_word<<std::endl;
+    wavegen_ctrl->set_chirp_tuning_coef(boost::uint32_t(tuning_word));
+
+    bool mode_manual = true;
     if (awg_policy == "auto") {
         std::cout << "Setting AWG Policy to Auto..."<<std::endl;
         wavegen_ctrl->set_policy_auto();
         std::cout << "AWG Policy set to: "<<wavegen_ctrl->get_policy()<<std::endl;
+        mode_manual = false;
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -560,16 +583,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     std::cout << "Connecting blocks..." << std::endl;
     if (proc_block_ctrl) {
-        rx_graph->connect( // Yes, it's that easy!
+        tx_graph->connect( // Yes, it's that easy!
                 wavegen_ctrl->get_block_id(),
                 proc_block_ctrl->get_block_id()
         );
-        rx_graph->connect( // Yes, it's that easy!
+        tx_graph->connect( // Yes, it's that easy!
                 proc_block_ctrl->get_block_id(),uhd::rfnoc::ANY_PORT, radio_ctrl_id,radio_chan
         );
     }
     else {
-        rx_graph->connect( // Yes, it's that easy!
+        tx_graph->connect( // Yes, it's that easy!
                 wavegen_ctrl->get_block_id(),uhd::rfnoc::ANY_PORT,
                 radio_ctrl_id,radio_chan
         );
@@ -612,7 +635,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     //wavegen_ctrl->send_pulse();
 
 #define recv_to_file_args() \
-        (wavegen_ctrl, rx_stream, file, spb, awg_prf, num_pulses, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
+        (wavegen_ctrl, rx_stream, file, spb, awg_prf, num_pulses, mode_manual, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
     //recv to file
     if (format == "fc64") recv_to_file<std::complex<double> >recv_to_file_args();
     else if (format == "fc32") recv_to_file<std::complex<float> >recv_to_file_args();

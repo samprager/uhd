@@ -93,7 +93,6 @@ public:
         wfrm_header.id = rdev();
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
-        std::cout << boost::format("\nWFRM.ID: %02X\n") % wfrm_header.id <<std::endl;
     }
 
     void set_waveform(const std::vector<boost::uint32_t> &samples)
