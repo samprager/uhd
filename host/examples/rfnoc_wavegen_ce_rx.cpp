@@ -25,6 +25,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/rfnoc/block_ctrl.hpp>
+#include <uhd/rfnoc/radio_ctrl.hpp>
 //#include <uhd/rfnoc/null_block_ctrl.hpp>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
@@ -228,36 +229,55 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, file, format, awg_policy, awg_source, wavegenid, blockid, blockid2, blockid3;
-    size_t total_num_samps, spb, spp;
-    double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf;
+    std::string args, file, format, ant, ref, wirefmt, streamargs,radio_args, awg_policy, awg_source, wavegenid, blockid, blockid2, blockid3, blockid4;
+    size_t total_num_samps, spb, radio_id, radio_chan;
+    double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf, freq, gain, bw;
 
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value("type=x300"), "multi uhd device address args")
+
         ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to, set to stdout to print")
         ("null", "run without writing to file")
-        ("awglen", po::value<double>(&awg_sample_len)->default_value(64), "total number samples to load into waveform generator")
-        ("policy", po::value<std::string>(&awg_policy)->default_value("manual"), "AWG Operational mode: manual or auto ")
-        ("source", po::value<std::string>(&awg_source)->default_value("awg"), "AWG Source Select: awg or chirp ")
-        ("prf", po::value<double>(&awg_prf)->default_value(1), "AWG Radar PRF in seconds")
+
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
         ("time", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
-        ("spp", po::value<size_t>(&spp)->default_value(64), "samples per packet (on FPGA and wire)")
+        ("streamargs", po::value<std::string>(&streamargs)->default_value(""), "stream args")
+        ("sizemap", "track packet size and display breakdown on exit")
         ("block_rate", po::value<double>(&block_rate)->default_value(200e6), "The clock rate of the processing block.")
-        ("rate", po::value<double>(&rate)->default_value(200e6), "rate at which samples are produced in the source")
+
         ("setup", po::value<double>(&setup_time)->default_value(1.0), "seconds of setup time")
         ("format", po::value<std::string>(&format)->default_value("sc16"), "File sample type: sc16, fc32, or fc64")
         ("progress", "periodically display short-term bandwidth")
         ("stats", "show average bandwidth on exit")
         ("continue", "don't abort on a bad packet")
+
+        ("awglen", po::value<double>(&awg_sample_len)->default_value(64), "total number samples to load into waveform generator")
+        ("policy", po::value<std::string>(&awg_policy)->default_value("manual"), "AWG Operational mode: manual or auto ")
+        ("source", po::value<std::string>(&awg_source)->default_value("awg"), "AWG Source Select: awg or chirp ")
+        ("prf", po::value<double>(&awg_prf)->default_value(1), "AWG Radar PRF in seconds")
+
+        ("radio-id", po::value<size_t>(&radio_id)->default_value(0), "Radio ID to use (0 or 1).")
+        ("radio-chan", po::value<size_t>(&radio_chan)->default_value(0), "Radio channel")
+        ("radio-args", po::value<std::string>(&radio_args), "Radio channel")
+        ("rate", po::value<double>(&rate)->default_value(200e6), "RX rate of the radio block")
+        ("freq", po::value<double>(&freq)->default_value(100e6), "RF center frequency in Hz")
+        ("gain", po::value<double>(&gain), "gain for the RF chain")
+        ("ant", po::value<std::string>(&ant), "antenna selection")
+        ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
+        ("ref", po::value<std::string>(&ref), "reference source (internal, external, mimo)")
+        ("skip-lo", "skip checking LO lock status")
+        ("int-n", "tune USRP with integer-N tuning")
+
+
         ("wavegenid", po::value<std::string>(&wavegenid)->default_value("wavegen"), "The block ID for the null source.")
         ("blockid", po::value<std::string>(&blockid)->default_value("FIFO"), "The block ID for the processing block.")
         ("blockid2", po::value<std::string>(&blockid2)->default_value("DmaFIFO"), "Optional: The block ID for the 2nd processing block.")
         ("blockid3", po::value<std::string>(&blockid3)->default_value("FIFO_1"), "Optional: The block ID for the 3rd processing block.")
+        ("blockid4", po::value<std::string>(&blockid4)->default_value("FIFO_2"), "Optional: The block ID for the 4th processing block.")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -274,6 +294,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     bool bw_summary = vm.count("progress") > 0;
     bool stats = vm.count("stats") > 0;
     bool continue_on_bad_packet = vm.count("continue") > 0;
+    if (vm.count("null") > 0) {
+        file = "";
+    }
+
+    bool enable_size_map = vm.count("sizemap") > 0;
+    bool continue_on_bad_packet = vm.count("continue") > 0;
+
+    if (enable_size_map) {
+        std::cout << "Packet size tracking enabled - will only recv one packet at a time!" << std::endl;
+    }
+
+    if (format != "sc16" and format != "fc32" and format != "fc64") {
+        std::cout << "Invalid sample format: " << format << std::endl;
+        return EXIT_FAILURE;
+    }
 
     // Check settings
     if (not uhd::rfnoc::block_id_t::is_valid_block_id(wavegenid)) {
@@ -296,6 +331,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
             return ~0;
         }
     }
+    if (not blockid4.empty()) {
+        if (not uhd::rfnoc::block_id_t::is_valid_block_id(blockid4)) {
+            std::cout << "Invalid block ID for the 4th processing block." << std::endl;
+            return ~0;
+        }
+    }
 
     // Set up SIGINT handler. For indefinite streaming, display info on how to stop.
     std::signal(SIGINT, &sig_int_handler);
@@ -309,11 +350,81 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     std::cout << std::endl;
     std::cout << boost::format("Creating the USRP device with: %s...") % args << std::endl;
     uhd::device3::sptr usrp = uhd::device3::make(args);
+    // Create handle for radio object
+    uhd::rfnoc::block_id_t radio_ctrl_id(0, "Radio", radio_id);
+    // This next line will fail if the radio is not actually available
+    uhd::rfnoc::radio_ctrl::sptr radio_ctrl = usrp->get_block_ctrl< uhd::rfnoc::radio_ctrl >(radio_ctrl_id);
+    std::cout << "Using radio " << radio_id << ", channel " << radio_chan << std::endl;
+
+    /************************************************************************
+     * Set up radio
+     ***********************************************************************/
+    radio_ctrl->set_args(radio_args);
+    if (vm.count("ref")) {
+        std::cout << "TODO -- Need to implement API call to set clock source." << std::endl;
+        //Lock mboard clocks TODO
+        //usrp->set_clock_source(ref);
+    }
+
+    //set the sample rate
+    if (rate <= 0.0){
+        std::cerr << "Please specify a valid sample rate" << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate/1e6) << std::endl;
+    radio_ctrl->set_rate(rate);
+    std::cout << boost::format("Actual RX Rate: %f Msps...") % (radio_ctrl->get_rate()/1e6) << std::endl << std::endl;
+
+    //set the center frequency
+    if (vm.count("freq")) {
+        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        uhd::tune_request_t tune_request(freq);
+        if (vm.count("int-n")) {
+            //tune_request.args = uhd::device_addr_t("mode_n=integer"); TODO
+        }
+        radio_ctrl->set_rx_frequency(freq, radio_chan);
+        std::cout << boost::format("Actual RX Freq: %f MHz...") % (radio_ctrl->get_rx_frequency(radio_chan)/1e6) << std::endl << std::endl;
+    }
+
+    //set the rf gain
+    if (vm.count("gain")) {
+        std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+        radio_ctrl->set_rx_gain(gain, radio_chan);
+        std::cout << boost::format("Actual RX Gain: %f dB...") % radio_ctrl->get_rx_gain(radio_chan) << std::endl << std::endl;
+    }
+
+    //set the IF filter bandwidth
+    if (vm.count("bw")) {
+        //std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
+        //radio_ctrl->set_rx_bandwidth(bw, radio_chan); // TODO
+        //std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (radio_ctrl->get_rx_bandwidth(radio_chan)/1e6) << std::endl << std::endl;
+    }
+
+    //set the antenna
+    if (vm.count("ant")) {
+        radio_ctrl->set_rx_antenna(ant, radio_chan);
+    }
 
     boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
+
+    //check Ref and LO Lock detect
+    if (not vm.count("skip-lo")){
+        // TODO
+        //check_locked_sensor(usrp->get_rx_sensor_names(0), "lo_locked", boost::bind(&uhd::usrp::multi_usrp::get_rx_sensor, usrp, _1, radio_id), setup_time);
+        //if (ref == "external")
+            //check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, radio_id), setup_time);
+    }
+    size_t spp = radio_ctrl->get_arg<int>("spp");
+
+    /************************************************************************
+     * Set up streaming
+     ***********************************************************************/
+    uhd::device_addr_t streamer_args(streamargs);
+
+
     // Reset device streaming state
     usrp->clear();
-    uhd::rfnoc::graph::sptr rx_graph = usrp->create_graph("rx_graph");
+    uhd::rfnoc::graph::sptr rx_graph = usrp->create_graph("wavegen_graph");
 
     /////////////////////////////////////////////////////////////////////////
     //////// 2. Get block control objects ///////////////////////////////////
@@ -333,7 +444,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     // For the processing blocks, we don't care what type the block is,
     // so we make it a block_ctrl_base (default):
-    uhd::rfnoc::block_ctrl_base::sptr proc_block_ctrl, proc_block_ctrl2, proc_block_ctrl3;
+    uhd::rfnoc::block_ctrl_base::sptr proc_block_ctrl, proc_block_ctrl2, proc_block_ctrl3, proc_block_ctrl4;
     if (usrp->has_block(blockid)) {
         proc_block_ctrl = usrp->get_block_ctrl(blockid);
         blocks.push_back(proc_block_ctrl->get_block_id());
@@ -346,6 +457,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         proc_block_ctrl3 = usrp->get_block_ctrl(blockid3);
         blocks.push_back(proc_block_ctrl3->get_block_id());
     }
+    if (not blockid4.empty() and usrp->has_block(blockid4)) {
+        proc_block_ctrl4 = usrp->get_block_ctrl(blockid4);
+        blocks.push_back(proc_block_ctrl4->get_block_id());
+    }
 
     blocks.push_back("HOST");
     pretty_print_flow_graph(blocks);
@@ -353,46 +468,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //////// 3. Set channel definitions /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////
-    uhd::device_addr_t stream_args_args;
+    uhd::device_addr_t streamer_args(streamargs);
     //
     // Here, we define that there is only 1 channel, and it points
     // to the final processing block.
-    if (proc_block_ctrl3 and proc_block_ctrl2 and proc_block_ctrl) {
-        stream_args_args["block_id"] = blockid3;
-    } else if (proc_block_ctrl2 and proc_block_ctrl) {
-        stream_args_args["block_id"] = blockid2;
-    } else if (proc_block_ctrl) {
-        stream_args_args["block_id"] = blockid;
-    } else {
-        stream_args_args["block_id"] = wavegenid;
+    if (proc_block_ctrl4 and proc_block_ctrl3 and proc_block_ctrl2) {
+        streamer_args["block_id"] = blockid4;
+        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
     }
-
-    /////////////////////////////////////////////////////////////////////////
-    //////// 4. Configure blocks (packet size and rate) /////////////////////
-    /////////////////////////////////////////////////////////////////////////
-    // std::cout << "Samples per packet coming from null source: " << spp << std::endl;
-    // // To access properties, there's two ways. You can access args as defined
-    // // in the XML file:
-    // const size_t BYTES_PER_SAMPLE = 4;
-    // null_src_ctrl->set_arg<int>("bpp", int(spp * BYTES_PER_SAMPLE));
-    // if (null_src_ctrl->get_arg<int>("bpp") != int(spp * BYTES_PER_SAMPLE)) {
-    //     std::cout << "[ERROR] Could not set samples per packet!" << std::endl;
-    //     return ~0;
-    // }
-
-    // Or, if our block has its own getters + setters, you can call those:
-    // std::cout << str(boost::format("Requesting rate:   %.2f Msps (%.2f MByte/s).") % (rate / 1e6) % (rate * 4 / 1e6)) << std::endl;
-    // const size_t SAMPLES_PER_LINE = 2;
-    // null_src_ctrl->set_line_rate(rate / SAMPLES_PER_LINE, block_rate);
-    // // Now, it's possible that this requested rate is not available.
-    // // Let's read back the true rate with the getter:
-    // double actual_rate_mega = null_src_ctrl->get_line_rate(block_rate) / 1e6 * SAMPLES_PER_LINE;
-    // std::cout
-    //     << str(
-    //             boost::format("Actually got rate: %.2f Msps (%.2f MByte/s).")
-    //             % actual_rate_mega % (actual_rate_mega * BYTES_PER_SAMPLE)
-    //        )
-    //     << std::endl;
+    else if (proc_block_ctrl3 and proc_block_ctrl2) {
+        streamer_args["block_id"] = blockid3;
+        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
+    } else if (proc_block_ctrl2) {
+        streamer_args["block_id"] = blockid2;
+        spp = blk_ctrl->get_args().cast<size_t>("spp", spp);
+    } else {
+        streamer_args["block_id"] = radio_ctrl_id.to_string();
+        streamer_args["block_port"] = str(boost::format("%d") % radio_chan);
+    }
 
     wavegen_ctrl->set_rate(rate);
 
@@ -471,11 +564,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
                 wavegen_ctrl->get_block_id(),
                 proc_block_ctrl->get_block_id()
         );
+        rx_graph->connect( // Yes, it's that easy!
+                proc_block_ctrl->get_block_id(),uhd::rfnoc::ANY_PORT, radio_ctrl_id,radio_chan
+        );
     }
-    if (proc_block_ctrl2 and proc_block_ctrl) {
+    else {
+        rx_graph->connect( // Yes, it's that easy!
+                wavegen_ctrl->get_block_id(),uhd::rfnoc::ANY_PORT,
+                radio_ctrl_id,radio_chan
+        );
+    }
+    if (proc_block_ctrl2) {
         rx_graph->connect(
-            proc_block_ctrl->get_block_id(),
-            proc_block_ctrl2->get_block_id()
+            radio_ctrl_id, radio_chan, proc_block_ctrl2->get_block_id(),uhd::rfnoc::ANY_PORT
         );
     }
     if (proc_block_ctrl3 and proc_block_ctrl2) {
@@ -484,12 +585,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
             proc_block_ctrl3->get_block_id()
         );
     }
+    if (proc_block_ctrl4 and proc_block_ctrl3 and proc_block_ctrl2) {
+        rx_graph->connect(
+            proc_block_ctrl3->get_block_id(),
+            proc_block_ctrl4->get_block_id()
+        );
+    }
 
     /////////////////////////////////////////////////////////////////////////
     //////// 6. Spawn receiver //////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////
+    UHD_MSG(status) << "Samples per packet: " << spp << std::endl;
     uhd::stream_args_t stream_args(format, "sc16");
-    stream_args.args = stream_args_args;
+    stream_args.args = streamer_args;
     stream_args.args["spp"] = boost::lexical_cast<std::string>(spp);
     UHD_MSG(status) << "Using streamer args: " << stream_args.args.to_string() << std::endl;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
