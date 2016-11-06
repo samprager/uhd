@@ -44,6 +44,14 @@ public:
     static const boost::uint32_t SR_TIME_LO = 129;
     static const boost::uint32_t SR_TIME_CTRL = 130;
 
+    /*Timekeeper Commands */
+    static const boost::uint32_t  CTRL_LATCH_TIME_NOW = (1 << 0);
+    static const boost::uint32_t  CTRL_LATCH_TIME_PPS = (1 << 1);
+    static const boost::uint32_t  CTRL_LATCH_TIME_SYNC = (1 << 2);
+
+    /* Test Register */
+    static const boost::uint32_t SR_TEST = 133;
+
     /* Wavegen */
     static const boost::uint32_t SR_CH_COUNTER_ADDR = 200;
     static const boost::uint32_t SR_CH_TUNING_COEF_ADDR = 201;
@@ -62,9 +70,10 @@ public:
     static const boost::uint32_t SR_AWG_RELOAD = 212;
     static const boost::uint32_t SR_AWG_RELOAD_LAST = 213;
 
-
     /* Timekeeper readback registers */
     static const boost::uint32_t RB_VITA_TIME              = 0;
+    static const boost::uint32_t RB_VITA_LASTPPS         = 1;
+    static const boost::uint32_t RB_TEST                 = 2;
 
     /* Control readback registers */
     static const boost::uint32_t RB_AWG_LEN              = 5;
@@ -79,7 +88,11 @@ public:
     static const boost::uint32_t CTRL_WORD_SEL_AWG = 0x00000310;
 
     static const boost::uint32_t RADAR_POLICY_AUTO = 0;
-    static const boost::uint32_t RADAR_POLICY_MANUAL = 1;
+    static const boost::uint32_t RADAR_POLICY_MANUAL = (1 << 0);
+    static const boost::uint32_t RADAR_POLICY_USE_TIME = 0;
+    static const boost::uint32_t RADAR_POLICY_FWD_TIME = (1 << 1);
+    static const boost::uint32_t RADAR_POLICY_NO_CMD = 0;
+    static const boost::uint32_t RADAR_POLICY_FWD_CMD = (1 << 2);
 
     /*Waveform Data Upload Header Command Identifier */
     static const boost::uint16_t WAVEFORM_WRITE_CMD = 0x5744;
@@ -93,6 +106,25 @@ public:
         wfrm_header.id = rdev();
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
+        _tick_rate = 200e6;
+        set_time_now(0.0);
+    }
+    void register_loopback_self_test()
+    {
+        UHD_MSG(status) << "[RFNoC Wavegen] Performing register loopback test... " << std::flush;
+        size_t hash = size_t(time(NULL));
+        for (size_t i = 0; i < 100; i++)
+        {
+            boost::hash_combine(hash, i);
+            sr_write(SR_TEST, boost::uint32_t(hash));
+            boost::uint32_t result = user_reg_read32(RB_TEST);
+            if (result != boost::uint32_t(hash)) {
+                UHD_MSG(status) << "fail" << std::endl;
+                UHD_MSG(status) << boost::format("expected: %x result: %x") % boost::uint32_t(hash) % result << std::endl;
+                return; // exit on any failure
+            }
+        }
+        UHD_MSG(status) << "pass" << std::endl;
     }
 
     void set_waveform(const std::vector<boost::uint32_t> &samples)
@@ -243,13 +275,46 @@ public:
     void set_policy_manual()
     {
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_manual()" << std::endl;
-        sr_write(SR_RADAR_CTRL_POLICY, RADAR_POLICY_MANUAL);
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFE) + RADAR_POLICY_MANUAL;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
     }
     void set_policy_auto()
     {
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_auto()" << std::endl;
-        sr_write(SR_RADAR_CTRL_POLICY, RADAR_POLICY_AUTO);
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFE) + RADAR_POLICY_AUTO;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
     }
+    void set_policy_use_time()
+    {
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_use_time()" << std::endl;
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFD) + RADAR_POLICY_USE_TIME;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
+    }
+    void set_policy_fwd_time()
+    {
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_fwd_time()" << std::endl;
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFD) + RADAR_POLICY_FWD_TIME;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
+    }
+    void set_policy_no_cmd()
+    {
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_no_cmd()" << std::endl;
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFB) + RADAR_POLICY_NO_CMD;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
+    }
+    void set_policy_fwd_cmd()
+    {
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_policy_fwd_cmd()" << std::endl;
+        boost::uint32_t curr_policy = get_policy_word();
+        curr_policy =  (curr_policy & 0xFFFFFFFB) + RADAR_POLICY_FWD_CMD;
+        sr_write(SR_RADAR_CTRL_POLICY, curr_policy);
+    }
+
     void set_num_adc_samples(boost::uint32_t n)
     {
         boost::uint32_t sample_count = n-1;
@@ -305,6 +370,28 @@ public:
     {
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::clear_commands()" << std::endl;
         sr_write(SR_RADAR_CTRL_CLEAR_CMDS, 1);
+    }
+
+    void set_time_now(const uhd::time_spec_t &time){
+        const boost::uint64_t ticks = time.to_ticks(_tick_rate);
+        sr_write(SR_TIME_HI, boost::uint32_t(ticks >> 32));
+        sr_write(SR_TIME_LO, boost::uint32_t(ticks >> 0));
+        sr_write(SR_TIME_CTRL, CTRL_LATCH_TIME_NOW);
+    }
+
+    void set_time_sync(const uhd::time_spec_t &time){
+        const boost::uint64_t ticks = time.to_ticks(_tick_rate);
+        sr_write(SR_TIME_HI, boost::uint32_t(ticks >> 32));
+        sr_write(SR_TIME_LO, boost::uint32_t(ticks >> 0));
+        sr_write(SR_TIME_CTRL, CTRL_LATCH_TIME_SYNC);
+    }
+
+    void set_time_next_pps(const uhd::time_spec_t &time)
+    {
+        const boost::uint64_t ticks = time.to_ticks(_tick_rate);
+        sr_write(SR_TIME_HI, boost::uint32_t(ticks >> 32));
+        sr_write(SR_TIME_LO, boost::uint32_t(ticks >> 0));
+        sr_write(SR_TIME_CTRL, CTRL_LATCH_TIME_PPS);
     }
 
     boost::uint32_t get_ctrl_word()
@@ -420,6 +507,16 @@ public:
         UHD_MSG(status) << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
         UHD_ASSERT_THROW(vita_time);
         return vita_time;
+    }
+    uhd::time_spec_t get_time_now(void)
+    {
+        const boost::uint64_t ticks = user_reg_read64(RB_VITA_TIME);
+        return time_spec_t::from_ticks(ticks, _tick_rate);
+    }
+    uhd::time_spec_t get_time_last_pps(void)
+    {
+        const boost::uint64_t ticks = user_reg_read64(RB_VITA_LASTPPS);
+        return time_spec_t::from_ticks(ticks, _tick_rate);
     }
 
 private:

@@ -39,6 +39,7 @@ public:
     /*!
      * Your block configuration here
     */
+    virtual void register_loopback_self_test() = 0;
     virtual void set_waveform(const std::vector<boost::uint32_t> &samples) = 0;
     virtual void set_waveform(const std::vector<boost::uint32_t> &samples, int spp) = 0;
     virtual void set_rate(double rate) = 0;
@@ -50,6 +51,10 @@ public:
     virtual void set_policy(boost::uint32_t policy) = 0;
     virtual void set_policy_manual() = 0;
     virtual void set_policy_auto() = 0;
+    virtual void set_policy_use_time() = 0;
+    virtual void set_policy_fwd_time() = 0;
+    virtual void set_policy_no_cmd() = 0;
+    virtual void set_policy_fwd_cmd() = 0;
     virtual void set_num_adc_samples(boost::uint32_t n) = 0;
     virtual void set_rx_len(boost::uint32_t rx_len) = 0;
     virtual void set_prf_count(boost::uint64_t prf_count) = 0;
@@ -58,6 +63,9 @@ public:
     virtual void set_chirp_freq_offset(boost::uint32_t freq_offset) = 0;
     virtual void setup_chirp(boost::uint32_t len, boost::uint32_t tuning_coef, boost::uint32_t freq_offset) = 0;
     virtual void clear_commands() = 0;
+    virtual void set_time_now(const uhd::time_spec_t &time) = 0;
+    virtual void set_time_sync(const uhd::time_spec_t &time) = 0;
+    virtual void set_time_next_pps(const uhd::time_spec_t &time) = 0;
 
     virtual std::string get_src() = 0;
     virtual std::string get_policy() = 0;
@@ -71,6 +79,8 @@ public:
     virtual boost::uint64_t get_state() = 0;
     virtual boost::uint64_t get_vita_time() = 0;
     virtual double get_rate() = 0;
+    virtual uhd::time_spec_t get_time_now(void) = 0;
+    virtual uhd::time_spec_t get_time_last_pps(void) = 0;
 
 
 }; /* class wavegen_block_ctrl*/
