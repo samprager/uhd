@@ -2,5 +2,4 @@ debian
 *~
 *swp
 *.pyc
-build/*
-*/build/*
+/build

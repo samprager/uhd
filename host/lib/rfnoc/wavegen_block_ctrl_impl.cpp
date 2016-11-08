@@ -69,6 +69,7 @@ public:
     static const boost::uint32_t SR_RADAR_CTRL_CLEAR_CMDS = 211;
     static const boost::uint32_t SR_AWG_RELOAD = 212;
     static const boost::uint32_t SR_AWG_RELOAD_LAST = 213;
+    static const boost::uint32_t SR_RADAR_CTRL_MAXLEN = 214;
 
     /* Timekeeper readback registers */
     static const boost::uint32_t RB_VITA_TIME              = 0;
@@ -87,6 +88,11 @@ public:
     static const boost::uint32_t CTRL_WORD_SEL_CHIRP = 0x00000010;
     static const boost::uint32_t CTRL_WORD_SEL_AWG = 0x00000310;
 
+    /* SR_RADAR_CTRL_POLICY register key */
+    // POLICY[0] : auto(0) or manual(1).
+    // POLICY[1] : use cmd time(0) or forward cmd time(1)
+    // POLICY[2] : do not send rx cmd (0) or send rx cmd1)
+
     static const boost::uint32_t RADAR_POLICY_AUTO = 0;
     static const boost::uint32_t RADAR_POLICY_MANUAL = (1 << 0);
     static const boost::uint32_t RADAR_POLICY_USE_TIME = 0;
@@ -96,6 +102,8 @@ public:
 
     /*Waveform Data Upload Header Command Identifier */
     static const boost::uint16_t WAVEFORM_WRITE_CMD = 0x5744;
+
+    static const boost::uint32_t DEFAULT_SPP = 64;
 
     UHD_RFNOC_BLOCK_CONSTRUCTOR(wavegen_block_ctrl),
         _item_type("sc16") // We only support sc16 in this block
@@ -107,6 +115,7 @@ public:
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
         _tick_rate = 200e6;
+        _spp = DEFAULT_SPP;
         set_time_now(0.0);
     }
     void register_loopback_self_test()
@@ -345,6 +354,13 @@ public:
         sr_write(SR_PRF_INT_ADDR, prf_count_int);
         sr_write(SR_PRF_FRAC_ADDR, prf_count_frac);
     }
+
+    void set_prf_count(boost::uint32_t prf_count_int, boost::uint32_t prf_count_frac)
+    {
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_prf_count()" << std::endl;
+        sr_write(SR_PRF_INT_ADDR, prf_count_int);
+        sr_write(SR_PRF_FRAC_ADDR, prf_count_frac);
+    }
     void set_chirp_counter(boost::uint32_t chirp_count)
     {
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_chirp_counter()" << std::endl;
@@ -392,6 +408,11 @@ public:
         sr_write(SR_TIME_HI, boost::uint32_t(ticks >> 32));
         sr_write(SR_TIME_LO, boost::uint32_t(ticks >> 0));
         sr_write(SR_TIME_CTRL, CTRL_LATCH_TIME_PPS);
+    }
+    void set_spp(int spp)
+    {
+        sr_write(SR_RADAR_CTRL_MAXLEN, boost::uint32_t(spp));
+        _spp = spp;
     }
 
     boost::uint32_t get_ctrl_word()
@@ -519,9 +540,15 @@ public:
         return time_spec_t::from_ticks(ticks, _tick_rate);
     }
 
+    int get_spp()
+    {
+        return _spp;
+    }
+
 private:
     const std::string _item_type;
     double _tick_rate;
+    int _spp;
     struct waveform_header {
         boost::uint16_t len;
         boost::uint16_t ind;

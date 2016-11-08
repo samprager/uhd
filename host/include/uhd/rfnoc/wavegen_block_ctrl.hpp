@@ -58,6 +58,7 @@ public:
     virtual void set_num_adc_samples(boost::uint32_t n) = 0;
     virtual void set_rx_len(boost::uint32_t rx_len) = 0;
     virtual void set_prf_count(boost::uint64_t prf_count) = 0;
+    virtual void set_prf_count(boost::uint32_t prf_count_int, boost::uint32_t prf_count_frac) = 0;
     virtual void set_chirp_counter(boost::uint32_t chirp_counter) = 0;
     virtual void set_chirp_tuning_coef(boost::uint32_t tuning_coef) = 0;
     virtual void set_chirp_freq_offset(boost::uint32_t freq_offset) = 0;
@@ -66,6 +67,7 @@ public:
     virtual void set_time_now(const uhd::time_spec_t &time) = 0;
     virtual void set_time_sync(const uhd::time_spec_t &time) = 0;
     virtual void set_time_next_pps(const uhd::time_spec_t &time) = 0;
+    virtual void set_spp(int spp) = 0;
 
     virtual std::string get_src() = 0;
     virtual std::string get_policy() = 0;
@@ -81,6 +83,7 @@ public:
     virtual double get_rate() = 0;
     virtual uhd::time_spec_t get_time_now(void) = 0;
     virtual uhd::time_spec_t get_time_last_pps(void) = 0;
+    virtual int get_spp() = 0;
 
 
 }; /* class wavegen_block_ctrl*/
