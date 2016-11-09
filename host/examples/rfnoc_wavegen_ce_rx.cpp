@@ -506,6 +506,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
 
     wavegen_ctrl->set_rate(rate);
+    wavegen_ctrl->set_spp(spp);
 
     std::cout << "Setting AWG Policy to Manual for Setup..."<<std::endl;
     wavegen_ctrl->set_policy_manual();

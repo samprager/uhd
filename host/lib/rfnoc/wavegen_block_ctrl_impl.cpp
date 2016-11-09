@@ -417,17 +417,17 @@ public:
 
     boost::uint32_t get_ctrl_word()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_ctrl_word()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_ctrl_word()" << std::endl;
         boost::uint32_t ctrl_word = boost::uint32_t(user_reg_read64(RB_AWG_CTRL));
-        UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
         UHD_ASSERT_THROW(ctrl_word);
         return ctrl_word;
     }
     std::string get_src()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_src()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_src()" << std::endl;
         boost::uint32_t ctrl_word = boost::uint32_t(user_reg_read64(RB_AWG_CTRL));
-        UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
         UHD_ASSERT_THROW(ctrl_word);
         std::string src_str;
         boost::uint32_t mask = 0x00000003;
@@ -445,18 +445,18 @@ public:
     }
     boost::uint32_t get_policy_word()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy_word()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy_word()" << std::endl;
         boost::uint32_t policy = boost::uint32_t(user_reg_read64(RB_AWG_POLICY));
-        UHD_MSG(status) << "wavegen_block::get_policy_word() policy ==" << policy << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_policy_word() policy ==" << policy << std::endl;
         //UHD_ASSERT_THROW(policy);
         UHD_ASSERT_THROW(1);
         return policy;
     }
     std::string get_policy()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy()" << std::endl;
         boost::uint32_t policy = boost::uint32_t(user_reg_read64(RB_AWG_POLICY));
-        UHD_MSG(status) << "wavegen_block::get_policy() policy ==" << policy << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_policy() policy ==" << policy << std::endl;
         //UHD_ASSERT_THROW(policy);
         std::string policy_str;
         if (policy == RADAR_POLICY_AUTO) {
@@ -475,45 +475,45 @@ public:
 
     boost::uint32_t get_num_adc_samples()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_num_adc_samples()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_num_adc_samples()" << std::endl;
         boost::uint32_t samples = boost::uint32_t(user_reg_read64(RB_ADC_LEN));
-        UHD_MSG(status) << "wavegen_block::get_num_adc_samples() samples ==" << samples << std::endl;
+    //    UHD_MSG(status) << "wavegen_block::get_num_adc_samples() samples ==" << samples << std::endl;
         UHD_ASSERT_THROW(samples);
         return samples;
     }
     boost::uint32_t get_rx_len()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_rx_len()" << std::endl;
+    //    UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_rx_len()" << std::endl;
         boost::uint32_t adc_samples = get_num_adc_samples();
         boost::uint32_t wfrm_len = get_waveform_len();
         boost::uint32_t rx_len = adc_samples+wfrm_len;
-        UHD_MSG(status) << "wavegen_block::get_rx_len() rx_len ==" << rx_len << std::endl;
+    //    UHD_MSG(status) << "wavegen_block::get_rx_len() rx_len ==" << rx_len << std::endl;
         UHD_ASSERT_THROW(rx_len);
         return rx_len;
     }
 
     boost::uint32_t get_waveform_len()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_waveform_len()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_waveform_len()" << std::endl;
         boost::uint32_t len = boost::uint32_t(user_reg_read64(RB_AWG_LEN));
-        UHD_MSG(status) << "wavegen_block::get_waveform_len() len ==" << len << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_waveform_len() len ==" << len << std::endl;
         UHD_ASSERT_THROW(len);
         return len;
     }
 
     boost::uint64_t get_prf_count()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_prf_count()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_prf_count()" << std::endl;
         boost::uint64_t prf_count = boost::uint64_t(user_reg_read64(RB_AWG_PRF));
-        UHD_MSG(status) << "wavegen_block::get_prf_count() prf_count ==" << prf_count << std::endl;
+      //  UHD_MSG(status) << "wavegen_block::get_prf_count() prf_count ==" << prf_count << std::endl;
         UHD_ASSERT_THROW(prf_count);
         return prf_count;
     }
     boost::uint64_t get_state()
     {
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_state()" << std::endl;
+    //    UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_state()" << std::endl;
         boost::uint64_t awg_state = boost::uint64_t(user_reg_read64(RB_AWG_STATE));
-        UHD_MSG(status) << "wavegen_block::get_state() awg_state ==" << awg_state << std::endl;
+    //    UHD_MSG(status) << "wavegen_block::get_state() awg_state ==" << awg_state << std::endl;
         UHD_ASSERT_THROW(awg_state);
         return awg_state;
     }
@@ -523,9 +523,9 @@ public:
     }
 
     boost::uint64_t get_vita_time(){
-        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_vita_time()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_vita_time()" << std::endl;
         boost::uint64_t vita_time = boost::uint64_t(user_reg_read64(RB_VITA_TIME));
-        UHD_MSG(status) << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
+    //    UHD_MSG(status) << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
         UHD_ASSERT_THROW(vita_time);
         return vita_time;
     }
