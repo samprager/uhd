@@ -488,7 +488,7 @@ public:
         boost::uint32_t wfrm_len = get_waveform_len();
         boost::uint32_t rx_len = adc_samples+wfrm_len;
     //    UHD_MSG(status) << "wavegen_block::get_rx_len() rx_len ==" << rx_len << std::endl;
-        UHD_ASSERT_THROW(rx_len);
+     //   UHD_ASSERT_THROW(rx_len);
         return rx_len;
     }
 
@@ -497,7 +497,7 @@ public:
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_waveform_len()" << std::endl;
         boost::uint32_t len = boost::uint32_t(user_reg_read64(RB_AWG_LEN));
       //  UHD_MSG(status) << "wavegen_block::get_waveform_len() len ==" << len << std::endl;
-        UHD_ASSERT_THROW(len);
+       // UHD_ASSERT_THROW(len);
         return len;
     }
 

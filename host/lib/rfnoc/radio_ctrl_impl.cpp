@@ -365,3 +365,47 @@ time_spec_t radio_ctrl_impl::get_time_last_pps()
 {
     return _time64->get_time_last_pps();
 }
+
+// Custom functions implemented to access Loopback and FP GPIO FPGA Radio Core registers
+void radio_ctrl_impl::my_set_loopback_reg(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_loopback_reg() " << chan << " " << value << std::endl;
+    sr_write(regs::LOOPBACK, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_idle(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_idle() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_rx(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_rx() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO+1, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_tx(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_tx() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO+2, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_fdx(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_fdx() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO+3, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_ddr(boost::uint32_t value, const size_t chan)
+{
+    //GPIO direction (0=input, 1=output)
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_ddr() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO+4, value, chan);
+}
+void radio_ctrl_impl::my_set_fp_gpio_reg_atr_disable(boost::uint32_t value, const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_fp_gpio_reg_atr_disable() " << chan << " " << value << std::endl;
+    sr_write(regs::FP_GPIO+5, value, chan);
+}
+boost::uint32_t radio_ctrl_impl::my_get_fp_gpio_readback(const size_t chan)
+{
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_get_fp_gpio_readback() " << chan << std::endl;
+    boost::uint32_t result = user_reg_read32(regs::RB_FP_GPIO, chan);
+    return result;
+}

@@ -198,6 +198,17 @@ public:
      */
     virtual std::string get_dboard_fe_from_chan(const size_t chan, const uhd::direction_t dir) = 0;
 
+
+    // Custom functions implemented to access Loopback and FP GPIO FPGA Radio Core registers
+    virtual void my_set_loopback_reg(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_idle(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_rx(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_tx(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_fdx(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_ddr(boost::uint32_t value, const size_t chan) = 0;
+    virtual void my_set_fp_gpio_reg_atr_disable(boost::uint32_t value, const size_t chan) = 0;
+    virtual boost::uint32_t my_get_fp_gpio_readback(const size_t chan) = 0;
+
 }; /* class radio_ctrl */
 
 }} /* namespace uhd::rfnoc */
