@@ -20,7 +20,7 @@ A=fread(fileID,bitformat);
 fclose(fileID);
 numbytes = (packetsize-headersize)/bytesperword;
 
-dataI = A(1:2:end);
-dataQ = A(2:2:end);
+dataI = A(1:2:end)';
+dataQ = A(2:2:end)';
 
 end
