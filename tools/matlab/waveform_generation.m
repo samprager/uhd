@@ -1,22 +1,22 @@
 rng(1);
 chirp_type = 'lin';
-win_types = {'_blk','_hann','_ham','_bhar',''};
+win_types = {'_blk','_hann','_ham','_bhar','_tky','_cheb','_bhann',''};
 
 fs = 200e6;
 n = 4096-512;
-f0 = 10e6; f1 = 90e6; f_ricker =50e6;
+f0 = 1e6; f1 = 80e6; f_ricker =50e6;
 t = linspace(0,n/fs,n);
 ti  = linspace(-n/(1*fs),n/(1*fs),n);
 f = 10;
 
 I_quad =chirp(t,f0,t(end),f1,'q',[],'convex');
-Q_quad =chirp(t,f0,t(end),f1,'q',90,'convex');
+Q_quad =chirp(t,f0,t(end),f1,'q',-90,'convex');
 
 I_log =chirp(t,f0,t(end),f1,'logarithmic');
-Q_log =chirp(t,f0,t(end),f1,'logarithmic',90);
+Q_log =chirp(t,f0,t(end),f1,'logarithmic',-90);
 
 I_lin =chirp(t,f0,t(end),f1,'linear');
-Q_lin =chirp(t,f0,t(end),f1,'linear',90);
+Q_lin =chirp(t,f0,t(end),f1,'linear',-90);
 
 % data_gaus = gauspuls(ti,50E6,.8);
 % data_gaus = (data_gaus)/(max(abs(data_gaus)));
@@ -31,7 +31,7 @@ I_gaus = I_gaus/scale_gaus; Q_gaus = Q_gaus/scale_gaus;
 data_rick = rickerWavelet(t,f_ricker,t(end/2));
 data_rick = data_rick/(max(abs(data_rick)));
 IQ_rick = hilbert(data_rick);
-I_rick = real(IQ_rick); Q_rick = -1*imag(IQ_rick);
+I_rick = real(IQ_rick); Q_rick = imag(IQ_rick);
 
 I_prn = 2*round(rand(1,n))-1;
 Q_prn = 2*round(rand(1,n))-1;
@@ -63,6 +63,7 @@ IQ_prnb = filter(b,1,IQ_prn);
 I_prnb = real(IQ_prnb); Q_prnb = -1*imag(IQ_prnb);
 
 %IQ_fpfb = filter(b,1,data_fpf);
+IQ_fpf = real(data_fpf)-1i*imag(data_fpf);
 IQ_fpfb = filter(b,1,IQ_fpf);
 I_fpfb = real(IQ_fpfb); Q_fpfb = -1*imag(IQ_fpfb);
 
@@ -90,8 +91,8 @@ waveform2file(I_gaus,Q_gaus,fname);
 fname = '/Users/sam/outputs/waveform_data_rick.bin';
 waveform2file(I_rick,Q_rick,fname);
 
-fname = '/Users/sam/outputs/waveform_data_prn.bin';
-waveform2file(I_prn,Q_prn,fname);
+% fname = '/Users/sam/outputs/waveform_data_prn.bin';
+% waveform2file(I_prn,Q_prn,fname);
 fname = '/Users/sam/outputs/waveform_data_prnb.bin';
 waveform2file(I_prnb,Q_prnb,fname);
 
@@ -133,6 +134,12 @@ for types = win_types
             win = getHamming(n)';
         case '_hann'
             win = getHann(n)';
+        case '_tky'
+            win = tukeywin(n)';
+        case '_cheb'
+            win = chebwin(n)';
+        case '_bhann'
+            win = barthannwin(n)';   
         otherwise
             win = 1;
     end
@@ -149,6 +156,8 @@ for types = win_types
     waveform2file(real(data_zchu).*win,imag(data_zchu).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_p%s.bin',win_type);
     waveform2file(real(data_p).*win,imag(data_p).*win,fname);
+    fname = sprintf('/Users/sam/outputs/waveform_data_prn%s.bin',win_type);
+    waveform2file(I_prn.*win,Q_prn.*win,fname);
 end
 
 %%

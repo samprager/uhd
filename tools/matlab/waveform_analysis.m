@@ -158,4 +158,19 @@ figure(h2); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid o
 figure(h1); legend('p1','p1 win','fpf','fpf win');
 figure(h2); legend('p1 filt','p1 win','fpf filt','fpf win');
 
+%%
+[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
 
+
+filtiq = I - 1i*Q;
+dataiq = I2 - 1i*Q2; 
+
+b = fir1(64, 0.75);
+datafilt = filter(b,1,dataiq);
+
+[acor,lag] = xcorr(dataiq,filtiq);
+x1 = floor(numel(lag)/2)-50; x2 = floor(numel(lag)/2)+50;
+figure; hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
+xlabel('sample delay'); ylabel('Detection Strength [dB]');
+title('Autocorrelation: Linear Chirp Side-lobes');hold off; axis tight; grid on;
