@@ -104,6 +104,7 @@ static const uint32_t X310_2942R_120MHz_PCIE_SSID_ADC_18 = 0x785C;
 static const uint32_t X310_2943R_40MHz_PCIE_SSID_ADC_18  = 0x7855;
 static const uint32_t X310_2943R_120MHz_PCIE_SSID_ADC_18 = 0x785D;
 static const uint32_t X310_2944R_40MHz_PCIE_SSID_ADC_18  = 0x7856;
+static const uint32_t X310_2945R_PCIE_SSID_ADC_18        = 0x78EF;
 static const uint32_t X310_2950R_40MHz_PCIE_SSID_ADC_18  = 0x7857;
 static const uint32_t X310_2950R_120MHz_PCIE_SSID_ADC_18 = 0x785E;
 static const uint32_t X310_2952R_40MHz_PCIE_SSID_ADC_18  = 0x7858;
@@ -111,6 +112,7 @@ static const uint32_t X310_2952R_120MHz_PCIE_SSID_ADC_18 = 0x785F;
 static const uint32_t X310_2953R_40MHz_PCIE_SSID_ADC_18  = 0x7859;
 static const uint32_t X310_2953R_120MHz_PCIE_SSID_ADC_18 = 0x7860;
 static const uint32_t X310_2954R_40MHz_PCIE_SSID_ADC_18  = 0x785A;
+static const uint32_t X310_2955R_PCIE_SSID_ADC_18        = 0x78F0;
 
 static const uint32_t FPGA_X3xx_SIG_VALUE   = 0x58333030;
 
@@ -182,9 +184,9 @@ namespace uhd { namespace usrp { namespace x300 {
             UHD_DEFINE_SOFT_REG_FIELD(GPSDO_PWR_EN, /*width*/ 1, /*shift*/ 6);  //[6]
             UHD_DEFINE_SOFT_REG_FIELD(TIME_SYNC,    /*width*/ 1, /*shift*/ 7);  //[7]
 
-            static const boost::uint32_t SRC_EXTERNAL = 0x0;
-            static const boost::uint32_t SRC_INTERNAL = 0x2;
-            static const boost::uint32_t SRC_GPSDO    = 0x3;
+            static const uint32_t SRC_EXTERNAL = 0x0;
+            static const uint32_t SRC_INTERNAL = 0x2;
+            static const uint32_t SRC_GPSDO    = 0x3;
 
             clk_ctrl_reg_t(): uhd::soft_reg32_wo_t(SR_ADDR(SET0_BASE, ZPU_SR_CLOCK_CTRL)) {
                 //Initial values

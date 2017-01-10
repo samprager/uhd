@@ -1,5 +1,5 @@
 //
-// Copyright 2013-2015 Ettus Research LLC
+// Copyright 2013-2016 Ettus Research LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -54,16 +54,21 @@ static const size_t X300_RX_SW_BUFF_SIZE_ETH_MACOS  = 0x100000; //1Mib
 //where an element is 8 bytes. For best throughput ensure that the data frame fits in these buffers.
 //Also ensure that the kernel has enough frames to hold buffered TX and RX data
 static const size_t X300_PCIE_RX_DATA_FRAME_SIZE    = 8184;     //bytes
-static const size_t X300_PCIE_TX_DATA_FRAME_SIZE    = 8192;     //bytes
+//static const size_t X300_PCIE_TX_DATA_FRAME_SIZE    = 8192;     //bytes
+// This is a temporary solution: We're throttling PCIe MTU to avoid
+// underruns on Tx. Once we solve it on the FPGA side, need revert this commit.
+static const size_t X300_PCIE_TX_DATA_FRAME_SIZE    = 3000;     //bytes
 static const size_t X300_PCIE_DATA_NUM_FRAMES       = 2048;
 static const size_t X300_PCIE_MSG_FRAME_SIZE        = 256;      //bytes
 static const size_t X300_PCIE_MSG_NUM_FRAMES        = 64;
 static const size_t X300_PCIE_MAX_CHANNELS          = 6;
 static const size_t X300_PCIE_MAX_MUXED_XPORTS      = 32;
 
-static const size_t X300_10GE_DATA_FRAME_MAX_SIZE   = 8000;     //bytes
-static const size_t X300_1GE_DATA_FRAME_MAX_SIZE    = 1472;     //bytes
+static const size_t X300_10GE_DATA_FRAME_MAX_SIZE   = 8000;     // CHDR packet size in bytes
+static const size_t X300_1GE_DATA_FRAME_MAX_SIZE    = 1472;     // CHDR packet size in bytes
 static const size_t X300_ETH_MSG_FRAME_SIZE         = uhd::transport::udp_simple::mtu;  //bytes
+// MTU throttling for ethernet/TX (see above):
+static const size_t X300_ETH_DATA_FRAME_MAX_TX_SIZE = 2000;
 
 static const double X300_THREAD_BUFFER_TIMEOUT      = 0.1;   // Time in seconds
 
@@ -72,8 +77,14 @@ static const size_t X300_ETH_DATA_NUM_FRAMES        = 32;
 static const double X300_DEFAULT_SYSREF_RATE        = 10e6;
 
 static const size_t X300_MAX_RATE_PCIE              = 800000000; // bytes/s
-static const size_t X300_MAX_RATE_10GIGE            = 800000000; // bytes/s
-static const size_t X300_MAX_RATE_1GIGE             = 100000000; // bytes/s
+static const size_t X300_MAX_RATE_10GIGE            = (size_t)(  // bytes/s
+        10e9 / 8 *                                               // wire speed multiplied by percentage of packets that is sample data
+        ( float(X300_10GE_DATA_FRAME_MAX_SIZE - uhd::usrp::DEVICE3_TX_MAX_HDR_LEN) /
+          float(X300_10GE_DATA_FRAME_MAX_SIZE + 8 /* UDP header */ + 20 /* Ethernet header length */ )));
+static const size_t X300_MAX_RATE_1GIGE            = (size_t)(  // bytes/s
+        10e9 / 8 *                                               // wire speed multiplied by percentage of packets that is sample data
+        ( float(X300_1GE_DATA_FRAME_MAX_SIZE - uhd::usrp::DEVICE3_TX_MAX_HDR_LEN) /
+          float(X300_1GE_DATA_FRAME_MAX_SIZE + 8 /* UDP header */ + 20 /* Ethernet header length */ )));
 
 #define X300_RADIO_DEST_PREFIX_TX 0
 
@@ -182,6 +193,19 @@ private:
         std::string current_refclk_src;
 
         std::vector<uhd::rfnoc::x300_radio_ctrl_impl::sptr> radios;
+
+        // PCIe specific components:
+
+        //! Maps SID -> DMA channel
+        std::map<uint32_t, uint32_t> _dma_chan_pool;
+        //! Control transport for one PCIe connection
+        uhd::transport::muxed_zero_copy_if::sptr ctrl_dma_xport;
+
+        /*! Allocate or return a previously allocated PCIe channel pair
+         *
+         * Note the SID is always the transmit SID (i.e. from host to device).
+         */
+        uint32_t allocate_pcie_dma_chan(const uhd::sid_t &tx_sid, const xport_type_t xport_type);
     };
     std::vector<mboard_members_t> _mb;
 
@@ -214,15 +238,6 @@ private:
      * switches etc. into account which might live between the device and the host.
      */
     frame_size_t determine_max_frame_size(const std::string &addr, const frame_size_t &user_mtu);
-
-    std::map<uint32_t, uint32_t> _dma_chan_pool;
-    uhd::transport::muxed_zero_copy_if::sptr _ctrl_dma_xport;
-
-    /*! Allocate or return a previously allocated PCIe channel pair
-     *
-     * Note the SID is always the transmit SID (i.e. from host to device).
-     */
-    uint32_t allocate_pcie_dma_chan(const uhd::sid_t &tx_sid, const xport_type_t xport_type);
 
     ////////////////////////////////////////////////////////////////////
     //
@@ -257,10 +272,9 @@ private:
     void sync_times(mboard_members_t&, const uhd::time_spec_t&);
 
     uhd::sensor_value_t get_ref_locked(mboard_members_t& mb);
-    bool wait_for_clk_locked(mboard_members_t& mb, boost::uint32_t which, double timeout);
+    bool wait_for_clk_locked(mboard_members_t& mb, uint32_t which, double timeout);
     bool is_pps_present(mboard_members_t& mb);
 
-    void set_db_eeprom(uhd::i2c_iface::sptr i2c, const size_t, const uhd::usrp::dboard_eeprom_t &);
     void set_mb_eeprom(uhd::i2c_iface::sptr i2c, const uhd::usrp::mboard_eeprom_t &);
 
     void check_fw_compat(const uhd::fs_path &mb_path, uhd::wb_iface::sptr iface);
@@ -269,9 +283,6 @@ private:
     /// More IO stuff
     uhd::device_addr_t get_tx_hints(size_t mb_index);
     uhd::device_addr_t get_rx_hints(size_t mb_index);
-    uhd::endianness_t get_transport_endianness(size_t mb_index) {
-        return _mb[mb_index].if_pkt_is_big_endian ? uhd::ENDIANNESS_BIG : uhd::ENDIANNESS_LITTLE;
-    };
 
     void post_streamer_hooks(uhd::direction_t dir);
 };

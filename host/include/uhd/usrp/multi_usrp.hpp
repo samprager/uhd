@@ -175,15 +175,22 @@ public:
 
     /*!
      * Set the master clock rate.
-     * This controls the rate of the clock that feeds the FPGA DSP.
-     * On some devices, this re-tunes the clock to the specified rate.
-     * If the specified rate is not available, this method will throw.
-     * On other devices, this method notifies the software of the rate,
-     * but requires the the user has made the necessary hardware change.
+     *
+     * What exactly this changes is device-dependent, but it will always
+     * affect the rate at which the ADC/DAC is running.
+     *
+     * Like tuning receive or transmit frequencies, this call will do a best
+     * effort to change the master clock rate. The device will coerce to the
+     * closest clock rate available, and on many devices won't actually change
+     * anything at all. Call get_master_clock_rate() to see which rate was
+     * actually applied.
+     *
+     * Note that changing this value during streaming is not recommended and
+     * can have random side effects.
      *
      * If the device has an 'auto clock rate' setting (e.g. B200, see also
-     * \ref b200_auto_mcr), this will get disabled and the clock rate will be
-     * fixed to \p rate.
+     * \ref b200_auto_mcr), calling this function will disable the automatic
+     * clock rate selection, and the clock rate will be fixed to \p rate.
      *
      * \param rate the new master clock rate in Hz
      * \param mboard the motherboard index 0 to M-1
@@ -413,7 +420,7 @@ public:
      * \param data 32-bit register value
      * \param mboard which motherboard to set the user register
      */
-    virtual void set_user_register(const boost::uint8_t addr, const boost::uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_user_register(const uint8_t addr, const uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
 
     /*******************************************************************
      * RX methods
@@ -1059,7 +1066,7 @@ public:
      * \param mask the bit mask to effect which pins are changed
      * \param mboard the motherboard index 0 to M-1
      */
-    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const boost::uint32_t value, const boost::uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
+    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const uint32_t value, const uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
 
     /*!
      * Get a GPIO attribute on a particular GPIO bank.
@@ -1077,7 +1084,7 @@ public:
      * \param mboard the motherboard index 0 to M-1
      * \return the value set for this attribute
      */
-    virtual boost::uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+    virtual uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
 
     /*******************************************************************
      * Register IO methods
@@ -1110,7 +1117,7 @@ public:
      * \param value the value to write to the register field
      * \param mboard the motherboard index 0 to M-1
      */
-    virtual void write_register(const std::string &path, const boost::uint32_t field, const boost::uint64_t value, const size_t mboard = 0) = 0;
+    virtual void write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard = 0) = 0;
 
     /*!
      * Read a low-level register field from a register in the USRP hardware
@@ -1119,7 +1126,7 @@ public:
      * \param mboard the motherboard index 0 to M-1
      * \return the value of the register field
      */
-    virtual boost::uint64_t read_register(const std::string &path, const boost::uint32_t field, const size_t mboard = 0) = 0;
+    virtual uint64_t read_register(const std::string &path, const uint32_t field, const size_t mboard = 0) = 0;
 
     /*******************************************************************
      * Filter API methods

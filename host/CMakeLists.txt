@@ -80,6 +80,26 @@ ELSEIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     ENDIF()
 ENDIF()
 
+
+IF(CMAKE_VERSION VERSION_LESS "3.1")
+    IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+        SET(CMAKE_CXX_FLAGS "--std=gnu++11 ${CMAKE_CXX_FLAGS}")
+    ELSEIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+        IF("${IS_APPLE}" STREQUAL "")
+            SET(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        ELSE()
+            SET(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ ${CMAKE_CXX_FLAGS}")
+        ENDIF()
+    ENDIF()
+ELSE()
+    SET(CMAKE_CXX_STANDARD 11)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    SET(CMAKE_EXE_LINKER_FLAGS "-lthr ${CMAKE_EXE_LINKER_FLAGS}")
+    SET(CMAKE_CXX_FLAGS "-stdlib=libc++ ${CMAKE_CXX_FLAGS}")
+ENDIF()
+
 ########################################################################
 # Packaging Variables
 ########################################################################
@@ -174,7 +194,7 @@ INCLUDE(CheckCXXCompilerFlag)
 MACRO(UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG flag have)
     CHECK_CXX_COMPILER_FLAG(${flag} ${have})
     IF(${have})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
     ENDIF(${have})
 ENDMACRO(UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG)
 
@@ -192,7 +212,7 @@ IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR
     ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     IF(STRIP_BINARIES)
         IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s")
+            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s")
         ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     ENDIF(STRIP_BINARIES)
     ADD_DEFINITIONS(-Wall)
@@ -300,9 +320,15 @@ PYTHON_CHECK_MODULE(
 )
 
 PYTHON_CHECK_MODULE(
-    "Mako templates 0.4 or greater"
+    "Mako templates 0.4.2 or greater"
     "mako" "mako.__version__ >= '0.4.2'"
     HAVE_PYTHON_MODULE_MAKO
+)
+
+PYTHON_CHECK_MODULE(
+    "requests 2.0 or greater"
+    "requests" "requests.__version__ >= '2.0'"
+    HAVE_PYTHON_MODULE_REQUESTS
 )
 
 ########################################################################
@@ -333,8 +359,8 @@ UHD_INSTALL(FILES
 #{{{IMG_SECTION
 # This section is written automatically by /images/create_imgs_package.py
 # Any manual changes in here will be overwritten.
-SET(UHD_IMAGES_MD5SUM "4f4a6c229f5a3906dc63533d3a505feb")
-SET(UHD_IMAGES_DOWNLOAD_SRC "uhd-images_003.010.000.000-36-g967897e0.zip")
+SET(UHD_IMAGES_MD5SUM "b4bd3bd977958560d601775935b4f588")
+SET(UHD_IMAGES_DOWNLOAD_SRC "uhd-images_4.0.0.rfnoc-devel-0-83150fdd.zip")
 #}}}
 
 ########################################################################

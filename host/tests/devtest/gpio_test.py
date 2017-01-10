@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-""" Test for test_pps_input. """
+""" Test for gpio. """
 
 import re
 from uhd_test_base import uhd_example_test_case

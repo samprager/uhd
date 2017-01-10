@@ -52,6 +52,38 @@ static const std::string lo_stage_str(lo_stage_t stage, bool lower = false) {
     return prefix + ((stage == STAGE_LO1) ? "1" : "2");
 }
 
+
+/*!---------------------------------------------------------
+ * twinrx_scheduling_expert
+ *
+ * This expert is responsible for scheduling time sensitive actions
+ * in other experts. It responds to changes in the command time and
+ * selectively causes experts to run in order to ensure a synchronized
+ * system.
+ *
+ * ---------------------------------------------------------
+ */
+class twinrx_scheduling_expert : public experts::worker_node_t {
+public:
+    twinrx_scheduling_expert(const experts::node_retriever_t& db, std::string ch)
+    : experts::worker_node_t(prepend_ch("twinrx_scheduling_expert", ch)),
+      _command_time     (db, prepend_ch("time/cmd", ch)),
+      _rx_frontend_time (db, prepend_ch("time/rx_frontend", ch))
+    {
+        bind_accessor(_command_time);
+        bind_accessor(_rx_frontend_time);
+    }
+
+private:
+    virtual void resolve();
+
+    //Inputs
+    experts::data_reader_t<time_spec_t>    _command_time;
+
+    //Outputs
+    experts::data_writer_t<time_spec_t>    _rx_frontend_time;
+};
+
 /*!---------------------------------------------------------
  * twinrx_freq_path_expert
  *
@@ -271,6 +303,7 @@ public:
       _if_freq_d        (db, prepend_ch("if_freq/desired", ch)),
       _lo1_inj_side     (db, prepend_ch("ch/LO1/inj_side", ch)),
       _lo2_inj_side     (db, prepend_ch("ch/LO2/inj_side", ch)),
+      _rx_frontend_time (db, prepend_ch("time/rx_frontend", ch)),
       _if_freq_c        (db, prepend_ch("if_freq/coerced", ch)),
       _db_iface         (db_iface)
     {
@@ -280,6 +313,7 @@ public:
         bind_accessor(_lo1_inj_side);
         bind_accessor(_lo2_inj_side);
         bind_accessor(_if_freq_c);
+        bind_accessor(_rx_frontend_time);
     }
 
 private:
@@ -293,9 +327,14 @@ private:
     experts::data_reader_t<double>                          _if_freq_d;
     experts::data_reader_t<lo_inj_side_t>                   _lo1_inj_side;
     experts::data_reader_t<lo_inj_side_t>                   _lo2_inj_side;
+    experts::data_reader_t<time_spec_t>                     _rx_frontend_time;
+
     //Outputs
     experts::data_writer_t<double>                          _if_freq_c;
     dboard_iface::sptr                                      _db_iface;
+
+    //Misc
+    time_spec_t  _cached_cmd_time;
 };
 
 /*!---------------------------------------------------------
@@ -397,9 +436,9 @@ private:
     experts::data_reader_t<twinrx_ctrl::preselector_path_t> _hb_presel;
     experts::data_reader_t<twinrx_ctrl::antenna_mapping_t>  _ant_mapping;
     //Outputs
-    experts::data_writer_t<boost::uint8_t>                  _input_atten;
-    experts::data_writer_t<boost::uint8_t>                  _lb_atten;
-    experts::data_writer_t<boost::uint8_t>                  _hb_atten;
+    experts::data_writer_t<uint8_t>                  _input_atten;
+    experts::data_writer_t<uint8_t>                  _lb_atten;
+    experts::data_writer_t<uint8_t>                  _hb_atten;
     experts::data_writer_t<twinrx_ctrl::preamp_state_t>     _preamp1;
     experts::data_writer_t<bool>                            _preamp2;
 };
@@ -460,21 +499,21 @@ private:
 
     //Inputs
     experts::data_reader_t<twinrx_ctrl::antenna_mapping_t>  _ant_mapping;
-    experts::data_reader_t<boost::uint8_t>                  _ch0_input_atten;
+    experts::data_reader_t<uint8_t>                  _ch0_input_atten;
     experts::data_reader_t<twinrx_ctrl::preamp_state_t>     _ch0_preamp1;
     experts::data_reader_t<bool>                            _ch0_preamp2;
     experts::data_reader_t<bool>                            _ch0_lb_preamp_presel;
-    experts::data_reader_t<boost::uint8_t>                  _ch1_input_atten;
+    experts::data_reader_t<uint8_t>                  _ch1_input_atten;
     experts::data_reader_t<twinrx_ctrl::preamp_state_t>     _ch1_preamp1;
     experts::data_reader_t<bool>                            _ch1_preamp2;
     experts::data_reader_t<bool>                            _ch1_lb_preamp_presel;
 
     //Outputs
-    experts::data_writer_t<boost::uint8_t>                  _ant0_input_atten;
+    experts::data_writer_t<uint8_t>                  _ant0_input_atten;
     experts::data_writer_t<twinrx_ctrl::preamp_state_t>     _ant0_preamp1;
     experts::data_writer_t<bool>                            _ant0_preamp2;
     experts::data_writer_t<bool>                            _ant0_lb_preamp_presel;
-    experts::data_writer_t<boost::uint8_t>                  _ant1_input_atten;
+    experts::data_writer_t<uint8_t>                  _ant1_input_atten;
     experts::data_writer_t<twinrx_ctrl::preamp_state_t>     _ant1_preamp1;
     experts::data_writer_t<bool>                            _ant1_preamp2;
     experts::data_writer_t<bool>                            _ant1_lb_preamp_presel;
@@ -584,9 +623,9 @@ private:
         experts::data_reader_t<twinrx_ctrl::signal_path_t>      signal_path;
         experts::data_reader_t<twinrx_ctrl::preselector_path_t> lb_presel;
         experts::data_reader_t<twinrx_ctrl::preselector_path_t> hb_presel;
-        experts::data_reader_t<boost::uint8_t>                  input_atten;
-        experts::data_reader_t<boost::uint8_t>                  lb_atten;
-        experts::data_reader_t<boost::uint8_t>                  hb_atten;
+        experts::data_reader_t<uint8_t>                  input_atten;
+        experts::data_reader_t<uint8_t>                  lb_atten;
+        experts::data_reader_t<uint8_t>                  hb_atten;
         experts::data_reader_t<twinrx_ctrl::lo_source_t>        lo1_source;
         experts::data_reader_t<twinrx_ctrl::lo_source_t>        lo2_source;
         experts::data_reader_t<double>                          lo1_freq_d;

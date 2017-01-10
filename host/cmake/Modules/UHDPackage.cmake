@@ -55,13 +55,12 @@ ENDIF()
 ########################################################################
 # Setup package file name
 ########################################################################
-
 IF(DEBIAN AND LIBUHD_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "libuhd${UHD_VERSION_MAJOR}_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "libuhd${UHD_VERSION_MAJOR}_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSEIF(DEBIAN AND LIBUHDDEV_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "libuhd-dev_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "libuhd-dev_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSEIF(DEBIAN AND UHDHOST_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "uhd-host_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "uhd-host_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSE()
     IF(DEBIAN OR REDHAT)
         FIND_PROGRAM(LSB_RELEASE_EXECUTABLE lsb_release)
@@ -78,7 +77,7 @@ ELSE()
             )
 
             #set a more sensible package name for this system
-            SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_${LSB_ID}-${LSB_RELEASE}-${CMAKE_SYSTEM_PROCESSOR}")
+            SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_${LSB_ID}-${LSB_RELEASE}-${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
         ENDIF(LSB_RELEASE_EXECUTABLE)
     ENDIF(DEBIAN OR REDHAT)
 ENDIF(DEBIAN AND LIBUHD_PKG)
@@ -102,9 +101,9 @@ IF(${CPACK_GENERATOR} STREQUAL NSIS)
         ELSEIF(MSVC14) # Visual Studio 2015 (14.0)
             SET(MSVC_VERSION "VS2015")
         ENDIF()
-        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}_${MSVC_VERSION}")
+        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}_${MSVC_VERSION}" CACHE INTERNAL "")
     ELSE()
-        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}")
+        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}" CACHE INTERNAL "")
     ENDIF(SPECIFY_MSVC_VERSION)
 
     SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CMAKE_PROJECT_NAME}")
@@ -124,7 +123,7 @@ SET(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 # Setup CPack Source
 ########################################################################
 
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "uhd-${TRIMMED_UHD_VERSION}")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "uhd-${UHD_VERSION}" CACHE INTERNAL "")
 SET(CPACK_SOURCE_IGNORE_FILES "\\\\.git*;\\\\.swp$")
 
 ########################################################################
@@ -167,7 +166,7 @@ SET(CPACK_COMPONENTS_ALL libraries headers utilities examples manual doxygen rea
 ########################################################################
 # Setup CPack Debian
 ########################################################################
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libboost-all-dev")
+SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libboost-all-dev, python-requests")
 SET(CPACK_DEBIAN_PACKAGE_RECOMMENDS "python, python-tk")
 FOREACH(filename preinst postinst prerm postrm)
     LIST(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_BINARY_DIR}/debian/${filename})
@@ -185,7 +184,7 @@ CONFIGURE_FILE(
 ########################################################################
 # Setup CPack RPM
 ########################################################################
-SET(CPACK_RPM_PACKAGE_REQUIRES "boost-devel")
+SET(CPACK_RPM_PACKAGE_REQUIRES "boost-devel, python-requests")
 
 FOREACH(filename post_install post_uninstall pre_install pre_uninstall)
     STRING(TOUPPER ${filename} filename_upper)

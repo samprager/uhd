@@ -65,6 +65,10 @@ public:
     size_t get_chan_from_dboard_fe(const std::string &fe, const direction_t dir);
     std::string get_dboard_fe_from_chan(const size_t chan, const direction_t dir);
 
+    std::vector<std::string> get_gpio_banks() const;
+    void set_gpio_attr(const std::string &bank, const std::string &attr, const uint32_t value, const uint32_t mask);
+    uint32_t get_gpio_attr(const std::string &bank, const std::string &attr);
+
     double get_output_samp_rate(size_t port);
 
     /************************************************************************
@@ -73,12 +77,16 @@ public:
     /*! Set up the radio. No API calls may be made before this one.
      */
     void setup_radio(
-        uhd::i2c_iface::sptr zpu_i2c, x300_clock_ctrl::sptr clock, bool verbose);
+        uhd::i2c_iface::sptr zpu_i2c,
+        x300_clock_ctrl::sptr clock,
+        bool ignore_cal_file,
+        bool verbose
+    );
 
     void reset_codec();
 
     void self_test_adc(
-        boost::uint32_t ramp_time_ms = 100);
+        uint32_t ramp_time_ms = 100);
 
     static void extended_adc_test(
         const std::vector<x300_radio_ctrl_impl::sptr>&, double duration_s);
@@ -146,14 +154,18 @@ private:
         static const uint32_t RX_FE_BASE    = 232;
     };
 
-    void _update_atr_leds(const std::string &rx_ant);
+    void _update_atr_leds(const std::string &rx_ant, const size_t chan);
 
     void _self_cal_adc_capture_delay(bool print_status);
 
-    void _check_adc(const boost::uint32_t val);
+    void _check_adc(const uint32_t val);
+
+    void _set_db_eeprom(uhd::i2c_iface::sptr i2c, const size_t, const uhd::usrp::dboard_eeprom_t &);
 
     void set_rx_fe_corrections(const uhd::fs_path &db_path, const uhd::fs_path &rx_fe_corr_path, const double lo_freq);
     void set_tx_fe_corrections(const uhd::fs_path &db_path, const uhd::fs_path &tx_fe_corr_path, const double lo_freq);
+
+    void set_fe_cmd_time(const time_spec_t &time, const size_t chan);
 
 private: // members
     enum radio_connection_t { PRIMARY, SECONDARY };
@@ -164,12 +176,12 @@ private: // members
     // Not necessarily this block's sampling rate (tick rate).
     double                              _radio_clk_rate;
 
-    radio_regmap_t::sptr                _regs;
-    usrp::gpio_atr::gpio_atr_3000::sptr _leds;
-    spi_core_3000::sptr                 _spi;
-    x300_adc_ctrl::sptr                 _adc;
-    x300_dac_ctrl::sptr                 _dac;
-    usrp::gpio_atr::gpio_atr_3000::sptr _fp_gpio;
+    radio_regmap_t::sptr                                    _regs;
+    std::map<size_t, usrp::gpio_atr::gpio_atr_3000::sptr>   _leds;
+    spi_core_3000::sptr                                     _spi;
+    x300_adc_ctrl::sptr                                     _adc;
+    x300_dac_ctrl::sptr                                     _dac;
+    usrp::gpio_atr::gpio_atr_3000::sptr                     _fp_gpio;
 
     std::map<size_t, usrp::dboard_eeprom_t> _db_eeproms;
     usrp::dboard_manager::sptr              _db_manager;

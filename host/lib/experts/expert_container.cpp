@@ -92,23 +92,28 @@ public:
         boost::lock_guard<boost::recursive_mutex> resolve_lock(_resolve_mutex);
         boost::lock_guard<boost::mutex> lock(_mutex);
         EX_LOG(0, str(boost::format("resolve_all(%s)") % (force?"force":"")));
+        // Do a full resolve of the graph
         _resolve_helper("", "", force);
     }
 
-    void resolve_from(const std::string& node_name)
+    void resolve_from(const std::string&)
     {
         boost::lock_guard<boost::recursive_mutex> resolve_lock(_resolve_mutex);
         boost::lock_guard<boost::mutex> lock(_mutex);
         EX_LOG(0, str(boost::format("resolve_from(%s)") % node_name));
-        _resolve_helper(node_name, "", false);
+        // Do a full resolve of the graph
+        // Not optimizing the traversal using node_name to reduce experts complexity
+        _resolve_helper("", "", false);
     }
 
-    void resolve_to(const std::string& node_name)
+    void resolve_to(const std::string&)
     {
         boost::lock_guard<boost::recursive_mutex> resolve_lock(_resolve_mutex);
         boost::lock_guard<boost::mutex> lock(_mutex);
         EX_LOG(0, str(boost::format("resolve_to(%s)") % node_name));
-        _resolve_helper("", node_name, false);
+        // Do a full resolve of the graph
+        // Not optimizing the traversal using node_name to reduce experts complexity
+        _resolve_helper("", "", false);
     }
 
     dag_vertex_t& retrieve(const std::string& name) const
@@ -146,11 +151,11 @@ public:
             const dag_vertex_t& vertex = _get_vertex(*vi.first);
             if (vertex.get_class() != CLASS_WORKER) {
                 dot_str += str(boost::format(" %d [label=\"%s\",shape=%s,xlabel=\"%s\"];\n") %
-                               boost::uint32_t(*vi.first) % vertex.get_name() %
+                               uint32_t(*vi.first) % vertex.get_name() %
                                DATA_SHAPE % vertex.get_dtype());
             } else {
                 dot_str += str(boost::format(" %d [label=\"%s\",shape=%s];\n") %
-                               boost::uint32_t(*vi.first) % vertex.get_name() % WORKER_SHAPE);
+                               uint32_t(*vi.first) % vertex.get_name() % WORKER_SHAPE);
             }
         }
 
@@ -160,8 +165,8 @@ public:
              ++ei.first
         ) {
             dot_str += str(boost::format(" %d -> %d;\n") %
-                           boost::uint32_t(boost::source(*(ei.first), _expert_dag)) %
-                           boost::uint32_t(boost::target(*(ei.first), _expert_dag)));
+                           uint32_t(boost::source(*(ei.first), _expert_dag)) %
+                           uint32_t(boost::target(*(ei.first), _expert_dag)));
         }
         dot_str += "}\n";
         return dot_str;

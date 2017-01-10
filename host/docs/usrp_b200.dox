@@ -19,8 +19,9 @@
     -   Timed sampling in FPGA
 
 \section b200_power Power
+
 In most cases, USB 3.0 bus power will be sufficient to power the device.
-If using USB 2.0 or an internal GPSDO, an external power supply or a cable designed
+If using USB 2.0 or a GPSDO, an external power supply or a cable designed
 to pull power from 2 USB ports (USB 3.0 dual A to micro-B or B) must be used.
 
 \section b200_imgs Specifying a Non-standard Image
@@ -41,7 +42,7 @@ images:
 \section b200_mcr Changing the Master Clock Rate
 
 The master clock rate feeds the RF frontends and the DSP chains. Users
-may select non-default clock rates to acheive integer decimations or
+may select non-default clock rates to achieve integer decimation rates or
 interpolations in the DSP chains. The clock rate can be set to any value
 between 5 MHz and 61.44 MHz (or 30.72 MHz for dual-channel mode).
 Note that rates above 56 MHz are possible, but not recommended.

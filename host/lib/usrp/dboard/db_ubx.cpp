@@ -1146,7 +1146,6 @@ private:
             set_cpld_field(RXLNA1_FORCEON, 1);
             set_cpld_field(RXLNA2_FORCEON, 1);
 
-
             // Placeholders in case some components need to be forced on to
             // reduce settling time.  Note that some FORCEON lines are still gated
             // by other bits in the CPLD register are are asserted during
@@ -1157,12 +1156,13 @@ private:
             set_cpld_field(RXMIXER_FORCEON, 0);
             set_cpld_field(RXLO1_FORCEON, 1);
             set_cpld_field(RXLO2_FORCEON, 1);
+            /*
             //set_cpld_field(TXDRV_FORCEON, 1);  // controlled by RX antenna selection
             set_cpld_field(TXMOD_FORCEON, 0);
             set_cpld_field(TXMIXER_FORCEON, 0);
             set_cpld_field(TXLO1_FORCEON, 0);
             set_cpld_field(TXLO2_FORCEON, 0);
-
+            */
             write_cpld_reg();
 
             _power_mode = PERFORMANCE;
@@ -1246,8 +1246,6 @@ private:
     power_mode_t _power_mode;
     std::string _xcvr_mode;
     size_t _rev;
-    double _prev_tx_freq;
-    double _prev_rx_freq;
     ubx_gpio_reg_t _tx_gpio_reg;
     ubx_gpio_reg_t _rx_gpio_reg;
     int64_t _tx_sync_delay;

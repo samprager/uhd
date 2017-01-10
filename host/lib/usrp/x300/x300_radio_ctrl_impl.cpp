@@ -26,9 +26,11 @@
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/rfnoc/node_ctrl_base.hpp>
 #include <uhd/transport/chdr.hpp>
+#include <uhd/utils/math.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
+#include <boost/assign/list_of.hpp>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -76,19 +78,17 @@ UHD_RFNOC_RADIO_BLOCK_CONSTRUCTOR(x300_radio_ctrl)
     _spi = spi_core_3000::make(ctrl,
         radio_ctrl_impl::regs::sr_addr(radio_ctrl_impl::regs::SPI),
         radio_ctrl_impl::regs::RB_SPI);
-    _leds = gpio_atr::gpio_atr_3000::make_write_only(ctrl, regs::sr_addr(regs::LEDS));
-    _leds->set_atr_mode(usrp::gpio_atr::MODE_ATR, usrp::gpio_atr::gpio_atr_3000::MASK_SET_ALL);
     _adc = x300_adc_ctrl::make(_spi, DB_ADC_SEN);
     _dac = x300_dac_ctrl::make(_spi, DB_DAC_SEN, _radio_clk_rate);
 
     if (_radio_type==PRIMARY) {
         _fp_gpio = gpio_atr::gpio_atr_3000::make(ctrl, regs::sr_addr(regs::FP_GPIO), regs::RB_FP_GPIO);
         BOOST_FOREACH(const gpio_atr::gpio_attr_map_t::value_type attr, gpio_atr::gpio_attr_map) {
-            _tree->create<boost::uint32_t>(fs_path("gpio") / "FP0" / attr.second)
+            _tree->create<uint32_t>(fs_path("gpio") / "FP0" / attr.second)
                 .set(0)
                 .add_coerced_subscriber(boost::bind(&gpio_atr::gpio_atr_3000::set_gpio_attr, _fp_gpio, attr.first, _1));
         }
-        _tree->create<boost::uint32_t>(fs_path("gpio") / "FP0" / "READBACK")
+        _tree->create<uint32_t>(fs_path("gpio") / "FP0" / "READBACK")
             .set_publisher(boost::bind(&gpio_atr::gpio_atr_3000::read_gpio, _fp_gpio));
     }
 
@@ -109,6 +109,9 @@ UHD_RFNOC_RADIO_BLOCK_CONSTRUCTOR(x300_radio_ctrl)
     // create front-end objects
     ////////////////////////////////////////////////////////////////
     for (size_t i = 0; i < _get_num_radios(); i++) {
+        _leds[i] = gpio_atr::gpio_atr_3000::make_write_only(_get_ctrl(i), regs::sr_addr(regs::LEDS));
+        _leds[i]->set_atr_mode(usrp::gpio_atr::MODE_ATR, usrp::gpio_atr::gpio_atr_3000::MASK_SET_ALL);
+
         _rx_fe_map[i].core = rx_frontend_core_3000::make(_get_ctrl(i), regs::sr_addr(x300_regs::RX_FE_BASE));
         _rx_fe_map[i].core->set_adc_rate(_radio_clk_rate);
         _rx_fe_map[i].core->set_dc_offset(rx_frontend_core_3000::DEFAULT_DC_OFFSET_VALUE);
@@ -119,6 +122,16 @@ UHD_RFNOC_RADIO_BLOCK_CONSTRUCTOR(x300_radio_ctrl)
         _tx_fe_map[i].core->set_dc_offset(tx_frontend_core_200::DEFAULT_DC_OFFSET_VALUE);
         _tx_fe_map[i].core->set_iq_balance(tx_frontend_core_200::DEFAULT_IQ_BALANCE_VALUE);
         _tx_fe_map[i].core->populate_subtree(_tree->subtree(_root_path / "tx_fe_corrections" / i));
+
+        ////////////////////////////////////////////////////////////////
+        // Bind the daughterboard command time to the motherboard level property
+        ////////////////////////////////////////////////////////////////
+
+        if (_tree->exists(fs_path("time") / "cmd") and
+                _tree->exists(fs_path("dboards" / _radio_slot /  "rx_frontends" / _rx_fe_map.at(i).db_fe_name / "time" / "cmd"))) {
+            _tree->access<time_spec_t>(fs_path("time") / "cmd")
+                .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_fe_cmd_time, this, _1, i));
+        }
     }
 
     ////////////////////////////////////////////////////////////////
@@ -156,10 +169,21 @@ x300_radio_ctrl_impl::~x300_radio_ctrl_impl()
 /****************************************************************************
  * API calls
  ***************************************************************************/
-double x300_radio_ctrl_impl::set_rate(double /* rate */)
+double x300_radio_ctrl_impl::set_rate(double rate)
 {
+    const double actual_rate = get_rate();
+    if (not uhd::math::frequencies_are_equal(rate, actual_rate)) {
+        UHD_MSG(warning) << "[X300 Radio] Requesting invalid sampling rate from device: " << rate/1e6 << " MHz. Actual rate is: " << actual_rate/1e6 << " MHz." << std::endl;
+    }
     // On X3x0, tick rate can't actually be changed at runtime
-    return get_rate();
+    return actual_rate;
+}
+
+void x300_radio_ctrl_impl::set_fe_cmd_time(const time_spec_t &time, const size_t chan)
+{
+    _tree->access<time_spec_t>(
+            fs_path("dboards" / _radio_slot /  "rx_frontends" / _rx_fe_map.at(chan).db_fe_name / "time" / "cmd")
+    ).set(time);
 }
 
 void x300_radio_ctrl_impl::set_tx_antenna(const std::string &ant, const size_t chan)
@@ -294,12 +318,79 @@ double x300_radio_ctrl_impl::get_output_samp_rate(size_t chan)
     return _rx_fe_map.at(chan).core->get_output_rate();
 }
 
+std::vector<std::string> x300_radio_ctrl_impl::get_gpio_banks() const
+{
+    std::vector<std::string> banks = boost::assign::list_of("RX")("TX");
+    // These pairs are the same, but RXA/TXA are from pre-rfnoc era and are kept for backward compat:
+    banks.push_back("RX"+_radio_slot);
+    banks.push_back("TX"+_radio_slot);
+    if (_fp_gpio) {
+        banks.push_back("FP0");
+    }
+    return banks;
+}
+
+void x300_radio_ctrl_impl::set_gpio_attr(
+        const std::string &bank,
+        const std::string &attr,
+        const uint32_t value,
+        const uint32_t mask
+) {
+    if (bank == "FP0" and _fp_gpio) {
+        const uint32_t current = _tree->access<uint32_t>(fs_path("gpio") / bank / attr).get();
+        const uint32_t new_value = (current & ~mask) | (value & mask);
+        _tree->access<uint32_t>(fs_path("gpio") / bank / attr).set(new_value);
+        return;
+    }
+    if (bank.size() > 2 and bank[1] == 'X')
+    {
+        const std::string name = bank.substr(2);
+        const dboard_iface::unit_t unit = (bank[0] == 'R')? dboard_iface::UNIT_RX : dboard_iface::UNIT_TX;
+        dboard_iface::sptr iface = _tree->access<dboard_iface::sptr>(fs_path("dboards") / name / "iface").get();
+        if (attr == "CTRL") iface->set_pin_ctrl(unit, uint16_t(value), uint16_t(mask));
+        if (attr == "DDR") iface->set_gpio_ddr(unit, uint16_t(value), uint16_t(mask));
+        if (attr == "OUT") iface->set_gpio_out(unit, uint16_t(value), uint16_t(mask));
+        if (attr == "ATR_0X") iface->set_atr_reg(unit, gpio_atr::ATR_REG_IDLE, uint16_t(value), uint16_t(mask));
+        if (attr == "ATR_RX") iface->set_atr_reg(unit, gpio_atr::ATR_REG_RX_ONLY, uint16_t(value), uint16_t(mask));
+        if (attr == "ATR_TX") iface->set_atr_reg(unit, gpio_atr::ATR_REG_TX_ONLY, uint16_t(value), uint16_t(mask));
+        if (attr == "ATR_XX") iface->set_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX, uint16_t(value), uint16_t(mask));
+    }
+}
+
+uint32_t x300_radio_ctrl_impl::get_gpio_attr(
+        const std::string &bank,
+        const std::string &attr
+) {
+    if (bank == "FP0" and _fp_gpio) {
+        return uint32_t(_tree->access<uint64_t>(fs_path("gpio") / bank / attr).get());
+    }
+    if (bank.size() > 2 and bank[1] == 'X') {
+        const std::string name = bank.substr(2);
+        const dboard_iface::unit_t unit = (bank[0] == 'R')? dboard_iface::UNIT_RX : dboard_iface::UNIT_TX;
+        dboard_iface::sptr iface = _tree->access<dboard_iface::sptr>(fs_path("dboards") / name / "iface").get();
+        if (attr == "CTRL") return iface->get_pin_ctrl(unit);
+        if (attr == "DDR") return iface->get_gpio_ddr(unit);
+        if (attr == "OUT") return iface->get_gpio_out(unit);
+        if (attr == "ATR_0X") return iface->get_atr_reg(unit, gpio_atr::ATR_REG_IDLE);
+        if (attr == "ATR_RX") return iface->get_atr_reg(unit, gpio_atr::ATR_REG_RX_ONLY);
+        if (attr == "ATR_TX") return iface->get_atr_reg(unit, gpio_atr::ATR_REG_TX_ONLY);
+        if (attr == "ATR_XX") return iface->get_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX);
+        if (attr == "READBACK") return iface->read_gpio(unit);
+    }
+    return 0;
+}
+
 /****************************************************************************
  * Radio control and setup
  ***************************************************************************/
-void x300_radio_ctrl_impl::setup_radio(uhd::i2c_iface::sptr zpu_i2c, x300_clock_ctrl::sptr clock, bool verbose)
+void x300_radio_ctrl_impl::setup_radio(
+        uhd::i2c_iface::sptr zpu_i2c,
+        x300_clock_ctrl::sptr clock,
+        bool ignore_cal_file,
+        bool verbose)
 {
     _self_cal_adc_capture_delay(verbose);
+    _ignore_cal_file = ignore_cal_file;
 
     ////////////////////////////////////////////////////////////////////
     // create RF frontend interfacing
@@ -322,8 +413,8 @@ void x300_radio_ctrl_impl::setup_radio(uhd::i2c_iface::sptr zpu_i2c, x300_clock_
         //Add to tree
         _tree->create<dboard_eeprom_t>(db_path / EEPROM_PATHS[i])
             .set(_db_eeproms[addr])
-            .add_coerced_subscriber(boost::bind(&dboard_eeprom_t::store,
-                _db_eeproms[addr], boost::ref(*zpu_i2c), (BASE_ADDR | addr)));
+            .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::_set_db_eeprom,
+                this, zpu_i2c, (BASE_ADDR | addr), _1));
     }
 
     //create a new dboard interface
@@ -380,23 +471,38 @@ void x300_radio_ctrl_impl::setup_radio(uhd::i2c_iface::sptr zpu_i2c, x300_clock_
     _db_manager->initialize_dboards();
 
     //now that dboard is created -- register into rx antenna event
-    if (not _rx_fe_map.empty()
-        and _tree->exists(db_path / "rx_frontends" / _rx_fe_map[0].db_fe_name / "antenna" / "value")) {
-        _tree->access<std::string>(db_path / "rx_frontends" / _rx_fe_map[0].db_fe_name / "antenna" / "value")
-            .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::_update_atr_leds, this, _1));
+    if (not _rx_fe_map.empty()) {
+        for (size_t i = 0; i < _get_num_radios(); i++) {
+            if (_tree->exists(db_path / "rx_frontends" / _rx_fe_map[i].db_fe_name / "antenna" / "value")) {
+                // We need a desired subscriber for antenna/value because the experts don't coerce that property.
+                _tree->access<std::string>(db_path / "rx_frontends" / _rx_fe_map[i].db_fe_name / "antenna" / "value")
+                    .add_desired_subscriber(boost::bind(&x300_radio_ctrl_impl::_update_atr_leds, this, _1, i));
+            }
+            _update_atr_leds("", i); //init anyway, even if never called
+        }
     }
-    _update_atr_leds(""); //init anyway, even if never called
 
     //bind frontend corrections to the dboard freq props
     const fs_path db_tx_fe_path = db_path / "tx_frontends";
-    BOOST_FOREACH(const std::string &name, _tree->list(db_tx_fe_path)) {
-        _tree->access<double>(db_tx_fe_path / name / "freq" / "value")
-            .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_tx_fe_corrections, this, db_path, _root_path / "tx_fe_corrections" / name, _1));
+    if (not _tx_fe_map.empty()) {
+        for (size_t i = 0; i < _get_num_radios(); i++) {
+            if (_tree->exists(db_tx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")) {
+                _tree->access<double>(db_tx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")
+                        .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_tx_fe_corrections, this, db_path,
+                                                            _root_path / "tx_fe_corrections" / _tx_fe_map[i].db_fe_name, _1));
+            }
+        }
     }
     const fs_path db_rx_fe_path = db_path / "rx_frontends";
-    BOOST_FOREACH(const std::string &name, _tree->list(db_rx_fe_path)) {
-        _tree->access<double>(db_rx_fe_path / name / "freq" / "value")
-            .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_rx_fe_corrections, this, db_path, _root_path / "rx_fe_corrections" / name,_1));
+    if (not _rx_fe_map.empty()) {
+        for (size_t i = 0; i < _get_num_radios(); i++) {
+            if (_tree->exists(db_rx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")) {
+                _tree->access<double>(db_rx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")
+                        .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_rx_fe_corrections, this, db_path,
+                                                            _root_path / "rx_fe_corrections" / _tx_fe_map[i].db_fe_name,
+                                                            _1));
+            }
+        }
     }
 
     ////////////////////////////////////////////////////////////////
@@ -446,7 +552,7 @@ void x300_radio_ctrl_impl::reset_codec()
     _dac->reset();
 }
 
-void x300_radio_ctrl_impl::self_test_adc(boost::uint32_t ramp_time_ms)
+void x300_radio_ctrl_impl::self_test_adc(uint32_t ramp_time_ms)
 {
     //Bypass all front-end corrections
     for (size_t i = 0; i < _get_num_radios(); i++) {
@@ -565,7 +671,7 @@ void x300_radio_ctrl_impl::synchronize_dacs(const std::vector<x300_radio_ctrl_im
         boost::posix_time::microsec_clock::local_time() - t_start;
 
     //Add 100% of headroom + uncertaintly to the command time
-    boost::uint64_t t_sync_us = (t_elapsed.total_microseconds() * 2) + 13000 /*Scheduler latency*/;
+    uint64_t t_sync_us = (t_elapsed.total_microseconds() * 2) + 13000 /*Scheduler latency*/;
 
     //Pick radios[0] as the time reference.
     uhd::time_spec_t sync_time =
@@ -616,7 +722,7 @@ double x300_radio_ctrl_impl::self_cal_adc_xfer_delay(
         double delay = clock->set_clock_delay(X300_CLOCK_WHICH_ADC0, delay_incr*i + delay_start);
         wait_for_clk_locked(0.1);
 
-        boost::uint32_t err_code = 0;
+        uint32_t err_code = 0;
         for (size_t r = 0; r < radios.size(); r++) {
             //Test each channel (I and Q) individually so as to not accidentally trigger
             //on the data from the other channel if there is a swap
@@ -729,36 +835,38 @@ double x300_radio_ctrl_impl::self_cal_adc_xfer_delay(
 /****************************************************************************
  * Helpers
  ***************************************************************************/
-void x300_radio_ctrl_impl::_update_atr_leds(const std::string &rx_ant)
+void x300_radio_ctrl_impl::_update_atr_leds(const std::string &rx_ant, const size_t chan)
 {
-    const bool is_txrx = (rx_ant == "TX/RX");
-    const int rx_led = (1 << 2);
-    const int tx_led = (1 << 1);
-    const int txrx_led = (1 << 0);
-    _leds->set_atr_reg(gpio_atr::ATR_REG_IDLE, 0);
-    _leds->set_atr_reg(gpio_atr::ATR_REG_RX_ONLY, is_txrx? txrx_led : rx_led);
-    _leds->set_atr_reg(gpio_atr::ATR_REG_TX_ONLY, tx_led);
-    _leds->set_atr_reg(gpio_atr::ATR_REG_FULL_DUPLEX, rx_led | tx_led);
+    // The "RX1" port is used by TwinRX and the "TX/RX" port is used by all
+    // other full-duplex dboards. We need to handle both here.
+    const bool is_txrx = (rx_ant == "TX/RX" or rx_ant == "RX1");
+    const int TXRX_RX = (1 << 0);
+    const int TXRX_TX = (1 << 1);
+    const int RX2_RX  = (1 << 2);
+    _leds.at(chan)->set_atr_reg(gpio_atr::ATR_REG_IDLE, 0);
+    _leds.at(chan)->set_atr_reg(gpio_atr::ATR_REG_RX_ONLY, is_txrx ? TXRX_RX : RX2_RX);
+    _leds.at(chan)->set_atr_reg(gpio_atr::ATR_REG_TX_ONLY, TXRX_TX);
+    _leds.at(chan)->set_atr_reg(gpio_atr::ATR_REG_FULL_DUPLEX, RX2_RX | TXRX_TX);
 }
 
 void x300_radio_ctrl_impl::_self_cal_adc_capture_delay(bool print_status)
 {
     if (print_status) UHD_MSG(status) << "Running ADC capture delay self-cal..." << std::flush;
 
-    static const boost::uint32_t NUM_DELAY_STEPS = 32;   //The IDELAYE2 element has 32 steps
-    static const boost::uint32_t NUM_RETRIES     = 2;    //Retry self-cal if it fails in warmup situations
-    static const boost::int32_t  MIN_WINDOW_LEN  = 4;
+    static const uint32_t NUM_DELAY_STEPS = 32;   //The IDELAYE2 element has 32 steps
+    static const uint32_t NUM_RETRIES     = 2;    //Retry self-cal if it fails in warmup situations
+    static const int32_t  MIN_WINDOW_LEN  = 4;
 
-    boost::int32_t win_start = -1, win_stop = -1;
-    boost::uint32_t iter = 0;
+    int32_t win_start = -1, win_stop = -1;
+    uint32_t iter = 0;
     while (iter++ < NUM_RETRIES) {
-        for (boost::uint32_t dly_tap = 0; dly_tap < NUM_DELAY_STEPS; dly_tap++) {
+        for (uint32_t dly_tap = 0; dly_tap < NUM_DELAY_STEPS; dly_tap++) {
             //Apply delay
             _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_VAL, dly_tap);
             _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_STB, 1);
             _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_STB, 0);
 
-            boost::uint32_t err_code = 0;
+            uint32_t err_code = 0;
 
             // -- Test I Channel --
             //Put ADC in ramp test mode. Tie the other channel to all ones.
@@ -829,7 +937,7 @@ void x300_radio_ctrl_impl::_self_cal_adc_capture_delay(bool print_status)
         throw uhd::runtime_error("self_cal_adc_capture_delay: Self calibration failed. Valid window too narrow.");
     }
 
-    boost::uint32_t ideal_tap = (win_stop + win_start) / 2;
+    uint32_t ideal_tap = (win_stop + win_start) / 2;
     _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_VAL, ideal_tap);
     _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_STB, 1);
     _regs->misc_outs_reg.write(radio_regmap_t::misc_outs_reg_t::ADC_DATA_DLY_STB, 0);
@@ -840,19 +948,25 @@ void x300_radio_ctrl_impl::_self_cal_adc_capture_delay(bool print_status)
     }
 }
 
-void x300_radio_ctrl_impl::_check_adc(const boost::uint32_t val)
+void x300_radio_ctrl_impl::_check_adc(const uint32_t val)
 {
     //Wait for previous control transaction to flush
     user_reg_read64(regs::RB_TEST);
     //Wait for ADC test pattern to propagate
     boost::this_thread::sleep(boost::posix_time::microsec(5));
     //Read value of RX readback register and verify
-    boost::uint32_t adc_rb = static_cast<boost::uint32_t>(user_reg_read64(regs::RB_TEST)>>32);
+    uint32_t adc_rb = static_cast<uint32_t>(user_reg_read64(regs::RB_TEST)>>32);
     adc_rb ^= 0xfffc0000; //adapt for I inversion in FPGA
     if (val != adc_rb) {
         throw uhd::runtime_error(
             (boost::format("ADC self-test failed for %s. (Exp=0x%x, Got=0x%x)")%unique_id()%val%adc_rb).str());
     }
+}
+
+void x300_radio_ctrl_impl::_set_db_eeprom(i2c_iface::sptr i2c, const size_t addr, const uhd::usrp::dboard_eeprom_t &db_eeprom)
+{
+    db_eeprom.store(*i2c, addr);
+    _db_eeproms[addr] = db_eeprom;
 }
 
 /****************************************************************************

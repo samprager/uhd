@@ -1,5 +1,5 @@
 //
-// Copyright 2010-2011,2014-2015 Ettus Research LLC
+// Copyright 2010-2011,2014-2016 Ettus Research LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include <uhd/types/sensors.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/tokenizer.hpp>
@@ -118,8 +118,8 @@ private:
             return false;
 
         std::stringstream ss;
-        boost::uint32_t string_crc;
-        boost::uint32_t calculated_crc = 0;
+        uint32_t string_crc;
+        uint32_t calculated_crc = 0;
 
         // get crc from string
         ss << std::hex << nmea.substr(nmea.length()-2, 2);
@@ -135,7 +135,6 @@ private:
 
   void update_cache() {
     if(not gps_detected() or (_gps_type != GPS_TYPE_INTERNAL_GPSDO)) {
-        UHD_MSG(error) << "get_stat(): unsupported GPS or no GPS detected";
         return;
     }
 

@@ -39,6 +39,7 @@ using namespace uhd::usrp::dboard::twinrx;
 using namespace uhd::experts;
 
 static const dboard_id_t TWINRX_V100_000_ID(0x91);
+static const dboard_id_t TWINRX_V100_100_ID(0x93);
 
 /*!
  * twinrx_rcvr_fe is the dbaord class (dboard_base) that
@@ -74,6 +75,11 @@ public:
             .set(BW);
         get_rx_subtree()->create<meta_range_t>("bandwidth/range")
             .set(freq_range_t(BW, BW));
+
+        // Command Time
+        expert_factory::add_data_node<time_spec_t>(_expert, prepend_ch("time/rx_frontend", _ch_name), time_spec_t(0.0));
+        expert_factory::add_prop_node<time_spec_t>(_expert, get_rx_subtree(),
+            "time/cmd", prepend_ch("time/cmd", _ch_name), time_spec_t(0.0));
 
         //Frequency Specific
         get_rx_subtree()->create<meta_range_t>("freq/range")
@@ -165,13 +171,13 @@ public:
             prepend_ch("ch/preamp2", _ch_name), false);
         expert_factory::add_data_node<bool>(_expert,
             prepend_ch("ant/preamp2", _ch_name), false);
-        expert_factory::add_data_node<boost::uint8_t>(_expert,
+        expert_factory::add_data_node<uint8_t>(_expert,
             prepend_ch("ch/input_atten", _ch_name), 0);
-        expert_factory::add_data_node<boost::uint8_t>(_expert,
+        expert_factory::add_data_node<uint8_t>(_expert,
             prepend_ch("ant/input_atten", _ch_name), 0);
-        expert_factory::add_data_node<boost::uint8_t>(_expert,
+        expert_factory::add_data_node<uint8_t>(_expert,
             prepend_ch("ch/lb_atten", _ch_name), 0);
-        expert_factory::add_data_node<boost::uint8_t>(_expert,
+        expert_factory::add_data_node<uint8_t>(_expert,
             prepend_ch("ch/hb_atten", _ch_name), 0);
         expert_factory::add_data_node<twinrx_ctrl::lo_source_t>(_expert,
             prepend_ch("ch/LO1/source", _ch_name), twinrx_ctrl::LO_INTERNAL);
@@ -263,6 +269,7 @@ public:
             expert_factory::add_worker_node<twinrx_freq_path_expert>(_expert, _expert->node_retriever(), fe);
             expert_factory::add_worker_node<twinrx_freq_coercion_expert>(_expert, _expert->node_retriever(), fe);
             expert_factory::add_worker_node<twinrx_chan_gain_expert>(_expert, _expert->node_retriever(), fe);
+            expert_factory::add_worker_node<twinrx_scheduling_expert>(_expert, _expert->node_retriever(), fe);
             expert_factory::add_worker_node<twinrx_nyquist_expert>(_expert, _expert->node_retriever(), fe, _db_iface);
         }
 
@@ -331,6 +338,14 @@ UHD_STATIC_BLOCK(reg_twinrx_dboards)
         TWINRX_V100_000_ID,
         &twinrx_rcvr::make_twinrx_fe,
         "TwinRX v1.0",
+        boost::assign::list_of("0")("1"),
+        &make_twinrx_container
+    );
+
+    dboard_manager::register_dboard_restricted(
+        TWINRX_V100_100_ID,
+        &twinrx_rcvr::make_twinrx_fe,
+        "TwinRX v1.1",
         boost::assign::list_of("0")("1"),
         &make_twinrx_container
     );
