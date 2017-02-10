@@ -172,15 +172,23 @@ title('Range Measurements: Building with Metal Wall');
 %file = '/Users/sam/Projects/Cpp/complex_test/out.dat';
 % tests = {'fpf1','fpf2_yellowline','fpf3_whitecorner','fpf4_centerline','fpf5_yellowarc','fpf_sky'}; 
 %tests = {'zchu_1m','zchu_2m','zchu_3m'}; 
-tests = {'p-1','p-2','p-3','p-4','p-6','p-10'}; 
+%tests = {'p-1','p-2','p-3','p-4','p-6','p-10'}; 
+tests = {'test_lin_chirp/x300_samples_none_door_open-20170112T120706.750589','test_lin_chirp/x300_samples_none_door_open-20170112T120652.493730',...
+'test_lin_chirp/x300_samples_none_door_closed-20170112T120839.086119-1','test_lin_chirp/x300_samples_plate_door_closed-20170112T121816.735924-1'}; 
+%tests = {'test_lin_chirp/x300_samples_none_door_closed-20170112T120839.086119-1','test_lin_chirp/x300_samples_plate_door_closed-20170112T121816.735924-1'}; 
+%tests = {'test_fpf/x300_samples_none_door_closed-20170112T121132.004046-1','test_fpf/x300_samples_plate_door_closed-20170112T122012.703511-1'}; 
+%tests = {'test_prn/test_prnx300_samples_none_door_closed-20170112T121115.000955-1','test_prn/test_prnx300_samples_plate_door_closed-20170112T121757.262891-1'}; 
+%tests = {'test_gaus/x300_samples_none_door_closed-20170112T121231.987587-1','test_gaus/x300_samples_plate_door_closed-20170112T121730.675642-1'};
+%tests = {'test_zchu/x300_samples_none_door_closed-20170112T121156.002053-1','test_zchu/x300_samples_plate_door_closed-20170112T121924.638855-1'};
 logscale = 1;
 h1 = figure;
 h2 = figure;
+%h3 = figure;
 % waveform = {'waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham'};
-waveform = {'waveform_data_p_ham'};
+waveform = {'waveform_data_lin'};
 for j=1:numel(tests)
 % file = ['/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GUI/outputs/x300_samples_',tests{j},'.dat'];
-file = ['/Users/sam/outputs/x300_samples_',tests{j},'.dat'];
+file = ['/Users/sam/outputs/',tests{j},'.dat'];
 
 [I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
 [datai,dataq] = readComplexData(file,'int16');
@@ -204,7 +212,7 @@ f0 = 10e6; f1 = 90e6;
     len = 4096;
     mfilt = conj(fft(filtiq,len));
     mfilt = mfilt.*(fft(dataiq,len));
-    mfilt = ifft(mfilt,len/4);
+    mfilt = ifft(mfilt,len);
     
     range = lag*(c/(2*fs));
    % x1 = floor(numel(acor)/2)+100; x2 = x1+600;
@@ -219,8 +227,65 @@ f0 = 10e6; f1 = 90e6;
         figure(h2); hold on; plot(abs(mfilt)); hold off; axis tight;
 
     end
+    %figure(h3); hold on; plot(dataq); hold off; axis tight;
 end
-figure(h1); legend(tests); title('acorr');
-figure(h2); legend(tests); title('fft acorr');
+figure(h1); legend(tests); title('acorr'); grid on;
+figure(h2); legend(tests); title('fft acorr'); grid on;
+%figure(h3); legend(tests); title('Q sig'); grid on;
+
+%%
+tests = {'plate1/x300_samples_1000-20170127T143929.121448-1','plate2/x300_samples_1000-20170127T151323.777079-1','plate3/x300_samples_1000-20170127T152140.507201-1','plate4/x300_samples_1000-20170127T153132.517271-1'}; 
+%tests = {'plate1/x300_samples_1000-20170127T144156.571185-1','plate2/x300_samples_1000-20170127T151348.117331-1','plate3/x300_samples_1000-20170127T152220.690657-1','plate4/x300_samples_1000-20170127T153220.549765-1'}; 
+logscale = 1;
+h1 = figure;
+h2 = figure;
+%h3 = figure;
+% waveform = {'waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham'};
+waveform = {'waveform_data_lin_ham'};
+for j=1:numel(tests)
+% file = ['/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GUI/outputs/x300_samples_',tests{j},'.dat'];
+file = ['/Users/sam/outputs/test2/lin_chirp/',tests{j},'.dat'];
+
+[I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
+[datai,dataq] = readComplexData(file,'int16');
+
+dataiq = datai - 1i*dataq;
+
+n = 4096-512; fs = 2e8; c = 3e8;
+f0 = 10e6; f1 = 90e6;
 
 
+    filtiq = I - 1i*Q;
+%    dataiq = [zeros(1,600),filtiq] + [zeros(1,598),filtiq,zeros(1,2)];
+%    dataiq = [zeros(1,600),chirp(t,f0,t(end),f1,'linear')-1i*chirp(t,f0,t(end),f1,'linear',90)];
+
+    if (n < numel(dataiq))
+        filtiq = [filtiq,zeros(1,numel(dataiq)-n)];
+    end
+
+    [acor,lag] = xcorr(dataiq,filtiq);
+    
+    len = 4096;
+    mfilt = conj(fft(filtiq,len));
+    mfilt = mfilt.*(fft(dataiq,len));
+    mfilt = ifft(mfilt,len);
+    
+    range = lag*(c/(2*fs));
+    x1 = floor(numel(acor)/2)+140; x2 = x1+80;
+    %x1 = 1; x2 = numel(range);
+    
+    if(logscale)
+        figure(h1); hold on; plot(range(x1:x2),20*log10(abs(acor(x1:x2)))); hold off; axis tight;
+        figure(h2); hold on; plot(20*log10(abs(mfilt))); hold off; axis tight;
+
+    else 
+        figure(h1); hold on; plot(range(x1:x2),abs(acor(x1:x2))); hold off; axis tight;
+        figure(h2); hold on; plot(abs(mfilt)); hold off; axis tight;
+
+    end
+    %figure(h3); hold on; plot(dataq); hold off; axis tight;
+end
+legend_str = {'position 1: + 0.0 ft','position 2: + 1.0 ft','position 3: + 2.0 ft','position 4: + 3.0 ft'};
+figure(h1); legend(legend_str); title('Echoes (autocorrelation)'); ylabel('Relative Power [dB]'); xlabel('Range (m)'); grid on;
+figure(h2); legend(legend_str); title('fft acorr'); grid on;
+%figure(h3); legend(tests); title('Q sig'); grid on;
