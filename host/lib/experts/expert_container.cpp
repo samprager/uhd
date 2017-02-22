@@ -100,7 +100,7 @@ public:
     {
         boost::lock_guard<boost::recursive_mutex> resolve_lock(_resolve_mutex);
         boost::lock_guard<boost::mutex> lock(_mutex);
-        EX_LOG(0, str(boost::format("resolve_from(%s)") % node_name));
+        EX_LOG(0, "resolve_from (overridden to resolve_all)");
         // Do a full resolve of the graph
         // Not optimizing the traversal using node_name to reduce experts complexity
         _resolve_helper("", "", false);
@@ -110,7 +110,7 @@ public:
     {
         boost::lock_guard<boost::recursive_mutex> resolve_lock(_resolve_mutex);
         boost::lock_guard<boost::mutex> lock(_mutex);
-        EX_LOG(0, str(boost::format("resolve_to(%s)") % node_name));
+        EX_LOG(0, "resolve_to (overridden to resolve_all)");
         // Do a full resolve of the graph
         // Not optimizing the traversal using node_name to reduce experts complexity
         _resolve_helper("", "", false);
@@ -294,11 +294,11 @@ protected:
         EX_LOG(0, str(boost::format("add_data_node(%s)") % data_node->get_name()));
         if (data_node->get_class() == CLASS_WORKER) {
             throw uhd::runtime_error("Supplied node " + data_node->get_name() + " is not a data/property node.");
-            delete data_node;
+            // Throw leaves data_node undeleted
         }
         if (_datanode_map.find(data_node->get_name()) != _datanode_map.end()) {
             throw uhd::runtime_error("Data node with name " + data_node->get_name() + " already exists");
-            delete data_node;
+            // Throw leaves data node undeleted
         }
 
         try {
@@ -335,11 +335,9 @@ protected:
         EX_LOG(0, str(boost::format("add_worker(%s)") % worker->get_name()));
         if (worker->get_class() != CLASS_WORKER) {
             throw uhd::runtime_error("Supplied node " + worker->get_name() + " is not a worker node.");
-            delete worker;
         }
         if (_worker_map.find(worker->get_name()) != _worker_map.end()) {
             throw uhd::runtime_error("Resolver with name " + worker->get_name() + " already exists.");
-            delete worker;
         }
 
         try {
