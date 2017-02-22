@@ -3,20 +3,26 @@ chirp_type = 'lin';
 win_types = {'_blk','_hann','_ham','_bhar','_tky','_cheb','_bhann',''};
 
 fs = 200e6;
-n = 4096-512;
+n = 4096;%4096-512;
 f0 = 1e6; f1 = 80e6; f_ricker =50e6;
 t = linspace(0,n/fs,n);
-ti  = linspace(-n/(1*fs),n/(1*fs),n);
+ti  = linspace(-n/(2*fs),n/(2*fs),n);
 f = 10;
 
 I_quad =chirp(t,f0,t(end),f1,'q',[],'convex');
 Q_quad =chirp(t,f0,t(end),f1,'q',-90,'convex');
+
+I_quad2 =chirp(ti,f0,ti(end),f1,'q',[],'convex');
+Q_quad2 =chirp(ti,f0,ti(end),f1,'q',-90,'convex');
 
 I_log =chirp(t,f0,t(end),f1,'logarithmic');
 Q_log =chirp(t,f0,t(end),f1,'logarithmic',-90);
 
 I_lin =chirp(t,f0,t(end),f1,'linear');
 Q_lin =chirp(t,f0,t(end),f1,'linear',-90);
+
+t1 = linspace(-n/(2*fs),n/(2*fs),n);
+s_lin_dsb = exp(1i*2*pi*(.5*(f1/t1(end))*t1.^2));
 
 % data_gaus = gauspuls(ti,50E6,.8);
 % data_gaus = (data_gaus)/(max(abs(data_gaus)));
@@ -35,6 +41,9 @@ I_rick = real(IQ_rick); Q_rick = imag(IQ_rick);
 
 I_prn = 2*round(rand(1,n))-1;
 Q_prn = 2*round(rand(1,n))-1;
+
+data_prnmax = maximal_prn(n);
+IQ_prnmax = hilbert(data_prnmax);
 
 data_fpf = frankPolyPhase(n);
 data_fpf1 = [data_fpf,zeros(1,200)];
@@ -146,10 +155,14 @@ for types = win_types
 
     fname = sprintf('/Users/sam/outputs/waveform_data_lin%s.bin',win_type);
     waveform2file(I_lin.*win,Q_lin.*win,fname);
+    fname = sprintf('/Users/sam/outputs/waveform_data_lindsb%s.bin',win_type);
+    waveform2file(real(s_lin_dsb).*win,imag(s_lin_dsb).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_log%s.bin',win_type);
     waveform2file(I_log.*win,Q_log.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_quad%s.bin',win_type);
     waveform2file(I_quad.*win,Q_quad.*win,fname);
+    fname = sprintf('/Users/sam/outputs/waveform_data_quad2%s.bin',win_type);
+    waveform2file(I_quad2.*win,Q_quad2.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_fpf%s.bin',win_type);
     waveform2file(real(data_fpf).*win,imag(data_fpf).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_zchu%s.bin',win_type);
@@ -158,6 +171,9 @@ for types = win_types
     waveform2file(real(data_p).*win,imag(data_p).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_prn%s.bin',win_type);
     waveform2file(I_prn.*win,Q_prn.*win,fname);
+    
+    fname = sprintf('/Users/sam/outputs/waveform_data_prnmax%s.bin',win_type);
+    waveform2file(real(IQ_prnmax).*win,imag(IQ_prnmax).*win,fname);
 end
 
 %%

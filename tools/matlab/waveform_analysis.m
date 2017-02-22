@@ -101,13 +101,13 @@ figure; hold on; plot(20*log10((mfilt)));
 % figure; hold on; plot(20*log10(abs(mfilt)));
 
 %%
-n = 33^2;
+n = 4096-512;
 x = polyphaseCode(n);
 y = polyphaseCode(n);
 
 h1 = figure;
 h2 = figure;
-b = fir1(64, 0.75);
+b = fir1(64,[.05 0.75]);
 figure; impz(b,1);
 win = getHamming(n)';
 
@@ -135,6 +135,11 @@ figure(h2); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid o
 
 x = frankPolyPhase(n);
 y = frankPolyPhase(n);
+ 
+figure; obw(x,2e8);
+figure;
+subplot(2,1,1); plot(real(x)); title('Frank Polyphase Code: In-phase Component');
+subplot(2,1,2); plot(imag(x)); title('Frank Polyphase Code: Quadrature-phase Component');
 
 [acor,lag] = xcorr(x,y);
 figure(h1); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
@@ -159,18 +164,108 @@ figure(h1); legend('p1','p1 win','fpf','fpf win');
 figure(h2); legend('p1 filt','p1 win','fpf filt','fpf win');
 
 %%
+n = 4096-512;
+h1 = figure;
+h2 = figure;
+b = fir1(64,[.05 0.75]);
+figure; impz(b,1);
+figure; freqz(b,1);
+win = getHamming(n)';
+
+
+fs = 2e8;
+[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+x = I+1i*Q;
+y = I2+1i*Q;
+
+[acor,lag] = xcorr(x,y);
+figure(h1); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
+figure(h2); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
+
+x_win = x.*win;
+[acor,lag] = xcorr(x_win,y);
+figure(h1); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
+
+% bandlimited code
+yfilt = filter(b,1,y);
+figure; obw(yfilt,fs);
+[acor,lag] = xcorr(x,yfilt);
+figure(h2); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
+
+% bandlimited code
+%y = y.*win;
+yfilt = filter(b,1,y);
+[acor,lag] = xcorr(x_win,yfilt);
+figure(h2); hold on; plot(lag,10*log10(abs(acor))); hold off; axis tight; grid on;
+
+figure(h1); legend('lin','lin win');
+figure(h2); legend('lin','lin filt','lin filt +win');
+
+%%
 [I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
 [I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
 
 
-filtiq = I - 1i*Q;
-dataiq = I2 - 1i*Q2; 
+filtiq = I + 1i*Q;
+dataiq = I2 + 1i*Q2; 
+
+figure; 
+subplot(2,1,1); plot(I); title('Quadratic Chirp: In-phase Component');
+subplot(2,1,2); plot(Q); title('Quadratic Chirp: Quadrature-phase Component');
+
+figure; obw(filtiq,2e8);
 
 b = fir1(64, 0.75);
 datafilt = filter(b,1,dataiq);
 
 [acor,lag] = xcorr(dataiq,filtiq);
-x1 = floor(numel(lag)/2)-50; x2 = floor(numel(lag)/2)+50;
-figure; hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
+% x1 = floor(numel(lag)/2)-50; x2 = floor(numel(lag)/2)+50;
+x1 = floor(numel(lag)/2)-250; x2 = floor(numel(lag)/2)+250;
+figure; hold on; 
+plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
 xlabel('sample delay'); ylabel('Detection Strength [dB]');
-title('Autocorrelation: Linear Chirp Side-lobes');hold off; axis tight; grid on;
+title('Autocorrelation: Window Linear Chirp Side-lobes');hold off; axis tight; grid on;
+
+
+[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin_ham.bin');
+
+filtiq = I + 1i*Q;
+dataiq = I2 + 1i*Q2; 
+
+[acor,lag] = xcorr(dataiq,filtiq);
+hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
+
+[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin_cheb.bin');
+
+filtiq = I + 1i*Q;
+dataiq = I2 + 1i*Q2; 
+
+[acor,lag] = xcorr(dataiq,filtiq);
+hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
+
+legend('none','hamming','chebyshev');
+
+%% 
+[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_rick.bin');
+[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_rick.bin');
+scale = double(intmax('int16'));
+
+filtiq = (I + 1i*Q);
+dataiq = (I2 + 1i*Q2); 
+
+figure; obw(filtiq);
+
+t = linspace(0,numel(filtiq)/2e8,numel(filtiq));
+figure; 
+subplot(2,1,1); plot(t,I); title('Ricker Wavelet Pulse: In-phase Component');
+subplot(2,1,2); plot(t,Q); title('Ricker Wavelet Pulse: Quadrature-phase Component');
+
+[acor,lag] = xcorr(dataiq,filtiq);
+x1 = floor(numel(lag)/2)-250; x2 = floor(numel(lag)/2)+250;
+figure; hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
+axis tight; grid on;
+xlabel('sample delay'); ylabel('Detection Strength [dB]');
+title('Ricker Matched Filter'); 

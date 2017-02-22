@@ -1,6 +1,13 @@
 function data_iq = waveform2file(varargin)
 
-if (nargin ==3)
+if (nargin ==2)
+    I = real(varargin{1});
+    Q = imag(varargin{1});
+    fname = varargin{2};
+    n = numel(I);
+    format = 'int16';
+    scale = double(intmax(format));
+else if (nargin ==3)
     I = varargin{1};
     Q = varargin{2};
     fname = varargin{3};

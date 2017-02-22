@@ -1,3 +1,4 @@
+%% Test 1
 addpath '/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GPR/Software/matlab'
 %file = '/Users/sam/Ettus/uhd/host/outputs/usrp_samples.dat';
 %file = '/Users/sam/Projects/Cpp/complex_test/out.dat';
@@ -166,7 +167,7 @@ title('Range Measurements: Building with Metal Wall');
 % subplot(2,1,1); obw(dataiq,fs);
 % subplot(2,1,2); obw(filtiq,fs);
 % axis tight;
-%%
+%% Test 2
 %addpath '/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GPR/Software/matlab'
 %file = '/Users/sam/Ettus/uhd/host/outputs/usrp_samples.dat';o\
 %file = '/Users/sam/Projects/Cpp/complex_test/out.dat';
@@ -233,7 +234,8 @@ figure(h1); legend(tests); title('acorr'); grid on;
 figure(h2); legend(tests); title('fft acorr'); grid on;
 %figure(h3); legend(tests); title('Q sig'); grid on;
 
-%%
+%% Test 3
+% note: waveform: f0 = 1mhz, f1 = 80mhz
 tests = {'plate1/x300_samples_1000-20170127T143929.121448-1','plate2/x300_samples_1000-20170127T151323.777079-1','plate3/x300_samples_1000-20170127T152140.507201-1','plate4/x300_samples_1000-20170127T153132.517271-1'}; 
 %tests = {'plate1/x300_samples_1000-20170127T144156.571185-1','plate2/x300_samples_1000-20170127T151348.117331-1','plate3/x300_samples_1000-20170127T152220.690657-1','plate4/x300_samples_1000-20170127T153220.549765-1'}; 
 logscale = 1;
@@ -289,3 +291,151 @@ legend_str = {'position 1: + 0.0 ft','position 2: + 1.0 ft','position 3: + 2.0 f
 figure(h1); legend(legend_str); title('Echoes (autocorrelation)'); ylabel('Relative Power [dB]'); xlabel('Range (m)'); grid on;
 figure(h2); legend(legend_str); title('fft acorr'); grid on;
 %figure(h3); legend(tests); title('Q sig'); grid on;
+
+%% Test 4: Soil Box
+% note: waveform: f0 = 1mhz, f1 = 76mhz
+er = 12;
+tx_wf = 'lin';
+freq = '300mhz-1';
+tests = {['d1_nospade/x300_samples_',freq],['d2/x300_samples_',freq],['d3/x300_samples_',freq]}; 
+%tests = {'plate1/x300_samples_1000-20170127T144156.571185-1','plate2/x300_samples_1000-20170127T151348.117331-1','plate3/x300_samples_1000-20170127T152220.690657-1','plate4/x300_samples_1000-20170127T153220.549765-1'}; 
+offsets = [0,0,0];
+logscale = 1;
+h1 = figure;
+h2 = figure;
+%h3 = figure;
+% waveform = {'waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham'};
+waveform = {'waveform_data_lin_ham'};
+[I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
+filtiq = I + 1i*Q;
+b = fir1(64,[.2 0.8]);
+%filtiq = filter(b,1,filtiq);
+
+figure; obw(filtiq,2e8);
+for j=1:numel(tests)
+% file = ['/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GUI/outputs/x300_samples_',tests{j},'.dat'];
+file = ['/Users/sam/outputs/test_soil/',tx_wf,'/',tests{j},'.dat'];
+[datai,dataq] = readComplexData(file,'int16');
+
+dataiq = datai + 1i*dataq;
+%dataiq = filter(b,1,dataiq);
+n = 4096-512; fs = 2e8; c = 3e8;
+f0 = 10e6; f1 = 90e6;
+
+    if (numel(filtiq) < numel(dataiq))
+        filtiq = [filtiq,zeros(1,numel(dataiq)-numel(filtiq))];
+    end
+
+    [acor,lag] = xcorr(dataiq,filtiq);
+    
+    len = 4096;
+    mfilt = conj(fft(filtiq,len));
+    mfilt = mfilt.*(fft(dataiq,len));
+    mfilt = ifft(mfilt,len/2);
+    
+    range = lag*(c/(2*fs*sqrt(er)))-35;
+    x1 = floor(numel(acor)/2)+140; x2 = x1+80;
+    %x1 = 1; x2 = numel(range);
+    
+    if(logscale)
+        figure(h1); hold on; plot(range(x1:x2),20*log10(abs(acor(x1:x2)))+offsets(j)); hold off; axis tight;
+        figure(h2); hold on; plot(20*log10(abs(mfilt))+offsets(j)); hold off; axis tight;
+
+    else 
+        figure(h1); hold on; plot(range(x1:x2),abs(acor(x1:x2))); hold off; axis tight;
+        figure(h2); hold on; plot(abs(mfilt)); hold off; axis tight;
+
+    end
+    %figure(h3); hold on; plot(dataq); hold off; axis tight;
+    detections = peak_detect(filtiq,dataiq,fs,er,tests{j},1);
+end
+legend_str = {'position 1','position 2','position 3'};
+figure(h1); legend(legend_str); title('Echoes (autocorrelation)'); ylabel('Relative Power [dB]'); xlabel('Range (m)'); grid on;
+figure(h2); legend(legend_str); title('fft acorr'); grid on;
+%figure(h3); legend(tests); title('Q sig'); grid on;
+
+%% 
+fs = 2e8; er = 12; c = 3e8;
+s1 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_250mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_250mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_250mhz-1.dat'))];
+s2 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_300mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_300mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_300mhz-1.dat'))];
+s3 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_400mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_400mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'))];
+s4 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_500mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_500mhz-1.dat'));
+    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_500mhz-1.dat'))];
+%s3 = conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'));
+
+tests = {'d1','d2','d3'};
+
+fs2 = fs*4; fc = 75e6;
+t_u = linspace(0,4*size(s1,2)/fs2,4*size(s1,2));
+
+h1 = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+if (numel(h1) < size(s1,2))
+    h1 = [h1,zeros(1,size(s1,2)-numel(h1))];
+end
+% h_u = interp(h1,4)+interp(h1,4).*exp(1i*2*pi*fc*t_u)+interp(h1,4).*exp(1i*4*pi*fc*t_u);
+h_u = [interp(h1,4),interp(h1,4).*exp(1i*2*pi*fc*t_u),interp(h1,4).*exp(1i*4*pi*fc*t_u)];%,interp(h1,4).*exp(1i*6*pi*fc*t_u)];
+
+%figure; obw(h_u,fs2);
+
+w_u = zeros(size(h_u));
+win_len = numel(h_u)/4+1024+6*512;
+w_u(1:win_len) = chebwin(win_len)';
+% figure; plot(abs(fft(h_u))); 
+% figure; plot(w_u);
+h_u = ifft(w_u.*fft(h_u));
+figure; obw(h_u,fs2);
+
+f1 = figure;
+f2 = figure;
+
+for i=1:size(s1,1)
+%     s_u = interp(s1(i,:),4)+interp(s2(i,:),4).*exp(1i*2*pi*fc*t_u)+interp(s3(i,:),4).*exp(1i*4*pi*fc*t_u);
+     s_u = [interp(s1(i,:),4),interp(s2(i,:),4).*exp(1i*2*pi*fc*t_u),interp(s3(i,:),4).*exp(1i*4*pi*fc*t_u)];%,interp(s4(i,:),4).*exp(1i*6*pi*fc*t_u)];
+
+%    s_u = ifft(w_u.*fft(s_u));
+    %figure; obw(s_u,fs2);
+
+    trim = 400;
+    [s_u_xc, l] = xcorr(s_u,h_u);
+    l = l-630;
+    rng = find(abs(l)<=trim);
+    range_u = l*(c/(2*fs2*sqrt(er)));
+    
+    [h_u_xc, l_h] = xcorr(h_u,h_u);
+    rng_h = find(abs(l_h)<=trim);
+
+    [s1_xc, l1] = xcorr(s1(i,:),h1);
+    rng1 = find(abs(l1)<=trim);
+    [s2_xc, l2] = xcorr(s2(i,:),h1);
+    rng2 = find(abs(l2)<=trim);
+    % [s3_xc, l3] = xcorr(s3,h1);
+    % rng3 = find(abs(l3)<=trim);
+
+    % figure; obw(s1,fs);
+    % figure; obw(s2,fs);
+    % figure; obw(h1,fs);
+    % figure; obw(h_u,fs2);
+    % figure; obw(s_u,fs2);
+
+    figure(f1); hold on;
+    plot(range_u(rng),20*log10(abs(s_u_xc(rng))));
+
+    figure(f2); hold on;
+    plot(l1(rng1),20*log10(abs(s1_xc(rng1))));
+    plot(l2(rng2),20*log10(abs(s2_xc(rng2))));
+
+    %plot(l3(rng3),20*log10(abs(s3_xc(rng3))));
+    detections = peak_detect(h_u,s_u,fs2,er,tests{i},1);
+
+end
+figure(f1); axis tight; grid on; legend(tests);
+title('Spectrum Stitching: Chebyshev Window');
+figure;
+plot(l_h(rng_h),20*log10(abs(h_u_xc(rng_h))));

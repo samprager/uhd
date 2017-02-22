@@ -31,7 +31,7 @@ if (nargout == 0)
     hold on; plot(I); plot(Q); legend('I','Q'); hold off;
     return;
 elseif (nargout == 1)
-    varargout{1} = I-1i*Q;
+    varargout{1} = I+1i*Q;
     return;
 elseif (nargout == 2)
     varargout{1} = I;
