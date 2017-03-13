@@ -1,5 +1,37 @@
 function data_iq = waveform2file(varargin)
+% waveform2file - generates fixed point waveform file compatible with MiXIL usrp radar
+%
+% Syntax:  (output optional) data_iq =
+%                function_name(complex data,filename)
+%                function_name(real data, imag data,filename)  
+%                function_name(real data, imag data,filename,length)  
+%                function_name(real data, imag data,filename,length,format)  
+%                function_name(real data, imag data,filename,length,format, scale)
+%
+% Inputs:
+%    complex data - complex waveform with scale ranging from +- 1
+%    real data, imag data - real, imag waveform with scale ranging from +- 1
+%    filename - output filename (.bin extension recommended)
+%    length - length to write to file (used to zero pad waveform)
+%    format - fixed point format to write data with (default 'int16') 
+%    scale - defines range of waveform values (default intmax(format))
+%
+% Outputs:
+%    dataiq - (optional) fixed point complex data written to file
+%
 
+% Other m-files required: none
+% Subfunctions: none
+% MAT-files required: none
+%
+% See also: file2waveform()
+
+% Author: Samuel Prager
+% University of Southern California
+% email: sprager@usc.edu
+% Created: 2016/05/12 01:00:00; Last Revised: 2017/03/12 19:56:56
+
+%------------- BEGIN CODE --------------
 if (nargin ==2)
     I = real(varargin{1});
     Q = imag(varargin{1});
@@ -55,3 +87,4 @@ fwrite(fileID,data_iq,format);
 fclose(fileID);
 
 end
+%------------- END OF CODE --------------

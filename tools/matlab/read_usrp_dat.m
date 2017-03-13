@@ -1,4 +1,4 @@
-%% Test 1
+% Test 1
 addpath '/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GPR/Software/matlab'
 %file = '/Users/sam/Ettus/uhd/host/outputs/usrp_samples.dat';
 %file = '/Users/sam/Projects/Cpp/complex_test/out.dat';

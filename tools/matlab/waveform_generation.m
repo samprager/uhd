@@ -3,7 +3,7 @@ chirp_type = 'lin';
 win_types = {'_blk','_hann','_ham','_bhar','_tky','_cheb','_bhann',''};
 
 fs = 200e6;
-n = 4096;%4096-512;
+n = 4096-128;
 f0 = 1e6; f1 = 80e6; f_ricker =50e6;
 t = linspace(0,n/fs,n);
 ti  = linspace(-n/(2*fs),n/(2*fs),n);
