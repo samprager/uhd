@@ -4,7 +4,7 @@ win_types = {'_blk','_hann','_ham','_bhar','_tky','_cheb','_bhann',''};
 
 fs = 200e6;
 n = 4096-128;
-f0 = 1e6; f1 = 80e6; f_ricker =50e6;
+f0 = 1e6; f1 = 50e6; f_ricker =50e6;
 t = linspace(0,n/fs,n);
 ti  = linspace(-n/(2*fs),n/(2*fs),n);
 f = 10;
@@ -18,11 +18,18 @@ Q_quad2 =chirp(ti,f0,ti(end),f1,'q',-90,'convex');
 I_log =chirp(t,f0,t(end),f1,'logarithmic');
 Q_log =chirp(t,f0,t(end),f1,'logarithmic',-90);
 
-I_lin =chirp(t,f0,t(end),f1,'linear');
-Q_lin =chirp(t,f0,t(end),f1,'linear',-90);
+I_lin_ssb =chirp(t,f0,t(end),f1,'linear');
+Q_lin_ssb =chirp(t,f0,t(end),f1,'linear',-90);
 
 t1 = linspace(-n/(2*fs),n/(2*fs),n);
 s_lin_dsb = exp(1i*2*pi*(.5*(f1/t1(end))*t1.^2));
+
+s_lin = exp(1i*pi*(.5*(f1/t1(end))*t1.^2));
+
+temp = [zeros(1,512) s_lin];
+wave2file(real(temp),imag(temp),'/Users/sam/outputs/waveform_zeropad50.bin',numel(temp));
+
+
 
 % data_gaus = gauspuls(ti,50E6,.8);
 % data_gaus = (data_gaus)/(max(abs(data_gaus)));
@@ -61,8 +68,8 @@ IQ_barker = hilbert(data_barker);
 
 barker_win = repmat(barker_code,1,ceil(n/numel(barker_code)));
 barker_win = barker_win(1:n);
-I_linbkr = I_lin.*barker_win;
-Q_linbkr = Q_lin.*barker_win;
+I_linbkr = I_lin_ssb.*barker_win;
+Q_linbkr = Q_lin_ssb.*barker_win;
 
 
 b = fir1(64, 0.75);
@@ -83,53 +90,53 @@ I_zchub = real(IQ_zchub); Q_zchub = -1*imag(IQ_zchub);
 
 
 fname = '/Users/sam/outputs/waveform_data.bin';
-waveform2file(I_lin,Q_lin,fname);
+wave2file(real(s_lin),imag(s_lin),fname);
 
 fname = '/Users/sam/outputs/waveform_data_i.bin';
-waveform2file(I_lin,zeros(size(Q_lin)),fname);
+wave2file(I_lin_ssb,zeros(size(Q_lin_ssb)),fname);
 fname = '/Users/sam/outputs/waveform_data_q.bin';
-waveform2file(zeros(size(I_lin)),Q_lin,fname);
+wave2file(zeros(size(I_lin_ssb)),Q_lin_ssb,fname);
 fname = '/Users/sam/outputs/waveform_data_ii.bin';
-waveform2file(I_lin,I_lin,fname);
+wave2file(I_lin_ssb,I_lin_ssb,fname);
 fname = '/Users/sam/outputs/waveform_data_qq.bin';
-waveform2file(Q_lin,Q_lin,fname);
+wave2file(Q_lin_ssb,Q_lin_ssb,fname);
 
 fname = '/Users/sam/outputs/waveform_data_gaus.bin';
-waveform2file(I_gaus,Q_gaus,fname);
+wave2file(I_gaus,Q_gaus,fname);
 
 fname = '/Users/sam/outputs/waveform_data_rick.bin';
-waveform2file(I_rick,Q_rick,fname);
+wave2file(I_rick,Q_rick,fname);
 
 % fname = '/Users/sam/outputs/waveform_data_prn.bin';
-% waveform2file(I_prn,Q_prn,fname);
+% wave2file(I_prn,Q_prn,fname);
 fname = '/Users/sam/outputs/waveform_data_prnb.bin';
-waveform2file(I_prnb,Q_prnb,fname);
+wave2file(I_prnb,Q_prnb,fname);
 
 % fname = '/Users/sam/outputs/waveform_data_fpf.bin';
-% waveform2file(real(data_fpf),imag(data_fpf),fname);
+% wave2file(real(data_fpf),imag(data_fpf),fname);
 fname = '/Users/sam/outputs/waveform_data_fpf1.bin';
-waveform2file(real(data_fpf1),imag(data_fpf1),fname);
+wave2file(real(data_fpf1),imag(data_fpf1),fname);
 fname = '/Users/sam/outputs/waveform_data_fpf2.bin';
-waveform2file(real(data_fpf2),imag(data_fpf2),fname);
+wave2file(real(data_fpf2),imag(data_fpf2),fname);
 fname = '/Users/sam/outputs/waveform_data_fpf3.bin';
-waveform2file(real(data_fpf3),imag(data_fpf3),fname);
+wave2file(real(data_fpf3),imag(data_fpf3),fname);
 fname = '/Users/sam/outputs/waveform_data_fpfb.bin';
-waveform2file(I_fpfb,Q_fpfb,fname);
+wave2file(I_fpfb,Q_fpfb,fname);
 
 % fname = '/Users/sam/outputs/waveform_data_zchu.bin';
-% waveform2file(real(data_zchu),imag(data_zchu),fname);
+% wave2file(real(data_zchu),imag(data_zchu),fname);
 fname = '/Users/sam/outputs/waveform_data_zchub.bin';
-waveform2file(I_zchub,Q_zchub,fname);
+wave2file(I_zchub,Q_zchub,fname);
 
 fname = '/Users/sam/outputs/waveform_data_barker.bin';
-waveform2file(real(IQ_barker),-1*imag(IQ_barker),fname,n);
+wave2file(real(IQ_barker),-1*imag(IQ_barker),fname,n);
 fname = '/Users/sam/outputs/waveform_data_barker_i.bin';
-waveform2file(data_barker,zeros(size(data_barker)),fname,n);
+wave2file(data_barker,zeros(size(data_barker)),fname,n);
 fname = '/Users/sam/outputs/waveform_data_barker_ii.bin';
-waveform2file(data_barker,data_barker,fname,n);
+wave2file(data_barker,data_barker,fname,n);
 
 fname = '/Users/sam/outputs/waveform_data_linbarker.bin';
-waveform2file(I_linbkr,Q_linbkr,fname,n);
+wave2file(I_linbkr,Q_linbkr,fname,n);
 
 for types = win_types
     win_type = char(types);
@@ -154,26 +161,28 @@ for types = win_types
     end
 
     fname = sprintf('/Users/sam/outputs/waveform_data_lin%s.bin',win_type);
-    waveform2file(I_lin.*win,Q_lin.*win,fname);
+    wave2file(real(s_lin).*win,imag(s_lin).*win,fname);
+    fname = sprintf('/Users/sam/outputs/waveform_data_linssb%s.bin',win_type);
+    wave2file(I_lin_ssb.*win,Q_lin_ssb.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_lindsb%s.bin',win_type);
-    waveform2file(real(s_lin_dsb).*win,imag(s_lin_dsb).*win,fname);
+    wave2file(real(s_lin_dsb).*win,imag(s_lin_dsb).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_log%s.bin',win_type);
-    waveform2file(I_log.*win,Q_log.*win,fname);
+    wave2file(I_log.*win,Q_log.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_quad%s.bin',win_type);
-    waveform2file(I_quad.*win,Q_quad.*win,fname);
+    wave2file(I_quad.*win,Q_quad.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_quad2%s.bin',win_type);
-    waveform2file(I_quad2.*win,Q_quad2.*win,fname);
+    wave2file(I_quad2.*win,Q_quad2.*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_fpf%s.bin',win_type);
-    waveform2file(real(data_fpf).*win,imag(data_fpf).*win,fname);
+    wave2file(real(data_fpf).*win,imag(data_fpf).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_zchu%s.bin',win_type);
-    waveform2file(real(data_zchu).*win,imag(data_zchu).*win,fname);
+    wave2file(real(data_zchu).*win,imag(data_zchu).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_p%s.bin',win_type);
-    waveform2file(real(data_p).*win,imag(data_p).*win,fname);
+    wave2file(real(data_p).*win,imag(data_p).*win,fname);
     fname = sprintf('/Users/sam/outputs/waveform_data_prn%s.bin',win_type);
-    waveform2file(I_prn.*win,Q_prn.*win,fname);
+    wave2file(I_prn.*win,Q_prn.*win,fname);
     
     fname = sprintf('/Users/sam/outputs/waveform_data_prnmax%s.bin',win_type);
-    waveform2file(real(IQ_prnmax).*win,imag(IQ_prnmax).*win,fname);
+    wave2file(real(IQ_prnmax).*win,imag(IQ_prnmax).*win,fname);
 end
 
 %%

@@ -1,7 +1,7 @@
 %%
 rng(1);
-[I1,Q1] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I1,Q1] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
 
 nvar = 10^10;
 filtiq = I1 - 1i*Q1;
@@ -212,3 +212,28 @@ a = a./(4*pi*r.^2);
     figure; plot(range',20*log10(abs(ifft(y)))); grid on;
     figure; scatter(r,a);
     
+    
+%%
+%% 
+rng(1);
+N = 4092;
+k0 = 10;
+w0 = 2*pi*k0/N;
+s0 = 1;
+nvar = 1;
+noise = sqrt(nvar)*randn(N,1);
+
+data = file2wave('/Users/sam/outputs/waveform_data_lindsb.bin');
+ft_data = fft(data);
+kernel = fftshift(ifft(fft(data).*conj(fft(data))));
+kernel = kernel./max(abs(kernel));
+figure; plot(db(abs(kernel),'power'));
+
+scene = 100*([zeros(1,9),1,zeros(1,N-10)]'+[zeros(1,19),1,zeros(1,N-20)]');
+
+meas = conv(scene,kernel,'same')+noise;
+figure; plot(db(abs(meas),'power'));
+
+
+
+

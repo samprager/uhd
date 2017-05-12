@@ -191,7 +191,7 @@ for j=1:numel(tests)
 % file = ['/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GUI/outputs/x300_samples_',tests{j},'.dat'];
 file = ['/Users/sam/outputs/',tests{j},'.dat'];
 
-[I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
+[I,Q] = file2wave(['/Users/sam/outputs/',waveform{1},'.bin']);
 [datai,dataq] = readComplexData(file,'int16');
 
 dataiq = datai - 1i*dataq;
@@ -248,7 +248,7 @@ for j=1:numel(tests)
 % file = ['/Users/sam/VMLinux/Projects/UndergroundRadar/x300_GUI/outputs/x300_samples_',tests{j},'.dat'];
 file = ['/Users/sam/outputs/test2/lin_chirp/',tests{j},'.dat'];
 
-[I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
+[I,Q] = file2wave(['/Users/sam/outputs/',waveform{1},'.bin']);
 [datai,dataq] = readComplexData(file,'int16');
 
 dataiq = datai - 1i*dataq;
@@ -306,7 +306,7 @@ h2 = figure;
 %h3 = figure;
 % waveform = {'waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham','waveform_data_fpf_ham'};
 waveform = {'waveform_data_lin_ham'};
-[I,Q] = file2waveform(['/Users/sam/outputs/',waveform{1},'.bin']);
+[I,Q] = file2wave(['/Users/sam/outputs/',waveform{1},'.bin']);
 filtiq = I + 1i*Q;
 b = fir1(64,[.2 0.8]);
 %filtiq = filter(b,1,filtiq);
@@ -356,26 +356,26 @@ figure(h2); legend(legend_str); title('fft acorr'); grid on;
 
 %% 
 fs = 2e8; er = 12; c = 3e8;
-s1 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_250mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_250mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_250mhz-1.dat'))];
-s2 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_300mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_300mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_300mhz-1.dat'))];
-s3 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_400mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_400mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'))];
-s4 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_500mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_500mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_500mhz-1.dat'))];
-%s3 = conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'));
+s1 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_250mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_250mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_250mhz-1.dat'))];
+s2 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_300mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_300mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_300mhz-1.dat'))];
+s3 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_400mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_400mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'))];
+s4 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_500mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_500mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_500mhz-1.dat'))];
+%s3 = conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'));
 
 tests = {'d1','d2','d3'};
 
 fs2 = fs*4; fc = 75e6;
 t_u = linspace(0,4*size(s1,2)/fs2,4*size(s1,2));
 
-h1 = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+h1 = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
 if (numel(h1) < size(s1,2))
     h1 = [h1,zeros(1,size(s1,2)-numel(h1))];
 end

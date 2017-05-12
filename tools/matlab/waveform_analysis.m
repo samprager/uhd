@@ -7,7 +7,7 @@ h2 = figure;
 h3 = figure;
 h4 = figure;
 for i=1:numel(waveform)
-    [I,Q] = file2waveform(['/Users/sam/outputs/waveform_data_',waveform{i},'.bin']);
+    [I,Q] = file2wave(['/Users/sam/outputs/waveform_data_',waveform{i},'.bin']);
 %     I = I/max(abs(I));
 %     Q = Q/max(abs(Q));
     filtiq = I- 1i*Q;
@@ -44,7 +44,7 @@ figure(h4); legend(waveform); title('fft no lpf');
 %%
 n = 4096-512; fs = 2e8; c = 3e8;
 
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_fpf.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_fpf.bin');
 
 figure; hold on; plot(I);plot(Q); legend('I','Q');
 filtiq = I - 1i*Q;
@@ -55,8 +55,8 @@ figure; hold on; plot(lag(x1:x2),10*log10(abs(acor(x1:x2)))); hold off; axis tig
 
 
 
-[I1,Q1] = file2waveform('/Users/sam/outputs/waveform_data_fpf1.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_fpf2.bin');
+[I1,Q1] = file2wave('/Users/sam/outputs/waveform_data_fpf1.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_fpf2.bin');
 
 filtiq = I1;
 dataiq = I2;
@@ -174,8 +174,8 @@ win = getHamming(n)';
 
 
 fs = 2e8;
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
 x = I+1i*Q;
 y = I2+1i*Q;
 
@@ -203,8 +203,8 @@ figure(h1); legend('lin','lin win');
 figure(h2); legend('lin','lin filt','lin filt +win');
 
 %%
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
 
 
 filtiq = I + 1i*Q;
@@ -228,8 +228,8 @@ xlabel('sample delay'); ylabel('Detection Strength [dB]');
 title('Autocorrelation: Window Linear Chirp Side-lobes');hold off; axis tight; grid on;
 
 
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin_ham.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_lin_ham.bin');
 
 filtiq = I + 1i*Q;
 dataiq = I2 + 1i*Q2; 
@@ -237,8 +237,8 @@ dataiq = I2 + 1i*Q2;
 [acor,lag] = xcorr(dataiq,filtiq);
 hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2)))); 
 
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_lin.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_lin_cheb.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_lin.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_lin_cheb.bin');
 
 filtiq = I + 1i*Q;
 dataiq = I2 + 1i*Q2; 
@@ -249,8 +249,8 @@ hold on; plot(lag(x1:x2),20*log10(abs(acor(x1:x2))));
 legend('none','hamming','chebyshev');
 
 %% 
-[I,Q] = file2waveform('/Users/sam/outputs/waveform_data_rick.bin');
-[I2,Q2] = file2waveform('/Users/sam/outputs/waveform_data_rick.bin');
+[I,Q] = file2wave('/Users/sam/outputs/waveform_data_rick.bin');
+[I2,Q2] = file2wave('/Users/sam/outputs/waveform_data_rick.bin');
 scale = double(intmax('int16'));
 
 filtiq = (I + 1i*Q);

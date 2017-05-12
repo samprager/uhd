@@ -1,4 +1,4 @@
-[I,Q] = file2waveform('~/outputs/waveform_data.bin');
+[I,Q] = file2wave('~/outputs/waveform_data.bin');
 figure; plot(I);
 scale = double(intmax('int16'))
 E = sum((I/scale).^2+(Q/scale).^2)

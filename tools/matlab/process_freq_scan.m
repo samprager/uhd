@@ -1,19 +1,19 @@
 %% 
 fs = 2e8; er = 12; c = 3e8;BW = 75e6;
 
-s1 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_250mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_250mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_250mhz-1.dat'))];
-s2 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_300mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_300mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_300mhz-1.dat'))];
-s3 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_400mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_400mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'))];
-s4 = [conj(file2waveform('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_500mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d2/x300_samples_500mhz-1.dat'));
-    conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_500mhz-1.dat'))];
-%s3 = conj(file2waveform('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'));
+s1 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_250mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_250mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_250mhz-1.dat'))];
+s2 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_300mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_300mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_300mhz-1.dat'))];
+s3 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_400mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_400mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'))];
+s4 = [conj(file2wave('/Users/sam/outputs/test_soil/lin/d1_nospade/x300_samples_500mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d2/x300_samples_500mhz-1.dat'));
+    conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_500mhz-1.dat'))];
+%s3 = conj(file2wave('/Users/sam/outputs/test_soil/lin/d3/x300_samples_400mhz-1.dat'));
 
 tests = {'d1','d2','d3'};
 freqs = {'250mhz','300mhz','400mhz'};
@@ -29,7 +29,7 @@ dr_crp = d_Rc/Nzp;
 fs2 = fs*4; fc = 750e6;
 t_u = linspace(0,4*size(s1,2)/fs2,4*size(s1,2));
 
-h1 = file2waveform('/Users/sam/outputs/waveform_data_lin.bin'); 
+h1 = file2wave('/Users/sam/outputs/waveform_data_lin.bin'); 
 if (numel(h1) < size(s1,2))
     h1 = [h1,zeros(1,size(s1,2)-numel(h1))];
 end

@@ -27,8 +27,9 @@
 #include <uhd/types/stream_cmd.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
-#include <boost/random.hpp>
-#include <boost/random/random_device.hpp>
+// #include <boost/random.hpp>
+// #include <boost/random/random_device.hpp>
+#include <random>
 #include "time_core_3000.hpp"
 #include <math.h>
 
@@ -110,8 +111,11 @@ public:
     {
         wfrm_header.cmd = WAVEFORM_WRITE_CMD;
         // Fix so that upload id from previous program run is not repeated -- Causes FPGA to ignore waveform upload
-        boost::random_device rdev;
-        wfrm_header.id = rdev();
+        // boost::random_device rdev;
+        // wfrm_header.id = rdev();
+        std::random_device rdev;
+        std::uniform_int_distribution<boost::uint16_t> rdist(0, 65535);
+        wfrm_header.id = rdist(rdev);
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
         _tick_rate = 200e6;

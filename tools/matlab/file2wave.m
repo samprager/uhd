@@ -1,4 +1,4 @@
-function varargout = file2waveform(varargin)
+function varargout = file2wave(varargin)
 
 if (nargin ==1)
     fname = varargin{1};
@@ -13,7 +13,7 @@ elseif (nargin ==3)
     format = varargin{2};
     scale_out = varargin{3};
 else   
-    error('file2waveform(): Unrecognized argument list. Usage: file2waveform(fname,(format),(scale))');
+    error('file2wave(): Unrecognized argument list. Usage: file2wave(fname,(format),(scale))');
 end
 
 fileID = fopen(fname,'r');
@@ -38,5 +38,5 @@ elseif (nargout == 2)
     varargout{2} = Q;
     return;
 else 
-    error('file2waveform(): Unrecognized output type. Output formats: [],[IQ],[I,Q]');
+    error('file2wave(): Unrecognized output type. Output formats: [],[IQ],[I,Q]');
 end

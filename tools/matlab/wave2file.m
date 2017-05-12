@@ -1,5 +1,5 @@
-function data_iq = waveform2file(varargin)
-% waveform2file - generates fixed point waveform file compatible with MiXIL usrp radar
+function data_iq = wave2file(varargin)
+% wave2file - generates fixed point waveform file compatible with MiXIL usrp radar
 %
 % Syntax:  (output optional) data_iq =
 %                function_name(complex data,filename)
@@ -24,7 +24,7 @@ function data_iq = waveform2file(varargin)
 % Subfunctions: none
 % MAT-files required: none
 %
-% See also: file2waveform()
+% See also: file2wave()
 
 % Author: Samuel Prager
 % University of Southern California
@@ -39,7 +39,7 @@ if (nargin ==2)
     n = numel(I);
     format = 'int16';
     scale = double(intmax(format));
-else if (nargin ==3)
+elseif (nargin ==3)
     I = varargin{1};
     Q = varargin{2};
     fname = varargin{3};
@@ -68,7 +68,7 @@ elseif (nargin ==6)
     format = varargin{5};
     scale = varargin{6};
 else    
-    error('waveform2file(): Unrecognized argument list. Usage: waveform2file(I,Q,fname,(length),(format),(scale))');
+    error('wave2file(): Unrecognized argument list. Usage: wave2file(I,Q,fname,(length),(format),(scale))');
 end
 
 maxval = max(abs([I(:);Q(:)]));
