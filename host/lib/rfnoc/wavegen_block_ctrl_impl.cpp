@@ -115,7 +115,8 @@ public:
         // wfrm_header.id = rdev();
         std::random_device rdev;
         std::uniform_int_distribution<boost::uint16_t> rdist(0, 65535);
-        wfrm_header.id = rdist(rdev);
+        boost::uint16_t rnum = (boost::uint16_t) rdist(rdev);
+        wfrm_header.id = rnum;
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
         _tick_rate = 200e6;
