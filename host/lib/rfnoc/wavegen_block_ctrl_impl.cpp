@@ -21,7 +21,7 @@
 
 #include <uhd/rfnoc/wavegen_block_ctrl.hpp>
 #include <uhd/convert.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/direction.hpp>
 #include <uhd/types/stream_cmd.hpp>
