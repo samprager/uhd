@@ -17,7 +17,7 @@
 
 #include "n230_impl.hpp"
 
-#include "usrp3_fw_ctrl_iface.hpp"
+#include "n230_fw_ctrl_iface.hpp"
 #include "validate_subdev_spec.hpp"
 #include <uhd/utils/static.hpp>
 #include <uhd/transport/if_addrs.hpp>
@@ -25,7 +25,7 @@
 #include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/types/sensors.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/direction.hpp>
@@ -33,7 +33,6 @@
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <uhd/usrp/gps_ctrl.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 #include <boost/algorithm/string.hpp>
@@ -42,7 +41,6 @@
 #include <boost/asio.hpp> //used for htonl and ntohl
 #include <boost/make_shared.hpp>
 
-#include "../common/fw_comm_protocol.h"
 #include "n230_defaults.h"
 #include "n230_fpga_defs.h"
 #include "n230_fw_defs.h"
@@ -71,7 +69,7 @@ uhd::device_addrs_t n230_impl::n230_find(const uhd::device_addr_t &multi_dev_hin
     if (hints.size() > 1){
         device_addrs_t found_devices;
         std::string error_msg;
-        BOOST_FOREACH(const device_addr_t &hint_i, hints){
+        for(const device_addr_t &hint_i:  hints){
             device_addrs_t found_devices_i = n230_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
@@ -98,7 +96,7 @@ uhd::device_addrs_t n230_impl::n230_find(const uhd::device_addr_t &multi_dev_hin
 
     //if no address was specified, send a broadcast on each interface
     if (not hint.has_key("addr")) {
-        BOOST_FOREACH(const if_addrs_t &if_addrs, get_if_addrs()) {
+        for(const if_addrs_t &if_addrs:  get_if_addrs()) {
             //avoid the loopback device
             if (if_addrs.inet == asio::ip::address_v4::loopback().to_string()) continue;
 
@@ -116,10 +114,10 @@ uhd::device_addrs_t n230_impl::n230_find(const uhd::device_addr_t &multi_dev_hin
     }
 
     std::vector<std::string> discovered_addrs =
-        usrp3::usrp3_fw_ctrl_iface::discover_devices(
+        n230_fw_ctrl_iface::discover_devices(
             hint["addr"], BOOST_STRINGIZE(N230_FW_COMMS_UDP_PORT), N230_FW_PRODUCT_ID);
 
-    BOOST_FOREACH(const std::string& addr, discovered_addrs)
+    for(const std::string& addr:  discovered_addrs)
     {
         device_addr_t new_addr;
         new_addr["type"] = "n230";
@@ -136,10 +134,10 @@ uhd::device_addrs_t n230_impl::n230_find(const uhd::device_addr_t &multi_dev_hin
         //connected communication can fail. Retry the following call to allow
         //the stack to update
         size_t first_conn_retries = 10;
-        usrp3::usrp3_fw_ctrl_iface::sptr fw_ctrl;
+        n230_fw_ctrl_iface::sptr fw_ctrl;
         while (first_conn_retries > 0) {
             try {
-                fw_ctrl = usrp3::usrp3_fw_ctrl_iface::make(ctrl_xport, N230_FW_PRODUCT_ID, false /*verbose*/);
+                fw_ctrl = n230_fw_ctrl_iface::make(ctrl_xport, N230_FW_PRODUCT_ID, false /*verbose*/);
                 break;
             } catch (uhd::io_error& ex) {
                 boost::this_thread::sleep(boost::posix_time::milliseconds(500));
@@ -192,7 +190,7 @@ device::sptr n230_impl::n230_make(const device_addr_t &device_addr)
  **********************************************************************/
 n230_impl::n230_impl(const uhd::device_addr_t& dev_addr)
 {
-    UHD_MSG(status) << "N230 initialization sequence..." << std::endl;
+    UHD_LOGGER_INFO("N230") << "N230 initialization sequence...";
     _dev_args.parse(dev_addr);
     _tree = uhd::property_tree::make();
 
@@ -210,9 +208,9 @@ n230_impl::n230_impl(const uhd::device_addr_t& dev_addr)
     const mboard_eeprom_t& mb_eeprom = _eeprom_mgr->get_mb_eeprom();
     bool recover_mb_eeprom = dev_addr.has_key("recover_mb_eeprom");
     if (recover_mb_eeprom) {
-        UHD_MSG(warning) << "UHD is operating in EEPROM Recovery Mode which disables hardware version "
+        UHD_LOGGER_WARNING("N230") << "UHD is operating in EEPROM Recovery Mode which disables hardware version "
                             "checks.\nOperating in this mode may cause hardware damage and unstable "
-                            "radio performance!"<< std::endl;
+                            "radio performance!";
     }
     uint16_t hw_rev = boost::lexical_cast<uint16_t>(mb_eeprom["revision"]);
     uint16_t hw_rev_compat = boost::lexical_cast<uint16_t>(mb_eeprom["revision_compat"]);
@@ -234,11 +232,11 @@ n230_impl::n230_impl(const uhd::device_addr_t& dev_addr)
     //Debug loopback mode
     switch(_dev_args.get_loopback_mode()) {
     case n230_device_args_t::LOOPBACK_RADIO:
-        UHD_MSG(status) << "DEBUG: Running in TX->RX Radio loopback mode.\n";
+        UHD_LOGGER_INFO("N230") << "DEBUG: Running in TX->RX Radio loopback mode.";
         _resource_mgr->get_frontend_ctrl().set_self_test_mode(LOOPBACK_RADIO);
         break;
     case n230_device_args_t::LOOPBACK_CODEC:
-        UHD_MSG(status) << "DEBUG: Running in TX->RX CODEC loopback mode.\n";
+        UHD_LOGGER_INFO("N230") << "DEBUG: Running in TX->RX CODEC loopback mode.";
         _resource_mgr->get_frontend_ctrl().set_self_test_mode(LOOPBACK_CODEC);
         break;
     default:
@@ -397,11 +395,11 @@ void n230_impl::_initialize_property_tree(const fs_path& mb_path)
     // Initialize subdev specs
     //------------------------------------------------------------------
     subdev_spec_t rx_spec, tx_spec;
-    BOOST_FOREACH(const std::string &fe, _tree->list(mb_path / "dboards" / "A" / "rx_frontends"))
+    for(const std::string &fe:  _tree->list(mb_path / "dboards" / "A" / "rx_frontends"))
     {
         rx_spec.push_back(subdev_spec_pair_t("A", fe));
     }
-    BOOST_FOREACH(const std::string &fe, _tree->list(mb_path / "dboards" / "A" / "tx_frontends"))
+    for(const std::string &fe:  _tree->list(mb_path / "dboards" / "A" / "tx_frontends"))
     {
         tx_spec.push_back(subdev_spec_pair_t("A", fe));
     }
@@ -437,7 +435,7 @@ void n230_impl::_initialize_property_tree(const fs_path& mb_path)
     //------------------------------------------------------------------
     if (_resource_mgr->is_gpsdo_present()) {
         uhd::gps_ctrl::sptr gps_ctrl = _resource_mgr->get_gps_ctrl();
-        BOOST_FOREACH(const std::string &name, gps_ctrl->get_sensors())
+        for(const std::string &name:  gps_ctrl->get_sensors())
         {
             _tree->create<sensor_value_t>(mb_path / "sensors" / name)
                 .set_publisher(boost::bind(&gps_ctrl::get_sensor, gps_ctrl, name));
@@ -499,7 +497,7 @@ void n230_impl::_initialize_radio_properties(const fs_path& mb_path, size_t inst
 
     //RF Frontend Interfacing
     static const std::vector<direction_t> data_directions = boost::assign::list_of(RX_DIRECTION)(TX_DIRECTION);
-    BOOST_FOREACH(direction_t direction, data_directions) {
+    for(direction_t direction:  data_directions) {
         const std::string dir_str = (direction == RX_DIRECTION) ? "rx" : "tx";
         const std::string key = boost::to_upper_copy(dir_str) + str(boost::format("%u") % (instance + 1));
         const fs_path rf_fe_path = mb_path / "dboards" / "A" / (dir_str + "_frontends") / ((instance==0)?"A":"B");

@@ -18,12 +18,11 @@
 #include <uhd/types/ranges.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/static.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <vector>
 
@@ -43,13 +42,13 @@ static void warn_if_old_rfx(const dboard_id_t &dboard_id, const std::string &xx)
         (old_ids_t("Flex 1800 Classic", 0x0030, 0x0031))
         (old_ids_t("Flex 2400 Classic", 0x0007, 0x000b))
     ;
-    BOOST_FOREACH(const old_ids_t &old_id, old_rfx_ids){
+    for(const old_ids_t &old_id:  old_rfx_ids){
         std::string name; dboard_id_t rx_id, tx_id;
         boost::tie(name, rx_id, tx_id) = old_id;
         if (
             (xx == "RX" and rx_id == dboard_id) or
             (xx == "TX" and tx_id == dboard_id)
-        ) UHD_MSG(warning) << boost::format(
+        ) UHD_LOGGER_WARNING("unknown_db") << boost::format(
             "Detected %s daughterboard %s\n"
             "This board requires modification to use.\n"
             "See the daughterboard application notes.\n"

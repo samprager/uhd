@@ -18,12 +18,12 @@
 #include "device3_impl.hpp"
 #include "graph_impl.hpp"
 #include "ctrl_iface.hpp"
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/rfnoc/block_ctrl_base.hpp>
 #include <boost/make_shared.hpp>
 #include <algorithm>
 
-#define UHD_DEVICE3_LOG() UHD_MSG(status)
+#define UHD_DEVICE3_LOG() UHD_LOGGER_TRACE("DEVICE3")
 
 using namespace uhd::usrp;
 
@@ -70,7 +70,7 @@ void device3_impl::merge_channel_defs(
     //    - All block indices that are in chan_ids may be overwritten in the channel definition
     //    - If the channels in chan_ids are not yet in the property tree channel list,
     //      they are appended.
-    BOOST_FOREACH(const std::string &chan_idx, curr_channels) {
+    for(const std::string &chan_idx:  curr_channels) {
         if (_tree->exists(chans_root / chan_idx)) {
             rfnoc::block_id_t chan_block_id = _tree->access<rfnoc::block_id_t>(chans_root / chan_idx).get();
             if (std::find(chan_ids.begin(), chan_ids.end(), chan_block_id) != chan_ids.end()) {
@@ -119,7 +119,7 @@ void device3_impl::enumerate_rfnoc_blocks(
     // TODO: Clear out all the old block control classes
     // 3) Create new block controllers
     for (size_t i = 0; i < n_blocks; i++) {
-        UHD_DEVICE3_LOG() << "[RFNOC] ------- Block Setup -----------" << std::endl;
+        UHD_DEVICE3_LOG() << "[RFNOC] ------- Block Setup -----------" ;
         // First, make a transport for port number zero, because we always need that:
         ctrl_sid.set_dst_xbarport(base_port + i);
         ctrl_sid.set_dst_blockport(0);
@@ -136,18 +136,18 @@ void device3_impl::enumerate_rfnoc_blocks(
                 xport.send_sid,
                 str(boost::format("CE_%02d_Port_%02X") % i % ctrl_sid.get_dst_endpoint())
         );
-        UHD_DEVICE3_LOG() << "OK" << std::endl;
+        UHD_DEVICE3_LOG() << "OK" ;
         uint64_t noc_id = ctrl->peek64(uhd::rfnoc::SR_READBACK_REG_ID);
-        UHD_DEVICE3_LOG() << str(boost::format("Port %d: Found NoC-Block with ID %016X.") % int(ctrl_sid.get_dst_endpoint()) % noc_id) << std::endl;
+        UHD_DEVICE3_LOG() << str(boost::format("Port %d: Found NoC-Block with ID %016X.") % int(ctrl_sid.get_dst_endpoint()) % noc_id) ;
         uhd::rfnoc::make_args_t make_args;
         uhd::rfnoc::blockdef::sptr block_def = uhd::rfnoc::blockdef::make_from_noc_id(noc_id);
         if (not block_def) {
-            UHD_DEVICE3_LOG() << "Using default block configuration." << std::endl;
+            UHD_DEVICE3_LOG() << "Using default block configuration." ;
             block_def = uhd::rfnoc::blockdef::make_from_noc_id(uhd::rfnoc::DEFAULT_NOC_ID);
         }
         UHD_ASSERT_THROW(block_def);
         make_args.ctrl_ifaces[0] = ctrl;
-        BOOST_FOREACH(const size_t port_number, block_def->get_all_port_numbers()) {
+        for(const size_t port_number:  block_def->get_all_port_numbers()) {
             if (port_number == 0) { // We've already set this up
                 continue;
             }
@@ -165,14 +165,17 @@ void device3_impl::enumerate_rfnoc_blocks(
                     xport1.send_sid,
                     str(boost::format("CE_%02d_Port_%02d") % i % ctrl_sid.get_dst_endpoint())
             );
-            UHD_DEVICE3_LOG() << "OK" << std::endl;
+            UHD_DEVICE3_LOG() << "OK" ;
             make_args.ctrl_ifaces[port_number] = ctrl1;
         }
 
         make_args.base_address = xport.send_sid.get_dst();
         make_args.device_index = device_index;
         make_args.tree = subtree;
-        _rfnoc_block_ctrl.push_back(uhd::rfnoc::block_ctrl_base::make(make_args, noc_id));
+        {   //Critical section for block_ctrl vector access
+            boost::lock_guard<boost::mutex> lock(_block_ctrl_mutex);
+            _rfnoc_block_ctrl.push_back(uhd::rfnoc::block_ctrl_base::make(make_args, noc_id));
+        }
     }
 }
 

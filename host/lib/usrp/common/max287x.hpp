@@ -23,6 +23,7 @@
 #include <uhd/types/ranges.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
+#include <uhd/utils/safe_call.hpp>
 #include <boost/assign.hpp>
 #include <boost/function.hpp>
 #include <boost/thread.hpp>
@@ -402,7 +403,7 @@ public:
             while (vco_freq < MIN_VCO_FREQ)
                 vco_freq *=2;
             uint8_t vco_index = 0xFF;
-            BOOST_FOREACH(const vco_map_t::value_type &vco, max2871_vco_map)
+            for(const vco_map_t::value_type &vco:  max2871_vco_map)
             {
                 if (uhd::math::fp_compare::fp_compare_epsilon<double>(vco_freq) < vco.second.stop())
                 {
@@ -475,7 +476,10 @@ max287x<max287x_regs_t>::max287x(write_fn func) :
 template <typename max287x_regs_t>
 max287x<max287x_regs_t>::~max287x()
 {
-    shutdown();
+    UHD_SAFE_CALL
+    (
+        shutdown();
+    )
 }
 
 template <typename max287x_regs_t>
@@ -634,13 +638,14 @@ double max287x<max287x_regs_t>::set_frequency(
     //actual frequency calculation
     double actual_freq = double((N + (double(FRAC)/double(MOD)))*ref_freq*(1+int(D))/(R*(1+int(T)))) * fb_divisor / RFdiv;
 
-    UHD_LOGV(rarely)
-        << boost::format("MAX287x: Intermediates: ref=%0.2f, outdiv=%f, fbdiv=%f"
-            ) % ref_freq % double(RFdiv*2) % double(N + double(FRAC)/double(MOD)) << std::endl
-        << boost::format("MAX287x: tune: R=%d, BS=%d, N=%d, FRAC=%d, MOD=%d, T=%d, D=%d, RFdiv=%d, type=%s"
-            ) % R % BS % N % FRAC % MOD % T % D % RFdiv % ((is_int_n) ? "Integer-N" : "Fractional") << std::endl
-        << boost::format("MAX287x: Frequencies (MHz): REQ=%0.2f, ACT=%0.2f, VCO=%0.2f, PFD=%0.2f, BAND=%0.2f"
-            ) % (target_freq/1e6) % (actual_freq/1e6) % (vco_freq/1e6) % (pfd_freq/1e6) % (pfd_freq/BS/1e6) << std::endl;
+    UHD_LOGGER_TRACE("MAX287X")
+        << boost::format("MAX287x: Intermediates: ref=%0.2f, outdiv=%f, fbdiv=%f")
+            % ref_freq % double(RFdiv*2) % double(N + double(FRAC)/double(MOD))
+        << boost::format("MAX287x: tune: R=%d, BS=%d, N=%d, FRAC=%d, MOD=%d, T=%d, D=%d, RFdiv=%d, type=%s")
+            % R % BS % N % FRAC % MOD % T % D % RFdiv % ((is_int_n) ? "Integer-N" : "Fractional")
+        << boost::format("MAX287x: Frequencies (MHz): REQ=%0.2f, ACT=%0.2f, VCO=%0.2f, PFD=%0.2f, BAND=%0.2f")
+            % (target_freq/1e6) % (actual_freq/1e6) % (vco_freq/1e6) % (pfd_freq/1e6) % (pfd_freq/BS/1e6)
+    ;
 
     //load the register values
     _regs.rf_output_enable = max287x_regs_t::RF_OUTPUT_ENABLE_ENABLED;
@@ -896,7 +901,12 @@ void max287x<max287x_regs_t>::commit()
     } else {
         try {
             changed_regs = _regs.template get_changed_addrs<uint32_t> ();
-            changed_regs.insert(0); //consider reg 0 changed
+
+            // register 0 must be written to apply double buffered fields
+            if (changed_regs.size() > 0)
+            {
+                changed_regs.insert(0);
+            }
             for (int addr = 5; addr >= 0; addr--)
             {
                 if (changed_regs.find(uint32_t(addr)) != changed_regs.end())

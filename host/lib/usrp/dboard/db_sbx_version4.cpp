@@ -41,7 +41,7 @@ sbx_xcvr::sbx_version4::~sbx_version4(void){
 
 void sbx_xcvr::sbx_version4::write_lo_regs(dboard_iface::unit_t unit, const std::vector<uint32_t> &regs)
 {
-    BOOST_FOREACH(uint32_t reg, regs)
+    for(uint32_t reg:  regs)
     {
         self_base->get_iface()->write_spi(unit, spi_config_t::EDGE_RISE, reg, 32);
     }
@@ -52,9 +52,9 @@ void sbx_xcvr::sbx_version4::write_lo_regs(dboard_iface::unit_t unit, const std:
  * Tuning
  **********************************************************************/
 double sbx_xcvr::sbx_version4::set_lo_freq(dboard_iface::unit_t unit, double target_freq) {
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("SBX") << boost::format(
         "SBX tune: target frequency %f MHz"
-    ) % (target_freq/1e6) << std::endl;
+    ) % (target_freq/1e6) ;
 
     /*
      * If the user sets 'mode_n=integer' in the tuning args, the user wishes to

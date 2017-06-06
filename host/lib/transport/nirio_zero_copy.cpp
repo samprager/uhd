@@ -19,17 +19,35 @@
 #include <stdio.h>
 #include <uhd/transport/nirio/nirio_fifo.h>
 #include <uhd/transport/buffer_pool.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/atomic.hpp>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread/thread.hpp> //sleep
+#include <boost/interprocess/mapped_region.hpp>	//get_page_size()
 #include <vector>
 #include <algorithm>    // std::max
 //@TODO: Move the register defs required by the class to a common location
 #include "../usrp/x300/x300_regs.hpp"
+
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+#include <windows.h>
+static UHD_INLINE size_t get_page_size()
+{
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return si.dwPageSize;
+}
+#else
+#include <unistd.h>
+static UHD_INLINE size_t get_page_size()
+{
+    return size_t(sysconf(_SC_PAGESIZE));
+}
+#endif
+static const size_t page_size = get_page_size();
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -131,11 +149,11 @@ public:
         _xport_params(xport_params),
         _next_recv_buff_index(0), _next_send_buff_index(0)
     {
-        UHD_LOG << boost::format("Creating PCIe transport for channel %d") % instance << std::endl;
-        UHD_LOG << boost::format("nirio zero-copy RX transport configured with frame size = %u, #frames = %u, buffer size = %u\n")
+        UHD_LOGGER_TRACE("NIRIO") << boost::format("Creating PCIe transport for channel %d") % instance ;
+        UHD_LOGGER_TRACE("NIRIO") << boost::format("nirio zero-copy RX transport configured with frame size = %u, #frames = %u, buffer size = %u\n")
                     % _xport_params.recv_frame_size % _xport_params.num_recv_frames %
                     (_xport_params.recv_frame_size * _xport_params.num_recv_frames);
-        UHD_LOG << boost::format("nirio zero-copy TX transport configured with frame size = %u, #frames = %u, buffer size = %u\n")
+        UHD_LOGGER_TRACE("NIRIO") << boost::format("nirio zero-copy TX transport configured with frame size = %u, #frames = %u, buffer size = %u\n")
                     % _xport_params.send_frame_size % _xport_params.num_send_frames % (_xport_params.send_frame_size * _xport_params.num_send_frames);
 
         _recv_buffer_pool = buffer_pool::make(_xport_params.num_recv_frames, _xport_params.recv_frame_size);
@@ -182,11 +200,13 @@ public:
             nirio_status_chain(
                 _recv_fifo->initialize(
                     (_xport_params.recv_frame_size*_xport_params.num_recv_frames)/sizeof(fifo_data_t),
+                    _xport_params.recv_frame_size / sizeof(fifo_data_t),
                     actual_depth, actual_size),
                 status);
             nirio_status_chain(
                 _send_fifo->initialize(
                     (_xport_params.send_frame_size*_xport_params.num_send_frames)/sizeof(fifo_data_t),
+                    _xport_params.send_frame_size / sizeof(fifo_data_t),
                     actual_depth, actual_size),
                 status);
 
@@ -362,6 +382,22 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
     size_t usr_recv_buff_size = static_cast<size_t>(
         hints.cast<double>("recv_buff_size", default_buff_args.num_recv_frames));
 
+    if (hints.has_key("recv_buff_size"))
+    {
+        if (usr_recv_buff_size % page_size != 0)
+        {
+            throw uhd::value_error((boost::format("recv_buff_size must be multiple of %d") % page_size).str());
+        }
+    }
+
+    if (hints.has_key("recv_frame_size") and hints.has_key("num_recv_frames"))
+    {
+        if (usr_num_recv_frames * xport_params.recv_frame_size % page_size != 0)
+        {
+            throw uhd::value_error((boost::format("num_recv_frames * recv_frame_size must be an even multiple of %d") % page_size).str());
+        }
+    }
+
     if (hints.has_key("num_recv_frames") and hints.has_key("recv_buff_size")) {
         if (usr_recv_buff_size < xport_params.recv_frame_size)
             throw uhd::value_error("recv_buff_size must be equal to or greater than (num_recv_frames * recv_frame_size)");
@@ -376,6 +412,11 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
         xport_params.num_recv_frames = usr_num_recv_frames;
     }
 
+    if (xport_params.num_recv_frames * xport_params.recv_frame_size % page_size != 0)
+    {
+        throw uhd::value_error((boost::format("num_recv_frames * recv_frame_size must be an even multiple of %d") % page_size).str());
+    }
+
     //TX
     xport_params.send_frame_size = size_t(hints.cast<double>("send_frame_size", default_buff_args.send_frame_size));
 
@@ -383,6 +424,22 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
         hints.cast<double>("num_send_frames", default_buff_args.num_send_frames));
     size_t usr_send_buff_size = static_cast<size_t>(
         hints.cast<double>("send_buff_size", default_buff_args.num_send_frames));
+
+    if (hints.has_key("send_buff_size")) 
+    {
+        if (usr_send_buff_size % page_size != 0)
+        {
+            throw uhd::value_error((boost::format("send_buff_size must be multiple of %d") % page_size).str());
+        }
+    }
+
+    if (hints.has_key("send_frame_size") and hints.has_key("num_send_frames"))
+    {
+        if (usr_num_send_frames * xport_params.send_frame_size % page_size != 0)
+        {
+            throw uhd::value_error((boost::format("num_send_frames * send_frame_size must be an even multiple of %d") % page_size).str());
+        }
+    }
 
     if (hints.has_key("num_send_frames") and hints.has_key("send_buff_size")) {
         if (usr_send_buff_size < xport_params.send_frame_size)
@@ -396,6 +453,11 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
         xport_params.num_send_frames = std::max<size_t>(1, usr_send_buff_size/xport_params.send_frame_size);    //Round down
     } else if (hints.has_key("num_send_frames")) {
         xport_params.num_send_frames = usr_num_send_frames;
+    }
+
+    if (xport_params.num_send_frames * xport_params.send_frame_size % page_size != 0)
+    {
+        throw uhd::value_error((boost::format("num_send_frames * send_frame_size must be an even multiple of %d") % page_size).str());
     }
 
     return nirio_zero_copy::sptr(new nirio_zero_copy_impl(fpga_session, instance, xport_params));

@@ -21,8 +21,8 @@
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/exception.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/foreach.hpp>
 
 namespace uhd{
 

@@ -26,13 +26,13 @@
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/types/direction.hpp>
 #include <uhd/types/ranges.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/transport/chdr.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/assign.hpp>
 
-#define UHD_LEGACY_LOG() UHD_MSG(status)
+#define UHD_LEGACY_LOG() UHD_LOGGER_TRACE("RFNOC")
 
 using namespace uhd::rfnoc;
 using uhd::usrp::subdev_spec_t;
@@ -142,21 +142,21 @@ public:
         }
         connect_blocks();
         if (args.has_key("skip_ddc")) {
-            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DDCs by user request." << std::endl;
+            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DDCs by user request." ;
         } else if (not _has_ddcs) {
-            UHD_MSG(warning)
+            UHD_LOGGER_WARNING("RFNOC")
                 << "[legacy_compat] No DDCs detected. You will only be able to receive at the radio frontend rate."
-                << std::endl;
+                ;
         }
         if (args.has_key("skip_duc")) {
-            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DUCs by user request." << std::endl;
+            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DUCs by user request." ;
         } else if (not _has_ducs) {
-            UHD_MSG(warning) << "[legacy_compat] No DUCs detected. You will only be able to transmit at the radio frontend rate." << std::endl;
+            UHD_LOGGER_WARNING("RFNOC") << "[legacy_compat] No DUCs detected. You will only be able to transmit at the radio frontend rate." ;
         }
         if (args.has_key("skip_dram")) {
-            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DRAM by user request." << std::endl;
+            UHD_LEGACY_LOG() << "[legacy_compat] Skipping DRAM by user request." ;
         } else if (not _has_dmafifo) {
-            UHD_MSG(warning) << "[legacy_compat] No DMA FIFO detected. You will only be able to transmit at slow rates." << std::endl;
+            UHD_LOGGER_WARNING("RFNOC") << "[legacy_compat] No DMA FIFO detected. You will only be able to transmit at slow rates." ;
         }
 
         for (size_t mboard = 0; mboard < _num_mboards; mboard++) {
@@ -240,7 +240,7 @@ public:
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t mboard, size_t chan)
     {
-        UHD_LEGACY_LOG() << "[legacy_compat] issue_stream_cmd() " << std::endl;
+        UHD_LEGACY_LOG() << "[legacy_compat] issue_stream_cmd() " ;
         const size_t &radio_index = _rx_channel_map[mboard][chan].radio_index;
         const size_t &port_index  = _rx_channel_map[mboard][chan].port_index;
         if (_has_ddcs) {
@@ -258,9 +258,9 @@ public:
             args.otw_format = "sc16";
         }
         _update_stream_args_for_streaming<uhd::RX_DIRECTION>(args, _rx_channel_map);
-        UHD_LEGACY_LOG() << "[legacy_compat] rx stream args: " << args.args.to_string() << std::endl;
+        UHD_LEGACY_LOG() << "[legacy_compat] rx stream args: " << args.args.to_string() ;
         uhd::rx_streamer::sptr streamer = _device->get_rx_stream(args);
-        BOOST_FOREACH(const size_t chan, args.channels) {
+        for(const size_t chan:  args.channels) {
             _rx_stream_cache[chan] = streamer;
         }
         return streamer;
@@ -275,9 +275,9 @@ public:
             args.otw_format = "sc16";
         }
         _update_stream_args_for_streaming<uhd::TX_DIRECTION>(args, _tx_channel_map);
-        UHD_LEGACY_LOG() << "[legacy_compat] tx stream args: " << args.args.to_string() << std::endl;
+        UHD_LEGACY_LOG() << "[legacy_compat] tx stream args: " << args.args.to_string() ;
         uhd::tx_streamer::sptr streamer = _device->get_tx_stream(args);
-        BOOST_FOREACH(const size_t chan, args.channels) {
+        for(const size_t chan:  args.channels) {
             _tx_stream_cache[chan] = streamer;
         }
         return streamer;
@@ -331,14 +331,14 @@ public:
             if (_rx_stream_cache.count(chan)) {
                 uhd::rx_streamer::sptr str_ptr = _rx_stream_cache[chan].lock();
                 if (str_ptr) {
-                    BOOST_FOREACH(const rx_stream_map_type::value_type &chan_streamer_pair, _rx_stream_cache) {
+                    for(const rx_stream_map_type::value_type &chan_streamer_pair:  _rx_stream_cache) {
                         if (chan_streamer_pair.second.lock() == str_ptr) {
                             chans_to_change.insert(chan_streamer_pair.first);
                         }
                     }
                 }
             }
-            BOOST_FOREACH(const size_t this_chan, chans_to_change) {
+            for(const size_t this_chan:  chans_to_change) {
                 size_t mboard, mb_chan;
                 chan_to_mcp<uhd::RX_DIRECTION>(this_chan, _rx_channel_map, mboard, mb_chan);
                 const size_t dsp_index  = _rx_channel_map[mboard][mb_chan].radio_index;
@@ -374,14 +374,14 @@ public:
             if (_tx_stream_cache.count(chan)) {
                 uhd::tx_streamer::sptr str_ptr = _tx_stream_cache[chan].lock();
                 if (str_ptr) {
-                    BOOST_FOREACH(const tx_stream_map_type::value_type &chan_streamer_pair, _tx_stream_cache) {
+                    for(const tx_stream_map_type::value_type &chan_streamer_pair:  _tx_stream_cache) {
                         if (chan_streamer_pair.second.lock() == str_ptr) {
                             chans_to_change.insert(chan_streamer_pair.first);
                         }
                     }
                 }
             }
-            BOOST_FOREACH(const size_t this_chan, chans_to_change) {
+            for(const size_t this_chan:  chans_to_change) {
                 size_t mboard, mb_chan;
                 chan_to_mcp<uhd::TX_DIRECTION>(this_chan, _tx_channel_map, mboard, mb_chan);
                 const size_t dsp_index  = _tx_channel_map[mboard][mb_chan].radio_index;
@@ -457,17 +457,25 @@ private: // methods
         // If it's not provided, we provide our own spp value.
         const size_t args_spp = args.args.cast<size_t>("spp", 0);
         if (dir == uhd::RX_DIRECTION) {
+            size_t target_spp = _rx_spp;
             if (args.args.has_key("spp") and args_spp != _rx_spp) {
-                for (size_t mboard = 0; mboard < _num_mboards; mboard++) {
-                    for (size_t radio = 0; radio < _num_radios_per_board; radio++) {
-                        get_block_ctrl<radio_ctrl>(mboard, RADIO_BLOCK_NAME, radio)->set_arg<int>("spp", args_spp);
-                    }
-                }
-                _rx_spp = args_spp;
+                target_spp = args_spp;
                 // TODO: Update flow control on the blocks
             } else {
-                args.args["spp"] = str(boost::format("%d") % _rx_spp);
+                for (size_t mboard = 0; mboard < _num_mboards; mboard++) {
+                    for (size_t radio = 0; radio < _num_radios_per_board; radio++) {
+                        const size_t this_spp = get_block_ctrl<radio_ctrl>(mboard, RADIO_BLOCK_NAME, radio)->get_arg<int>("spp");
+                        target_spp = std::min(this_spp, target_spp);
+                    }
+                }
             }
+            for (size_t mboard = 0; mboard < _num_mboards; mboard++) {
+                for (size_t radio = 0; radio < _num_radios_per_board; radio++) {
+                    get_block_ctrl<radio_ctrl>(mboard, RADIO_BLOCK_NAME, radio)->set_arg<int>("spp", target_spp);
+                }
+            }
+            _rx_spp = target_spp;
+            args.args["spp"] = str(boost::format("%d") % _rx_spp);
         } else {
             if (args.args.has_key("spp") and args_spp != _tx_spp) {
                 _tx_spp = args_spp;
@@ -564,10 +572,10 @@ private: // methods
 
                 const size_t this_spp = get_block_ctrl<radio_ctrl>(i, RADIO_BLOCK_NAME, k)->get_arg<int>("spp");
                 if (this_spp != _rx_spp) {
-                    throw uhd::runtime_error(str(
-                            boost::format("[legacy compat] Radios have differing spp values: %s has %d, others have %d")
+                    UHD_LOGGER_WARNING("RFNOC") << str(
+                            boost::format("[legacy compat] Radios have differing spp values: %s has %d, others have %d. UHD will use smaller spp value for all connections. Performance might be not optimal.")
                             % radio_block_id.to_string() % this_spp % _rx_spp
-                    ));
+                    );
                 }
             }
         }
@@ -856,7 +864,7 @@ legacy_compat::sptr legacy_compat::make(
     if (legacy_cache.count(device.get()) and not legacy_cache.at(device.get()).expired()) {
         legacy_compat::sptr legacy_compat_copy = legacy_cache.at(device.get()).lock();
         UHD_ASSERT_THROW(bool(legacy_compat_copy));
-        UHD_LEGACY_LOG() << "[legacy_compat] Using existing legacy compat object for this device." << std::endl;
+        UHD_LEGACY_LOG() << "[legacy_compat] Using existing legacy compat object for this device." ;
         return legacy_compat_copy;
     }
 

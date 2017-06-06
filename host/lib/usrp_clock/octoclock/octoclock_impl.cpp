@@ -21,7 +21,6 @@
 #include <boost/assign.hpp>
 #include <stdint.h>
 #include <boost/filesystem.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
 
@@ -34,7 +33,7 @@
 #include <uhd/usrp_clock/octoclock_eeprom.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/paths.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
 
@@ -57,7 +56,7 @@ device_addrs_t octoclock_find(const device_addr_t &hint){
     if (hints.size() > 1){
         device_addrs_t found_devices;
         std::string error_msg;
-        BOOST_FOREACH(const device_addr_t &hint_i, hints){
+        for(const device_addr_t &hint_i:  hints){
             device_addrs_t found_devices_i = octoclock_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
@@ -84,7 +83,7 @@ device_addrs_t octoclock_find(const device_addr_t &hint){
 
     //If no address was specified, send a broadcast on each interface
     if (not _hint.has_key("addr")){
-        BOOST_FOREACH(const if_addrs_t &if_addrs, get_if_addrs()){
+        for(const if_addrs_t &if_addrs:  get_if_addrs()){
             //avoid the loopback device
             if (if_addrs.inet == asio::ip::address_v4::loopback().to_string()) continue;
 
@@ -118,10 +117,10 @@ device_addrs_t octoclock_find(const device_addr_t &hint){
         udp_transport->send(boost::asio::buffer(&pkt_out, sizeof(pkt_out)));
     }
     catch(const std::exception &ex){
-        UHD_MSG(error) << "OctoClock network discovery error - " << ex.what() << std::endl;
+        UHD_LOGGER_ERROR("OCTOCLOCK") << "OctoClock network discovery error - " << ex.what() ;
     }
     catch(...){
-        UHD_MSG(error) << "OctoClock network discovery unknown error" << std::endl;
+        UHD_LOGGER_ERROR("OCTOCLOCK") << "OctoClock network discovery unknown error" ;
     }
 
     uint8_t octoclock_data[udp_simple::mtu];
@@ -187,7 +186,7 @@ UHD_STATIC_BLOCK(register_octoclock_device){
  * Structors
  **********************************************************************/
 octoclock_impl::octoclock_impl(const device_addr_t &_device_addr){
-    UHD_MSG(status) << "Opening an OctoClock device..." << std::endl;
+    UHD_LOGGER_INFO("OCTOCLOCK") << "Opening an OctoClock device...";
     _type = device::CLOCK;
     device_addrs_t device_args = separate_device_addr(_device_addr);
     // To avoid replicating sequence numbers between sessions
@@ -265,9 +264,9 @@ octoclock_impl::octoclock_impl(const device_addr_t &_device_addr){
         std::string asterisk = (device_args.size() > 1) ? " * " : "";
 
         if(device_args.size() > 1){
-            UHD_MSG(status) << std::endl << "Checking status of " << addr << ":" << std::endl;
+            UHD_LOGGER_INFO("OCTOCLOCK") << "Checking status of " << addr;
         }
-        UHD_MSG(status) << boost::format("%sDetecting internal GPSDO...") % asterisk << std::flush;
+        UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDetecting internal GPSDO...") % asterisk;
 
         _get_state(oc);
         if(_oc_dict[oc].state.gps_detected){
@@ -275,7 +274,7 @@ octoclock_impl::octoclock_impl(const device_addr_t &_device_addr){
                 _oc_dict[oc].gps = gps_ctrl::make(octoclock_make_uart_iface(_oc_dict[oc].gpsdo_xport, _proto_ver));
 
                 if(_oc_dict[oc].gps and _oc_dict[oc].gps->gps_detected()){
-                    BOOST_FOREACH(const std::string &name, _oc_dict[oc].gps->get_sensors()){
+                    for(const std::string &name:  _oc_dict[oc].gps->get_sensors()){
                         _tree->create<sensor_value_t>(oc_path / "sensors" / name)
                             .set_publisher(boost::bind(&gps_ctrl::get_sensor, _oc_dict[oc].gps, name));
                     }
@@ -283,26 +282,23 @@ octoclock_impl::octoclock_impl(const device_addr_t &_device_addr){
                 else{
                     //If GPSDO communication failed, set gps_detected to false
                     _oc_dict[oc].state.gps_detected = 0;
-                    UHD_MSG(warning) << "Device reports that it has a GPSDO, but we cannot communicate with it." << std::endl;
-                    std::cout << std::endl;
+                    UHD_LOGGER_WARNING("OCTOCLOCK") << "Device reports that it has a GPSDO, but we cannot communicate with it.";
                 }
             }
             catch(std::exception &e){
-                UHD_MSG(error) << "An error occurred making GPSDO control: " << e.what() << std::endl;
+                UHD_LOGGER_ERROR("OCTOCLOCK") << "An error occurred making GPSDO control: " << e.what();
             }
         }
-        else UHD_MSG(status) << "No GPSDO found" << std::endl;
-        UHD_MSG(status) << boost::format("%sDetecting external reference...%s") % asterisk
-                                                                                % _ext_ref_detected(oc).value
-                        << std::endl;
-        UHD_MSG(status) << boost::format("%sDetecting switch position...%s") % asterisk
-                                                                             % _switch_pos(oc).value
-                        << std::endl;
+        else UHD_LOGGER_INFO("OCTOCLOCK") << "No GPSDO found";
+        UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDetecting external reference...%s") % asterisk
+            % _ext_ref_detected(oc).value;
+        UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDetecting switch position...%s") % asterisk
+            % _switch_pos(oc).value;
         std::string ref = _which_ref(oc).value;
-        if(ref == "none") UHD_MSG(status) << boost::format("%sDevice is not using any reference") % asterisk << std::endl;
-        else UHD_MSG(status) << boost::format("%sDevice is using %s reference") % asterisk
+        if(ref == "none") UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDevice is not using any reference") % asterisk;
+        else UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDevice is using %s reference") % asterisk
                                                                                 % _which_ref(oc).value
-                             << std::endl;
+                             ;
     }
 }
 
@@ -324,7 +320,7 @@ void octoclock_impl::_set_eeprom(const std::string &oc, const octoclock_eeprom_t
      * what it currently has in the EEPROM, so store the relevant values
      * from the user's input and send that instead.
      */
-    BOOST_FOREACH(const std::string &key, oc_eeprom.keys()){
+    for(const std::string &key:  oc_eeprom.keys()){
         if(_oc_dict[oc].eeprom.has_key(key)) _oc_dict[oc].eeprom[key] = oc_eeprom[key];
     }
     _oc_dict[oc].eeprom.commit();

@@ -40,7 +40,7 @@ sbx_xcvr::cbx::~cbx(void){
 
 void sbx_xcvr::cbx::write_lo_regs(dboard_iface::unit_t unit, const std::vector<uint32_t> &regs)
 {
-    BOOST_FOREACH(uint32_t reg, regs)
+    for(uint32_t reg:  regs)
     {
         self_base->get_iface()->write_spi(unit, spi_config_t::EDGE_RISE, reg, 32);
     }
@@ -51,9 +51,9 @@ void sbx_xcvr::cbx::write_lo_regs(dboard_iface::unit_t unit, const std::vector<u
  * Tuning
  **********************************************************************/
 double sbx_xcvr::cbx::set_lo_freq(dboard_iface::unit_t unit, double target_freq) {
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("CBX") << boost::format(
         "CBX tune: target frequency %f MHz"
-    ) % (target_freq/1e6) << std::endl;
+    ) % (target_freq/1e6) ;
 
     //clip the input
     target_freq = cbx_freq_range.clip(target_freq);

@@ -19,7 +19,7 @@
 #include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/transport/udp_simple.hpp> //mtu
 #include <uhd/transport/buffer_pool.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <boost/format.hpp>
 #include <vector>
@@ -47,11 +47,11 @@ static void check_registry_for_fast_send_threshold(const size_t mtu){
         reg_key.Open(HKEY_LOCAL_MACHINE, "System\\CurrentControlSet\\Services\\AFD\\Parameters", KEY_READ) != ERROR_SUCCESS or
         reg_key.QueryDWORDValue("FastSendDatagramThreshold", threshold) != ERROR_SUCCESS or threshold < mtu
     ){
-        UHD_MSG(warning) << boost::format(
+        UHD_LOGGER_WARNING("UDP") << boost::format(
             "The MTU (%d) is larger than the FastSendDatagramThreshold (%d)!\n"
             "This will negatively affect the transmit performance.\n"
             "See the transport application notes for more detail.\n"
-        ) % mtu % threshold << std::endl;
+        ) % mtu % threshold ;
         warned = true;
     }
     reg_key.Close();
@@ -197,7 +197,7 @@ public:
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
         #endif /*CHECK_REG_SEND_THRESH*/
 
-        UHD_MSG(status) << boost::format("Creating WSA UDP transport for %s:%s") % addr % port << std::endl;
+        UHD_LOGGER_INFO("UDP") << boost::format("Creating WSA UDP transport for %s:%s") % addr % port ;
         static uhd_wsa_control uhd_wsa; //makes wsa start happen via lazy initialization
 
         UHD_ASSERT_THROW(_num_send_frames <= WSA_MAXIMUM_WAIT_EVENTS);
@@ -275,6 +275,16 @@ public:
 
     size_t get_num_send_frames(void) const {return _num_send_frames;}
     size_t get_send_frame_size(void) const {return _send_frame_size;}
+    uint16_t get_local_port(void) const {
+        struct sockaddr_in addr_info;
+        int addr_len = sizeof(addr_info);
+        uint16_t local_port = 0;
+        if (getsockname( _sock_fd, (SOCKADDR*) &addr_info,
+                         &addr_len) == 0){
+            local_port = ntohs(addr_info.sin_port);
+        }
+        return local_port;
+    }
 
     //! Read back the socket's buffer space reserved for receives
     size_t get_recv_buff_size(void) {
@@ -327,11 +337,11 @@ void check_usr_buff_size(
     size_t user_buff_size, // Set this to zero for no user-defined preference
     const std::string tx_rx
 ){
-    UHD_LOG << boost::format(
+    UHD_LOGGER_DEBUG("UDP") << boost::format(
         "Target %s sock buff size: %d bytes\n"
         "Actual %s sock buff size: %d bytes"
-    ) % tx_rx % user_buff_size % tx_rx % actual_buff_size << std::endl;
-    if ((user_buff_size != 0.0) and (actual_buff_size < user_buff_size)) UHD_MSG(warning) << boost::format(
+    ) % tx_rx % user_buff_size % tx_rx % actual_buff_size ;
+    if ((user_buff_size != 0.0) and (actual_buff_size < user_buff_size)) UHD_LOGGER_WARNING("UDP") << boost::format(
         "The %s buffer could not be resized sufficiently.\n"
         "Target sock buff size: %d bytes.\n"
         "Actual sock buff size: %d bytes.\n"

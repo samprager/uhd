@@ -40,7 +40,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/algorithm.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
@@ -184,7 +184,7 @@ rfx_xcvr::rfx_xcvr(
 
     this->get_rx_subtree()->create<sensor_value_t>("sensors/lo_locked")
         .set_publisher(boost::bind(&rfx_xcvr::get_locked, this, dboard_iface::UNIT_RX));
-    BOOST_FOREACH(const std::string &name, _rx_gain_ranges.keys()){
+    for(const std::string &name:  _rx_gain_ranges.keys()){
         this->get_rx_subtree()->create<double>("gains/"+name+"/value")
             .set_coercer(boost::bind(&rfx_xcvr::set_rx_gain, this, _1, name))
             .set(_rx_gain_ranges[name].start());
@@ -339,9 +339,9 @@ double rfx_xcvr::set_lo_freq(
     dboard_iface::unit_t unit,
     double target_freq
 ){
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: target frequency %f MHz"
-    ) % (target_freq/1e6) << std::endl;
+    ) % (target_freq/1e6) ;
 
     //clip the input
     target_freq = _freq_range.clip(target_freq);
@@ -379,9 +379,9 @@ double rfx_xcvr::set_lo_freq(
      * fvco*R/fref = P*B + A = N
      */
     for(R = 2; R <= 32; R+=2){
-        BOOST_FOREACH(BS, bandsel_to_enum.keys()){
+        for(auto BS:  bandsel_to_enum.keys()){
             if (ref_freq/R/BS > 1e6) continue; //constraint on band select clock
-            BOOST_FOREACH(P, prescaler_to_enum.keys()){
+            for(auto P:  prescaler_to_enum.keys()){
                 //calculate B and A from N
                 double N = target_freq*R/ref_freq;
                 B = int(std::floor(N/P));
@@ -396,9 +396,9 @@ double rfx_xcvr::set_lo_freq(
         }
     } done_loop:
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: R=%d, BS=%d, P=%d, B=%d, A=%d, DIV2=%d"
-    ) % R % BS % P % B % A % int(_div2[unit] && (!is_rx_rfx400)) << std::endl;
+    ) % R % BS % P % B % A % int(_div2[unit] && (!is_rx_rfx400)) ;
 
     //load the register values
     adf4360_regs_t regs;
@@ -433,7 +433,7 @@ double rfx_xcvr::set_lo_freq(
         (adf4360_regs_t::ADDR_CONTROL)
         (adf4360_regs_t::ADDR_NCOUNTER)
     ;
-    BOOST_FOREACH(adf4360_regs_t::addr_t addr, addrs){
+    for(adf4360_regs_t::addr_t addr:  addrs){
         this->get_iface()->write_spi(
             unit, spi_config_t::EDGE_RISE,
             regs.get_reg(addr), 24
@@ -442,8 +442,8 @@ double rfx_xcvr::set_lo_freq(
 
     //return the actual frequency
     if (_div2[unit]) actual_freq /= 2;
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: actual frequency %f MHz"
-    ) % (actual_freq/1e6) << std::endl;
+    ) % (actual_freq/1e6) ;
     return actual_freq;
 }

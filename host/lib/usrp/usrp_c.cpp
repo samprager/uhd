@@ -23,7 +23,6 @@
 #include <uhd/error.h>
 #include <uhd/usrp/usrp.h>
 
-#include <boost/foreach.hpp>
 #include <boost/thread/mutex.hpp>
 
 #include <string.h>
@@ -259,7 +258,7 @@ uhd_error uhd_usrp_find(
 
         uhd::device_addrs_t devs = uhd::device::find(std::string(args), uhd::device::USRP);
         (*strings_out)->string_vector_cpp.clear();
-        BOOST_FOREACH(const uhd::device_addr_t &dev, devs){
+        for(const uhd::device_addr_t &dev:  devs){
             (*strings_out)->string_vector_cpp.push_back(dev.to_string());
         }
     )
@@ -378,6 +377,7 @@ uhd_error uhd_usrp_get_rx_info(
         uhd::dict<std::string, std::string> rx_info = USRP(h)->get_usrp_rx_info(chan);
 
         COPY_INFO_FIELD(info_out, rx_info, mboard_id);
+        COPY_INFO_FIELD(info_out, rx_info, mboard_name);
         COPY_INFO_FIELD(info_out, rx_info, mboard_serial);
         COPY_INFO_FIELD(info_out, rx_info, rx_id);
         COPY_INFO_FIELD(info_out, rx_info, rx_subdev_name);
@@ -396,6 +396,7 @@ uhd_error uhd_usrp_get_tx_info(
         uhd::dict<std::string, std::string> tx_info = USRP(h)->get_usrp_tx_info(chan);
 
         COPY_INFO_FIELD(info_out, tx_info, mboard_id);
+        COPY_INFO_FIELD(info_out, tx_info, mboard_name);
         COPY_INFO_FIELD(info_out, tx_info, mboard_serial);
         COPY_INFO_FIELD(info_out, tx_info, tx_id);
         COPY_INFO_FIELD(info_out, tx_info, tx_subdev_name);
@@ -610,6 +611,16 @@ uhd_error uhd_usrp_set_clock_source_out(
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
         USRP(h)->set_clock_source_out(enb, mboard);
+    )
+}
+
+uhd_error uhd_usrp_set_time_source_out(
+    uhd_usrp_handle h,
+    bool enb,
+    size_t mboard
+){
+    UHD_SAFE_C_SAVE_ERROR(h,
+        USRP(h)->set_time_source_out(enb, mboard);
     )
 }
 
@@ -840,10 +851,10 @@ uhd_error uhd_usrp_get_fe_rx_freq_range(
 UHD_API uhd_error uhd_usrp_get_rx_lo_names(
     uhd_usrp_handle h,
     size_t chan,
-    uhd_string_vector_handle rx_lo_names_out
+    uhd_string_vector_handle *rx_lo_names_out
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
-        rx_lo_names_out->string_vector_cpp = USRP(h)->get_rx_lo_names(chan);
+        (*rx_lo_names_out)->string_vector_cpp = USRP(h)->get_rx_lo_names(chan);
     )
 }
 
@@ -874,10 +885,10 @@ UHD_API uhd_error uhd_usrp_get_rx_lo_sources(
     uhd_usrp_handle h,
     const char* name,
     size_t chan,
-    uhd_string_vector_handle rx_lo_sources_out
+    uhd_string_vector_handle *rx_lo_sources_out
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
-        rx_lo_sources_out->string_vector_cpp = USRP(h)->get_rx_lo_sources(name, chan);
+        (*rx_lo_sources_out)->string_vector_cpp = USRP(h)->get_rx_lo_sources(name, chan);
     )
 }
 
@@ -1489,7 +1500,7 @@ uhd_error uhd_usrp_write_register(
     )
 }
 
-uhd_error uhd_usrp_write_register(
+uhd_error uhd_usrp_read_register(
     uhd_usrp_handle h,
     const char* path,
     uint32_t field,

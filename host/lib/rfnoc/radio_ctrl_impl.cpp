@@ -16,11 +16,10 @@
 //
 
 #include "wb_iface_adapter.hpp"
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
 #include <uhd/convert.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/direction.hpp>
 #include "radio_ctrl_impl.hpp"
@@ -30,6 +29,7 @@ using namespace uhd;
 using namespace uhd::rfnoc;
 
 static const size_t BYTES_PER_SAMPLE = 4;
+const std::string radio_ctrl::ALL_LOS = "all";
 
 /****************************************************************************
  * Structors and init
@@ -137,7 +137,6 @@ radio_ctrl_impl::radio_ctrl_impl() :
 
 void radio_ctrl_impl::_register_loopback_self_test(size_t chan)
 {
-    UHD_MSG(status) << "[RFNoC Radio] Performing register loopback test... " << std::flush;
     size_t hash = size_t(time(NULL));
     for (size_t i = 0; i < 100; i++)
     {
@@ -145,12 +144,12 @@ void radio_ctrl_impl::_register_loopback_self_test(size_t chan)
         sr_write(regs::TEST, uint32_t(hash), chan);
         uint32_t result = user_reg_read32(regs::RB_TEST, chan);
         if (result != uint32_t(hash)) {
-            UHD_MSG(status) << "fail" << std::endl;
-            UHD_MSG(status) << boost::format("expected: %x result: %x") % uint32_t(hash) % result << std::endl;
+            UHD_LOGGER_ERROR("RFNOC RADIO") << "Register loopback test failed";
+            UHD_LOGGER_ERROR("RFNOC RADIO") << boost::format("expected: %x result: %x") % uint32_t(hash) % result ;
             return; // exit on any failure
         }
     }
-    UHD_MSG(status) << "pass" << std::endl;
+    UHD_LOGGER_INFO("RFNOC RADIO") << "Register loopback test passed";
 }
 
 /****************************************************************************
@@ -162,6 +161,7 @@ double radio_ctrl_impl::set_rate(double rate)
     _tick_rate = rate;
     _time64->set_tick_rate(_tick_rate);
     _time64->self_test();
+    set_command_tick_rate(rate);
     return _tick_rate;
 }
 
@@ -193,6 +193,11 @@ double radio_ctrl_impl::set_tx_gain(const double gain, const size_t chan)
 double radio_ctrl_impl::set_rx_gain(const double gain, const size_t chan)
 {
     return _rx_gain[chan] = gain;
+}
+
+double radio_ctrl_impl::set_rx_bandwidth(const double bandwidth, const size_t chan)
+{
+    return _rx_bandwidth[chan] = bandwidth;
 }
 
 void radio_ctrl_impl::set_time_sync(const uhd::time_spec_t &time)
@@ -235,6 +240,56 @@ double radio_ctrl_impl::get_rx_gain(const size_t chan) /* const */
     return _rx_gain[chan];
 }
 
+double radio_ctrl_impl::get_rx_bandwidth(const size_t chan) /* const */
+{
+    return _rx_bandwidth[chan];
+}
+
+std::vector<std::string> radio_ctrl_impl::get_rx_lo_names(const size_t /* chan */)
+{
+    return std::vector<std::string>();
+}
+
+std::vector<std::string> radio_ctrl_impl::get_rx_lo_sources(const std::string & /* name */, const size_t /* chan */)
+{
+    return std::vector<std::string>();
+}
+
+freq_range_t radio_ctrl_impl::get_rx_lo_freq_range(const std::string & /* name */, const size_t /* chan */)
+{
+    return freq_range_t();
+}
+
+void radio_ctrl_impl::set_rx_lo_source(const std::string & /* src */, const std::string & /* name */, const size_t /* chan */)
+{
+    throw uhd::not_implemented_error("set_rx_lo_source is not supported on this radio");
+}
+
+const std::string radio_ctrl_impl::get_rx_lo_source(const std::string & /* name */, const size_t /* chan */)
+{
+    return "internal";
+}
+
+void radio_ctrl_impl::set_rx_lo_export_enabled(bool /* enabled */, const std::string & /* name */, const size_t /* chan */)
+{
+    throw uhd::not_implemented_error("set_rx_lo_export_enabled is not supported on this radio");
+}
+
+bool radio_ctrl_impl::get_rx_lo_export_enabled(const std::string & /* name */, const size_t /* chan */)
+{
+    return false; // Not exporting non-existant LOs
+}
+
+double radio_ctrl_impl::set_rx_lo_freq(double /* freq */, const std::string & /* name */, const size_t /* chan */)
+{
+    throw uhd::not_implemented_error("set_rx_lo_freq is not supported on this radio");
+}
+
+double radio_ctrl_impl::get_rx_lo_freq(const std::string & /* name */, const size_t /* chan */)
+{
+    return 0;
+}
+
 /***********************************************************************
  * RX Streamer-related methods (from source_block_ctrl_base)
  **********************************************************************/
@@ -242,9 +297,9 @@ double radio_ctrl_impl::get_rx_gain(const size_t chan) /* const */
 void radio_ctrl_impl::issue_stream_cmd(const uhd::stream_cmd_t &stream_cmd, const size_t chan)
 {
     boost::mutex::scoped_lock lock(_mutex);
-    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::issue_stream_cmd() " << chan << " " << char(stream_cmd.stream_mode) << std::endl;
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::issue_stream_cmd() " << chan << " " << char(stream_cmd.stream_mode) ;
     if (not _is_streamer_active(uhd::RX_DIRECTION, chan)) {
-        UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::issue_stream_cmd() called on inactive channel. Skipping." << std::endl;
+        UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::issue_stream_cmd() called on inactive channel. Skipping." ;
         return;
     }
     UHD_ASSERT_THROW(stream_cmd.num_samps <= 0x0fffffff);
@@ -283,7 +338,7 @@ std::vector<size_t> radio_ctrl_impl::get_active_rx_ports()
 {
     std::vector<size_t> active_rx_ports;
     typedef std::map<size_t, bool> map_t;
-    BOOST_FOREACH(map_t::value_type &m, _rx_streamer_active) {
+    for(map_t::value_type &m:  _rx_streamer_active) {
         if (m.second) {
             active_rx_ports.push_back(m.first);
         }
@@ -296,7 +351,7 @@ std::vector<size_t> radio_ctrl_impl::get_active_rx_ports()
  **********************************************************************/
 void radio_ctrl_impl::set_rx_streamer(bool active, const size_t port)
 {
-    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::set_rx_streamer() " << port << " -> " << active << std::endl;
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::set_rx_streamer() " << port << " -> " << active ;
     if (port > _num_rx_channels) {
         throw uhd::value_error(str(
             boost::format("[%s] Can't (un)register RX streamer on port %d (invalid port)")
@@ -314,7 +369,7 @@ void radio_ctrl_impl::set_rx_streamer(bool active, const size_t port)
 
 void radio_ctrl_impl::set_tx_streamer(bool active, const size_t port)
 {
-    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::set_tx_streamer() " << port << " -> " << active << std::endl;
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::set_tx_streamer() " << port << " -> " << active ;
     if (port > _num_tx_channels) {
         throw uhd::value_error(str(
             boost::format("[%s] Can't (un)register TX streamer on port %d (invalid port)")
@@ -335,11 +390,11 @@ void radio_ctrl_impl::set_tx_streamer(bool active, const size_t port)
 void radio_ctrl_impl::_update_spp(int spp)
 {
     boost::mutex::scoped_lock lock(_mutex);
-    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::_update_spp(): Requested spp: " << spp << std::endl;
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::_update_spp(): Requested spp: " << spp ;
     if (spp == 0) {
         spp = DEFAULT_PACKET_SIZE / BYTES_PER_SAMPLE;
     }
-    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::_update_spp(): Setting spp to: " << spp << std::endl;
+    UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::_update_spp(): Setting spp to: " << spp ;
     for (size_t i = 0; i < _num_rx_channels; i++) {
         sr_write(regs::RX_CTRL_MAXLEN, uint32_t(spp), i);
     }
@@ -355,7 +410,6 @@ void radio_ctrl_impl::set_time_next_pps(const time_spec_t &time_spec)
     _time64->set_time_next_pps(time_spec);
 }
 
-
 time_spec_t radio_ctrl_impl::get_time_now()
 {
     return _time64->get_time_now();
@@ -364,6 +418,36 @@ time_spec_t radio_ctrl_impl::get_time_now()
 time_spec_t radio_ctrl_impl::get_time_last_pps()
 {
     return _time64->get_time_last_pps();
+}
+
+void radio_ctrl_impl::set_time_source(const std::string &source)
+{
+    _tree->access<std::string>("time_source/value").set(source);
+}
+
+std::string radio_ctrl_impl::get_time_source()
+{
+    return _tree->access<std::string>("time_source/value").get();
+}
+
+std::vector<std::string> radio_ctrl_impl::get_time_sources()
+{
+    return _tree->access<std::vector<std::string>>("time_source/options").get();
+}
+
+void radio_ctrl_impl::set_clock_source(const std::string &source)
+{
+    _tree->access<std::string>("clock_source/value").set(source);
+}
+
+std::string radio_ctrl_impl::get_clock_source()
+{
+    return _tree->access<std::string>("clock_source/value").get();
+}
+
+std::vector<std::string> radio_ctrl_impl::get_clock_sources()
+{
+    return _tree->access<std::vector<std::string>>("clock_source/options").get();
 }
 
 // Custom functions implemented to access Loopback and FP GPIO FPGA Radio Core registers

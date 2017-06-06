@@ -16,25 +16,34 @@
 //
 
 #include <boost/test/unit_test.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhd/utils/log_add.hpp>
 #include <iostream>
 
 BOOST_AUTO_TEST_CASE(test_messages){
-    std::cerr << "---begin print test ---" << std::endl;
-    UHD_MSG(status) <<
-        "This is a test print for a status message.\n"
-        "And this is the second line of the test print.\n"
+    UHD_LOG_FASTPATH("foo");
+    UHD_LOG_FASTPATH("bar");
+    uhd::log::set_log_level(uhd::log::debug);
+    uhd::log::set_console_level(uhd::log::info);
+    uhd::log::add_logger("test",
+        [](const uhd::log::logging_info &I){
+            std::cout << "<TEST> " << I.message << std::endl;
+        }
+    );
+    uhd::log::set_logger_level("test", uhd::log::debug);
+    UHD_LOGGER_DEBUG("logger_test") <<
+        "This is a test print for a debug log."
     ;
-    UHD_MSG(warning) <<
-        "This is a test print for a warning message.\n"
-        "And this is the second line of the test print.\n"
+    UHD_LOGGER_INFO("logger_test") <<
+        "This is a test print for a info log."
     ;
-    UHD_MSG(error) <<
-        "This is a test print for an error message.\n"
-        "And this is the second line of the test print.\n"
+    UHD_LOGGER_WARNING("logger_test") <<
+        "This is a test print for a warning log."
+    ;
+    UHD_LOGGER_ERROR("logger_test") <<
+        "This is a test print for an error log."
     ;
     UHD_HERE();
     const int x = 42;
     UHD_VAR(x);
-    std::cerr << "---end print test ---" << std::endl;
 }

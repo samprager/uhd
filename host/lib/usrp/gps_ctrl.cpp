@@ -16,25 +16,25 @@
 //
 
 #include <uhd/usrp/gps_ctrl.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/types/sensors.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
 #include <stdint.h>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/format.hpp>
 #include <boost/regex.hpp>
 #include <boost/thread/mutex.hpp>
+#include <ctime>
+#include <string>
+#include <boost/date_time.hpp>
 
 #include "boost/tuple/tuple.hpp"
-#include "boost/foreach.hpp"
 
 using namespace uhd;
-using namespace boost::gregorian;
 using namespace boost::posix_time;
 using namespace boost::algorithm;
 using namespace boost::this_thread;
@@ -92,7 +92,7 @@ private:
                     sentences[which].get<2>() = true;
                 }
             } catch(std::exception &e) {
-                UHD_LOGV(often) << "get_sentence: " << e.what();
+                UHD_LOGGER_DEBUG("GPS") << "get_sentence: " << e.what();
             }
 
             if (not sentence.empty() or now > exit_time)
@@ -159,7 +159,7 @@ private:
 
         if (msg.length() < 6)
         {
-            UHD_LOGV(regularly) << __FUNCTION__ << ": Short GPSDO string: " << msg << std::endl;
+            UHD_LOGGER_WARNING("GPS") << __FUNCTION__ << ": Short GPSDO string: " << msg ;
             continue;
         }
 
@@ -174,14 +174,14 @@ private:
         }
         else
         {
-            UHD_LOGV(regularly) << __FUNCTION__ << ": Malformed GPSDO string: " << msg << std::endl;
+            UHD_LOGGER_WARNING("GPS") << __FUNCTION__ << ": Malformed GPSDO string: " << msg ;
         }
     }
 
     boost::system_time time = boost::get_system_time();
 
     // Update sentences with newly read data
-    BOOST_FOREACH(std::string key, keys)
+    for(std::string key:  keys)
     {
         if (not msgs[key].empty())
         {
@@ -203,13 +203,15 @@ public:
 
     //first we look for an internal GPSDO
     _flush(); //get whatever junk is in the rx buffer right now, and throw it away
+
     _send("*IDN?\r\n"); //request identity from the GPSDO
 
     //then we loop until we either timeout, or until we get a response that indicates we're a JL device
-    const boost::system_time comm_timeout = boost::get_system_time() + milliseconds(GPS_COMM_TIMEOUT_MS);
+    //maximum response time was measured at ~320ms, so we set the timeout at 650ms
+    const boost::system_time comm_timeout = boost::get_system_time() + milliseconds(650);
     while(boost::get_system_time() < comm_timeout) {
       reply = _recv();
-      //known devices are JL "FireFly" and "LC_XO"
+      //known devices are JL "FireFly", "GPSTCXO", and "LC_XO"
       if(reply.find("FireFly") != std::string::npos
          or reply.find("LC_XO") != std::string::npos
          or reply.find("GPSTCXO") != std::string::npos) {
@@ -218,31 +220,39 @@ public:
       } else if(reply.substr(0, 3) == "$GP") {
           i_heard_some_nmea = true; //but keep looking
       } else if(not reply.empty()) {
-          i_heard_something_weird = true; //probably wrong baud rate
+          // wrong baud rate or firmware still initializing
+          i_heard_something_weird = true;
+          _send("*IDN?\r\n");   //re-send identity request
+      } else {
+          // _recv timed out
+          _send("*IDN?\r\n");   //re-send identity request
       }
     }
 
-    if((i_heard_some_nmea) && (_gps_type != GPS_TYPE_INTERNAL_GPSDO)) _gps_type = GPS_TYPE_GENERIC_NMEA;
-
-    if((_gps_type == GPS_TYPE_NONE) && i_heard_something_weird) {
-      UHD_MSG(error) << "GPS invalid reply \"" << reply << "\", assuming none available" << std::endl;
+    if (_gps_type == GPS_TYPE_NONE)
+    {
+        if(i_heard_some_nmea) {
+            _gps_type = GPS_TYPE_GENERIC_NMEA;
+        } else if(i_heard_something_weird) {
+            UHD_LOGGER_ERROR("GPS") << "GPS invalid reply \"" << reply << "\", assuming none available";
+        }
     }
 
     switch(_gps_type) {
     case GPS_TYPE_INTERNAL_GPSDO:
       erase_all(reply, "\r");
       erase_all(reply, "\n");
-      UHD_MSG(status) << "Found an internal GPSDO: " << reply << std::endl;
+      UHD_LOGGER_INFO("GPS") << "Found an internal GPSDO: " << reply;
       init_gpsdo();
       break;
 
     case GPS_TYPE_GENERIC_NMEA:
-      UHD_MSG(status) << "Found a generic NMEA GPS device" << std::endl;
+        UHD_LOGGER_INFO("GPS") << "Found a generic NMEA GPS device";
       break;
 
     case GPS_TYPE_NONE:
     default:
-      UHD_MSG(status) << "No GPSDO found" << std::endl;
+        UHD_LOGGER_INFO("GPS") << "No GPSDO found";
       break;
 
     }
@@ -339,20 +349,20 @@ private:
                 throw uhd::value_error(str(boost::format("Invalid response \"%s\"") % reply));
             }
 
-            //just trust me on this one
-            gps_time = ptime( date(
-                             greg_year(boost::lexical_cast<int>(datestr.substr(4, 2)) + 2000),
-                             greg_month(boost::lexical_cast<int>(datestr.substr(2, 2))),
-                             greg_day(boost::lexical_cast<int>(datestr.substr(0, 2)))
-                           ),
-                          hours(  boost::lexical_cast<int>(timestr.substr(0, 2)))
-                        + minutes(boost::lexical_cast<int>(timestr.substr(2, 2)))
-                        + seconds(boost::lexical_cast<int>(timestr.substr(4, 2)))
-                     );
+            struct tm raw_date;
+            raw_date.tm_year = std::stoi(datestr.substr(4, 2)) + 2000 - 1900; // years since 1900
+            raw_date.tm_mon = std::stoi(datestr.substr(2, 2)) - 1; // months since january (0-11)
+            raw_date.tm_mday = std::stoi(datestr.substr(0, 2)); // dom (1-31)
+            raw_date.tm_hour = std::stoi(timestr.substr(0, 2));
+            raw_date.tm_min = std::stoi(timestr.substr(2, 2));
+            raw_date.tm_sec = std::stoi(timestr.substr(4,2));
+            gps_time = boost::posix_time::ptime_from_tm(raw_date);
+
+            UHD_LOG_TRACE("GPS", "GPS time: " + boost::posix_time::to_simple_string(gps_time));
             return gps_time;
 
         } catch(std::exception &e) {
-            UHD_LOGV(often) << "get_time: " << e.what();
+            UHD_LOGGER_DEBUG("GPS") << "get_time: " << e.what();
             error_cnt++;
         }
     }
@@ -379,7 +389,7 @@ private:
             else
                 return (get_token(reply, 6) != "0");
         } catch(std::exception &e) {
-            UHD_LOGV(often) << "locked: " << e.what();
+            UHD_LOGGER_DEBUG("GPS") << "locked: " << e.what();
             error_cnt++;
         }
     }

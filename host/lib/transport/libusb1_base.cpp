@@ -17,14 +17,13 @@
 
 #include "libusb1_base.hpp"
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/types/serial.hpp>
 #include <boost/weak_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -77,7 +76,7 @@ private:
         case LIBUSB_ERROR_NO_DEVICE:
             throw uhd::io_error(libusb_strerror(LIBUSB_ERROR_NO_DEVICE));
         default:
-            UHD_MSG(error) << __FUNCTION__ << ": " << libusb_strerror((libusb_error)ret) << std::endl;
+            UHD_LOGGER_ERROR("USB") << __FUNCTION__ << ": " << libusb_strerror((libusb_error)ret) ;
             break;
         }
     }
@@ -227,7 +226,7 @@ public:
         std::string string_descriptor((char *)buff, size_t(ret));
         byte_vector_t string_vec(string_descriptor.begin(), string_descriptor.end());
         std::string out;
-        BOOST_FOREACH(uint8_t byte, string_vec){
+        for(uint8_t byte:  string_vec){
             if (byte < 32 or byte > 127) return out;
             out += byte;
         }
@@ -276,15 +275,15 @@ public:
     {
         int ret;
         ret = libusb_clear_halt(this->get(), recv_endpoint  | 0x80);
-        UHD_LOG << "usb device handle: recv endpoint clear: " << libusb_error_name(ret) << std::endl;
+        UHD_LOGGER_TRACE("USB") << "usb device handle: recv endpoint clear: " << libusb_error_name(ret) ;
         ret = libusb_clear_halt(this->get(), send_endpoint | 0x00);
-        UHD_LOG << "usb device handle: send endpoint clear: " << libusb_error_name(ret) << std::endl;
+        UHD_LOGGER_TRACE("USB") << "usb device handle: send endpoint clear: " << libusb_error_name(ret) ;
     }
 
     void reset_device(void)
     {
         int ret = libusb_reset_device(this->get());
-        UHD_LOG << "usb device handle: dev Reset: " << libusb_error_name(ret) << std::endl;
+        UHD_LOGGER_TRACE("USB") << "usb device handle: dev Reset: " << libusb_error_name(ret) ;
     }
 
 private:
@@ -321,12 +320,12 @@ libusb::device_handle::sptr libusb::device_handle::get_cached_handle(device::spt
     }
     catch(const uhd::exception &){
         #ifdef UHD_PLATFORM_LINUX
-        UHD_MSG(error) <<
+        UHD_LOGGER_ERROR("USB") <<
             "USB open failed: insufficient permissions.\n"
             "See the application notes for your device.\n"
-        << std::endl;
+        ;
         #else
-        UHD_LOG << "USB open failed: device already claimed." << std::endl;
+        UHD_LOGGER_DEBUG("USB") << "USB open failed: device already claimed." ;
         #endif
         throw;
     }

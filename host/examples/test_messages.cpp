@@ -23,7 +23,6 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/program_options.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <cstdlib>
@@ -74,8 +73,8 @@ bool test_late_command_message(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streame
     default:
         std::cout << boost::format(
             "failed:\n"
-            "    Got unexpected error code 0x%x, nsamps %u.\n"
-        ) % md.error_code % nsamps << std::endl;
+            "    Got unexpected error code 0x%x (%s), nsamps %u.\n"
+        ) % md.error_code % md.strerror() % nsamps << std::endl;
         return false;
     }
 }
@@ -122,8 +121,8 @@ bool test_broken_chain_message(UHD_UNUSED(uhd::usrp::multi_usrp::sptr usrp), uhd
     default:
         std::cout << boost::format(
             "failed:\n"
-            "    Got unexpected error code 0x%x.\n"
-        ) % md.error_code << std::endl;
+            "    Got unexpected error code 0x%x (%s).\n"
+        ) % md.error_code % md.strerror() << std::endl;
         return false;
     }
 }
@@ -264,7 +263,12 @@ void flush_async(uhd::tx_streamer::sptr tx_stream){
 }
 
 void flush_recv(uhd::rx_streamer::sptr rx_stream){
-    std::vector<std::complex<float> > buff(rx_stream->get_max_num_samps());
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps = rx_stream->get_max_num_samps()*3;
+    stream_cmd.stream_now = true;
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    std::vector<std::complex<float> > buff(stream_cmd.num_samps);
     uhd::rx_metadata_t md;
 
     do{
@@ -285,6 +289,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args",   po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("ntests", po::value<size_t>(&ntests)->default_value(50),    "number of tests to run")
+        ("test-chain", "Run broken chain tests")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -310,18 +315,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //------------------------------------------------------------------
     // begin messages test
     //------------------------------------------------------------------
-    static const uhd::dict<std::string, boost::function<bool(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr, uhd::tx_streamer::sptr)> >
+    static uhd::dict<std::string, boost::function<bool(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr, uhd::tx_streamer::sptr)> >
         tests = boost::assign::map_list_of
         ("Test Burst ACK ", &test_burst_ack_message)
         ("Test Underflow ", &test_underflow_message)
         ("Test Time Error", &test_time_error_message)
         ("Test Late Command", &test_late_command_message)
-        ("Test Broken Chain", &test_broken_chain_message)
     ;
+
+    if (vm.count("test-chain")) {
+        tests["Test Broken Chain"] = &test_broken_chain_message;
+    }
 
     //init result counts
     uhd::dict<std::string, size_t> failures, successes;
-    BOOST_FOREACH(const std::string &key, tests.keys()){
+    for(const std::string &key:  tests.keys()){
         failures[key] = 0;
         successes[key] = 0;
     }
@@ -331,8 +339,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for (size_t n = 0; n < ntests; n++){
         std::string key = tests.keys()[std::rand() % tests.size()];
         bool pass = tests[key](usrp, rx_stream, tx_stream);
-        flush_async(tx_stream);
+
         flush_recv(rx_stream);
+        flush_async(tx_stream);
 
         //store result
         if (pass) successes[key]++;
@@ -342,7 +351,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //print the result summary
     bool any_failure = false;
     std::cout << std::endl << "Summary:" << std::endl << std::endl;
-    BOOST_FOREACH(const std::string &key, tests.keys()){
+    for(const std::string &key:  tests.keys()){
         std::cout << boost::format(
             "%s   ->   %3u successes, %3u failures"
         ) % key % successes[key] % failures[key] << std::endl;

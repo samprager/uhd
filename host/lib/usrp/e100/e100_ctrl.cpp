@@ -19,7 +19,7 @@
 #include "e100_regs.hpp"
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <sys/ioctl.h> //ioctl
 #include <fcntl.h> //open, close
 #include <linux/usrp_e.h> //ioctl structures and constants
@@ -27,7 +27,6 @@
 #include <boost/thread/thread.hpp> //sleep
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <fstream>
 
@@ -219,7 +218,7 @@ public:
 
     void write_uart(const std::string &buf){
         const ssize_t ret = ::write(_node_fd, buf.c_str(), buf.size());
-        if (size_t(ret) != buf.size()) UHD_LOG << ret;
+        if (size_t(ret) != buf.size()) UHD_LOGGER_DEBUG("E100")<< ret;
     }
 
     std::string read_uart(double timeout){
@@ -330,7 +329,7 @@ public:
      * Structors
      ******************************************************************/
     e100_ctrl_impl(const std::string &node){
-        UHD_MSG(status) << "Opening device node " << node << "..." << std::endl;
+        UHD_LOGGER_INFO("E100") << "Opening device node " << node << "..." ;
 
         //open the device node and check file descriptor
         if ((_node_fd = ::open(node.c_str(), O_RDWR)) < 0){
@@ -350,7 +349,7 @@ public:
         edge_file << "rising" << std::endl << std::flush;
         edge_file.close();
         _irq_fd = ::open("/sys/class/gpio/gpio147/value", O_RDONLY);
-        if (_irq_fd < 0) UHD_MSG(error) << "Unable to open GPIO for IRQ\n";
+        if (_irq_fd < 0) UHD_LOGGER_ERROR("E100") << "Unable to open GPIO for IRQ\n";
     }
 
     ~e100_ctrl_impl(void){

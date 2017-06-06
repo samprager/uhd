@@ -23,7 +23,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/stream.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/types/metadata.hpp>
@@ -31,7 +31,6 @@
 #include <uhd/transport/zero_copy.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/thread_time.hpp>
-#include <boost/foreach.hpp>
 #include <boost/function.hpp>
 #include <iostream>
 #include <vector>

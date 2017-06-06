@@ -17,7 +17,7 @@
 
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/msg_task.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/barrier.hpp>
 #include <exception>
@@ -32,7 +32,7 @@ public:
     task_impl(const task_fcn_type &task_fcn):
         _spawn_barrier(2)
     {
-        _thread_group.create_thread(boost::bind(&task_impl::task_loop, this, task_fcn));
+        (void)_thread_group.create_thread(boost::bind(&task_impl::task_loop, this, task_fcn));
         _spawn_barrier.wait();
     }
 
@@ -67,10 +67,10 @@ private:
     }
 
     void do_error_msg(const std::string &msg){
-        UHD_MSG(error)
-            << "An unexpected exception was caught in a task loop." << std::endl
-            << "The task loop will now exit, things may not work." << std::endl
-            << msg << std::endl
+        UHD_LOGGER_ERROR("UHD")
+            << "An unexpected exception was caught in a task loop." 
+            << "The task loop will now exit, things may not work." 
+            << msg 
         ;
     }
 
@@ -99,7 +99,7 @@ public:
     msg_task_impl(const task_fcn_type &task_fcn):
         _spawn_barrier(2)
     {
-        _thread_group.create_thread(boost::bind(&msg_task_impl::task_loop, this, task_fcn));
+        (void)_thread_group.create_thread(boost::bind(&msg_task_impl::task_loop, this, task_fcn));
         _spawn_barrier.wait();
     }
 
@@ -162,10 +162,10 @@ private:
     }
 
     void do_error_msg(const std::string &msg){
-        UHD_MSG(error)
-            << "An unexpected exception was caught in a task loop." << std::endl
-            << "The task loop will now exit, things may not work." << std::endl
-            << msg << std::endl
+        UHD_LOGGER_ERROR("UHD")
+            << "An unexpected exception was caught in a task loop." 
+            << "The task loop will now exit, things may not work." 
+            << msg 
         ;
     }
 

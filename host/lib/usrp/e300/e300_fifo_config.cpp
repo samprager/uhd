@@ -1,5 +1,5 @@
 //
-// Copyright 2013-2014 Ettus Research LLC
+// Copyright 2013-2017 Ettus Research LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,8 +17,9 @@
 
 #ifdef E300_NATIVE
 
-#include <stdint.h>
 #include <uhd/config.hpp>
+#include <stdint.h>
+#include <atomic>
 
 // constants coded into the fpga parameters
 static const size_t ZF_CONFIG_BASE    = 0x40000000;
@@ -81,7 +82,7 @@ static UHD_INLINE size_t ZF_STREAM_OFF(const size_t which)
 #include <fcntl.h> //open, close
 #include <poll.h> //poll
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <boost/format.hpp>
 #include <boost/thread/thread.hpp> //sleep
 #include <uhd/types/time_spec.hpp> //timeout
@@ -100,9 +101,13 @@ struct e300_fifo_poll_waiter
         //NOP
     }
 
+    /*!
+     * Waits until the file descriptor fd has data to read.
+     * Access to the file descriptor is thread safe.
+     */
     void wait(const double timeout)
     {
-        if (_poll_claimed.cas(1, 0))
+        if (_poll_claimed.exchange(true))
         {
             boost::mutex::scoped_lock l(mutex);
             cond.wait(l);
@@ -116,12 +121,12 @@ struct e300_fifo_poll_waiter
             if (fds[0].revents & POLLIN)
                 ::read(fd, NULL, 0);
 
-            _poll_claimed.write(0);
+            _poll_claimed = false;
             cond.notify_all();
         }
     }
 
-    uhd::atomic_uint32_t _poll_claimed;
+    std::atomic_bool _poll_claimed;
     boost::condition_variable cond;
     boost::mutex mutex;
     int fd;
@@ -202,9 +207,9 @@ public:
         _index(0),
         _waiter(waiter)
     {
-        //UHD_MSG(status) << boost::format("phys 0x%x") % addrs.phys << std::endl;
-        //UHD_MSG(status) << boost::format("data 0x%x") % addrs.data << std::endl;
-        //UHD_MSG(status) << boost::format("ctrl 0x%x") % addrs.ctrl << std::endl;
+        //UHD_LOGGER_INFO("E300") << boost::format("phys 0x%x") % addrs.phys ;
+        //UHD_LOGGER_INFO("E300") << boost::format("data 0x%x") % addrs.data ;
+        //UHD_LOGGER_INFO("E300") << boost::format("ctrl 0x%x") % addrs.ctrl ;
 
         const uint32_t sig = zf_peek32(_addrs.ctrl + ARBITER_RD_SIG);
         UHD_ASSERT_THROW((sig >> 16) == 0xACE0);
@@ -341,7 +346,7 @@ public:
     virtual ~e300_fifo_interface_impl(void)
     {
         delete _waiter;
-        UHD_LOG << "cleanup: munmap" << std::endl;
+        UHD_LOGGER_TRACE("E300")<< "cleanup: munmap" ;
         ::munmap(_buff, _config.ctrl_length + _config.buff_length);
         ::close(_fd);
     }

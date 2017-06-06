@@ -18,14 +18,13 @@
 #include "clock_ctrl.hpp"
 #include "ad9522_regs.hpp"
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/exception.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <stdint.h>
 #include "b100_regs.hpp" //spi slave constants
 #include <boost/assign/list_of.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/math/common_factor_rt.hpp> //gcd
@@ -149,11 +148,11 @@ static clock_settings_type get_clock_settings(double rate){
                 cs.chan_divider /= cs.vco_divider;
             }
 
-            UHD_LOGV(always)
-                << "gcd " << gcd << std::endl
-                << "X " << X << std::endl
-                << "Y " << Y << std::endl
-                << cs.to_pp_string() << std::endl
+            UHD_LOGGER_DEBUG("B100")
+                << "gcd: " << gcd
+                << " X: " << X
+                << " Y: " << Y
+                << cs.to_pp_string()
             ;
 
             //filter limits on the counters
@@ -167,7 +166,7 @@ static clock_settings_type get_clock_settings(double rate){
             if (cs.get_vco_rate() < 1400e6 + vco_bound_pad) continue;
             if (cs.get_out_rate() != rate) continue;
 
-            UHD_MSG(status) << "USRP-B100 clock control: " << i << std::endl << cs.to_pp_string() << std::endl;
+            UHD_LOGGER_INFO("B100") << "USRP-B100 clock control: " << i  << cs.to_pp_string() ;
             return cs;
         }
     }
@@ -466,7 +465,7 @@ private:
 
     void send_reg(uint16_t addr){
         uint32_t reg = _ad9522_regs.get_write_reg(addr);
-        UHD_LOGV(often) << "clock control write reg: " << std::hex << reg << std::endl;
+        UHD_LOGGER_TRACE("B100") << "clock control write reg: " << std::hex << reg ;
         byte_vector_t buf;
         buf.push_back(uint8_t(reg >> 16));
         buf.push_back(uint8_t(reg >> 8));
@@ -502,7 +501,7 @@ private:
             _ad9522_regs.set_reg(addr, reg);
             if (_ad9522_regs.vco_calibration_finished) goto wait_for_ld;
         }
-        UHD_MSG(error) << "USRP-B100 clock control: VCO calibration timeout" << std::endl;
+        UHD_LOGGER_ERROR("B100") << "USRP-B100 clock control: VCO calibration timeout";
         wait_for_ld:
         //wait for digital lock detect:
         for (size_t ms10 = 0; ms10 < 100; ms10++){
@@ -511,7 +510,7 @@ private:
             _ad9522_regs.set_reg(addr, reg);
             if (_ad9522_regs.digital_lock_detect) return;
         }
-        UHD_MSG(error) << "USRP-B100 clock control: lock detection timeout" << std::endl;
+        UHD_LOGGER_ERROR("B100") << "USRP-B100 clock control: lock detection timeout";
     }
 
     void soft_sync(void){
@@ -533,7 +532,7 @@ private:
         ;
 
         //write initial register values and latch/update
-        BOOST_FOREACH(const range_t &range, ranges){
+        for(const range_t &range:  ranges){
             for(uint16_t addr = range.first; addr <= range.second; addr++){
                 this->send_reg(addr);
             }

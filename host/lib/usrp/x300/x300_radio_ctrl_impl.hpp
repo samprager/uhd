@@ -56,11 +56,26 @@ public:
 
     double set_tx_frequency(const double freq, const size_t chan);
     double set_rx_frequency(const double freq, const size_t chan);
+    double set_rx_bandwidth(const double bandwidth, const size_t chan);
     double get_tx_frequency(const size_t chan);
     double get_rx_frequency(const size_t chan);
+    double get_rx_bandwidth(const size_t chan);
 
     double set_tx_gain(const double gain, const size_t chan);
     double set_rx_gain(const double gain, const size_t chan);
+
+    std::vector<std::string> get_rx_lo_names(const size_t chan);
+    std::vector<std::string> get_rx_lo_sources(const std::string &name, const size_t chan);
+    freq_range_t get_rx_lo_freq_range(const std::string &name, const size_t chan);
+
+    void set_rx_lo_source(const std::string &src, const std::string &name, const size_t chan);
+    const std::string get_rx_lo_source(const std::string &name, const size_t chan);
+
+    void set_rx_lo_export_enabled(bool enabled, const std::string &name, const size_t chan);
+    bool get_rx_lo_export_enabled(const std::string &name, const size_t chan);
+
+    double set_rx_lo_freq(double freq, const std::string &name, const size_t chan);
+    double get_rx_lo_freq(const std::string &name, const size_t chan);
 
     size_t get_chan_from_dboard_fe(const std::string &fe, const direction_t dir);
     std::string get_dboard_fe_from_chan(const size_t chan, const direction_t dir);
@@ -165,6 +180,7 @@ private:
     void set_rx_fe_corrections(const uhd::fs_path &db_path, const uhd::fs_path &rx_fe_corr_path, const double lo_freq);
     void set_tx_fe_corrections(const uhd::fs_path &db_path, const uhd::fs_path &tx_fe_corr_path, const double lo_freq);
 
+    void _set_command_time(const uhd::time_spec_t &spec, const size_t port);
     void set_fe_cmd_time(const time_spec_t &time, const size_t chan);
 
 private: // members

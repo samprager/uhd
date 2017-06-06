@@ -20,13 +20,12 @@
 #include <utility>
 
 #include <boost/filesystem.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
 #include <uhd/image_loader.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/static.hpp>
 
 namespace fs = boost::filesystem;
@@ -47,8 +46,8 @@ UHD_SINGLETON_FCN(string_map_t,     get_recovery_strings);
 void uhd::image_loader::register_image_loader(const std::string &device_type,
                                               const loader_fcn_t &loader_fcn,
                                               const std::string &recovery_instructions){
-    UHD_LOGV(always) << "Registering image loader and recovery instructions for "
-                     << device_type << std::endl;
+    UHD_LOGGER_TRACE("UHD") << "Registering image loader and recovery instructions for "
+                                     << device_type;
 
     get_image_loaders().insert(loader_fcn_pair_t(device_type, loader_fcn));
     get_recovery_strings().insert(string_pair_t(device_type, recovery_instructions));
@@ -69,7 +68,7 @@ bool uhd::image_loader::load(const uhd::image_loader::image_loader_args_t &image
         else return get_image_loaders().at(type)(image_loader_args);
     }
     else{
-        BOOST_FOREACH(const loader_fcn_pair_t &loader_fcn_pair, get_image_loaders()){
+        for(const loader_fcn_pair_t &loader_fcn_pair:  get_image_loaders()){
             if(loader_fcn_pair.second(image_loader_args)) return true;
         }
         return false;

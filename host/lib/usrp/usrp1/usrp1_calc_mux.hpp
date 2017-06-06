@@ -71,7 +71,7 @@ static uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
     //calculate the channel flags
     int channel_flags = 0;
     size_t num_reals = 0, num_quads = 0;
-    BOOST_FOREACH(const mapping_pair_t &pair, uhd::reversed(mapping)){
+    for(const mapping_pair_t &pair:  uhd::reversed(mapping)){
         const std::string name = pair.first, conn = pair.second;
         if (conn == "IQ" or conn == "QI") num_quads++;
         if (conn == "I" or conn == "Q") num_reals++;
@@ -83,7 +83,7 @@ static uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
     //    for all quadrature sources: Z = 0
     //    for mixed sources: warning + Z = 0
     int Z = (num_quads > 0)? 0 : 1;
-    if (num_quads != 0 and num_reals != 0) UHD_MSG(warning) << boost::format(
+    if (num_quads != 0 and num_reals != 0) UHD_LOGGER_WARNING("USRP1") << boost::format(
         "Mixing real and quadrature rx subdevices is not supported.\n"
         "The Q input to the real source(s) will be non-zero.\n"
     );
@@ -132,7 +132,7 @@ static uint32_t calc_tx_mux(const std::vector<mapping_pair_t> &mapping){
     //calculate the channel flags
     int channel_flags = 0, chan = 0;
     uhd::dict<std::string, int> slot_to_chan_count = boost::assign::map_list_of("A", 0)("B", 0);
-    BOOST_FOREACH(const mapping_pair_t &pair, mapping){
+    for(const mapping_pair_t &pair:  mapping){
         const std::string name = pair.first, conn = pair.second;
 
         //combine the channel flags: shift for slot A vs B

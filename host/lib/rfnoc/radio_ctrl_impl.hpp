@@ -60,6 +60,7 @@ public:
     virtual double set_rx_frequency(const double freq, const size_t chan);
     virtual double set_tx_gain(const double gain, const size_t chan);
     virtual double set_rx_gain(const double gain, const size_t chan);
+    virtual double set_rx_bandwidth(const double bandwidth, const size_t chan);
 
     virtual double get_rate() const;
     virtual std::string get_tx_antenna(const size_t chan) /* const */;
@@ -68,12 +69,32 @@ public:
     virtual double get_rx_frequency(const size_t) /* const */;
     virtual double get_tx_gain(const size_t) /* const */;
     virtual double get_rx_gain(const size_t) /* const */;
+    virtual double get_rx_bandwidth(const size_t) /* const */;
+
+    virtual std::vector<std::string> get_rx_lo_names(const size_t chan);
+    virtual std::vector<std::string> get_rx_lo_sources(const std::string &name, const size_t chan);
+    virtual freq_range_t get_rx_lo_freq_range(const std::string &name, const size_t chan);
+
+    virtual void set_rx_lo_source(const std::string &src, const std::string &name, const size_t chan);
+    virtual const std::string get_rx_lo_source(const std::string &name, const size_t chan);
+
+    virtual void set_rx_lo_export_enabled(bool enabled, const std::string &name, const size_t chan);
+    virtual bool get_rx_lo_export_enabled(const std::string &name, const size_t chan);
+
+    virtual double set_rx_lo_freq(double freq, const std::string &name, const size_t chan);
+    virtual double get_rx_lo_freq(const std::string &name, const size_t chan);
 
     void set_time_now(const time_spec_t &time_spec);
     void set_time_next_pps(const time_spec_t &time_spec);
     void set_time_sync(const uhd::time_spec_t &time);
     time_spec_t get_time_now();
     time_spec_t get_time_last_pps();
+    virtual void set_time_source(const std::string &source);
+    virtual std::string get_time_source();
+    virtual std::vector<std::string> get_time_sources();
+    virtual void set_clock_source(const std::string &source);
+    virtual std::string get_clock_source();
+    virtual std::vector<std::string> get_clock_sources();
 
     /***********************************************************************
      * Block control API calls
@@ -210,6 +231,7 @@ private:
     std::map<size_t, double> _rx_freq;
     std::map<size_t, double> _tx_gain;
     std::map<size_t, double> _rx_gain;
+    std::map<size_t, double> _rx_bandwidth;
 
     std::vector<bool> _continuous_streaming;
 }; /* class radio_ctrl_impl */

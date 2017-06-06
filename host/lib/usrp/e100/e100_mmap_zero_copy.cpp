@@ -42,14 +42,14 @@ public:
         _mem(mem), _info(info) { /* NOP */ }
 
     void release(void){
-        if (fp_verbose) UHD_LOGV(always) << "recv buff: release" << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "recv buff: release" ;
         _info->flags = RB_KERNEL; //release the frame
     }
 
     UHD_INLINE bool ready(void){return _info->flags & RB_USER;}
 
     UHD_INLINE sptr get_new(void){
-        if (fp_verbose) UHD_LOGV(always) << "  make_recv_buff: " << _info->len << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "  make_recv_buff: " << _info->len ;
         _info->flags = RB_USER_PROCESS; //claim the frame
         return make(this, _mem, _info->len);
     }
@@ -69,18 +69,18 @@ public:
         _mem(mem), _info(info), _len(len), _fd(fd) { /* NOP */ }
 
     void release(void){
-        if (fp_verbose) UHD_LOGV(always) << "send buff: commit " << size() << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "send buff: commit " << size() ;
         _info->len = _len;//size();
         _info->flags = RB_USER; //release the frame
         if (::write(_fd, NULL, 0) < 0){ //notifies the kernel
-            UHD_LOGV(rarely) << UHD_THROW_SITE_INFO("write error") << std::endl;
+            UHD_LOGGER_ERROR("E100") << UHD_THROW_SITE_INFO("write error") ;
         }
     }
 
     UHD_INLINE bool ready(void){return _info->flags & RB_KERNEL;}
 
     UHD_INLINE sptr get_new(void){
-        if (fp_verbose) UHD_LOGV(always) << "  make_send_buff: " << _len << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "  make_send_buff: " << _len ;
         _info->flags = RB_USER_PROCESS; //claim the frame
         return make(this, _mem, _len);
     }
@@ -111,15 +111,13 @@ public:
             (_rb_size.num_rx_frames + _rb_size.num_tx_frames) * _frame_size;
 
         //print sizes summary
-        UHD_LOG
-            << "page_size:          " << page_size                   << std::endl
-            << "frame_size:         " << _frame_size                 << std::endl
-            << "num_pages_rx_flags: " << _rb_size.num_pages_rx_flags << std::endl
-            << "num_rx_frames:      " << _rb_size.num_rx_frames      << std::endl
-            << "num_pages_tx_flags: " << _rb_size.num_pages_tx_flags << std::endl
-            << "num_tx_frames:      " << _rb_size.num_tx_frames      << std::endl
-            << "map_size:           " << _map_size                   << std::endl
-        ;
+        UHD_LOGGER_DEBUG("E100") << "page_size:          " << page_size;
+        UHD_LOGGER_DEBUG("E100") << "frame_size:         " << _frame_size;
+        UHD_LOGGER_DEBUG("E100") << "num_pages_rx_flags: " << _rb_size.num_pages_rx_flags;
+        UHD_LOGGER_DEBUG("E100") << "num_rx_frames:      " << _rb_size.num_rx_frames;
+        UHD_LOGGER_DEBUG("E100") << "num_pages_tx_flags: " << _rb_size.num_pages_tx_flags;
+        UHD_LOGGER_DEBUG("E100") << "num_tx_frames:      " << _rb_size.num_tx_frames;
+        UHD_LOGGER_DEBUG("E100") << "map_size:           " << _map_size;
 
         //call mmap to get the memory
         _mapped_mem = ::mmap(
@@ -134,12 +132,10 @@ public:
         size_t send_buff_off = send_info_off + (_rb_size.num_pages_tx_flags * page_size);
 
         //print offset summary
-        UHD_LOG
-            << "recv_info_off: " << recv_info_off << std::endl
-            << "recv_buff_off: " << recv_buff_off << std::endl
-            << "send_info_off: " << send_info_off << std::endl
-            << "send_buff_off: " << send_buff_off << std::endl
-        ;
+        UHD_LOGGER_DEBUG("E100") << "recv_info_off: " << recv_info_off;
+        UHD_LOGGER_DEBUG("E100") << "recv_buff_off: " << recv_buff_off;
+        UHD_LOGGER_DEBUG("E100") << "send_info_off: " << send_info_off;
+        UHD_LOGGER_DEBUG("E100") << "send_buff_off: " << send_buff_off;
 
         //pointers to sections in the mapped memory
         ring_buffer_info (*recv_info)[], (*send_info)[];
@@ -170,12 +166,12 @@ public:
     }
 
     ~e100_mmap_zero_copy_impl(void){
-        UHD_LOG << "cleanup: munmap" << std::endl;
+        UHD_LOGGER_DEBUG("E100")<< "cleanup: munmap" ;
         ::munmap(_mapped_mem, _map_size);
     }
 
     managed_recv_buffer::sptr get_recv_buff(double timeout){
-        if (fp_verbose) UHD_LOGV(always) << "get_recv_buff: " << _recv_index << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "get_recv_buff: " << _recv_index ;
         e100_mmap_zero_copy_mrb &mrb = *_mrb_pool[_recv_index];
 
         //poll/wait for a ready frame
@@ -185,7 +181,7 @@ public:
                 pfd.fd = _fd;
                 pfd.events = POLLIN;
                 ssize_t poll_ret = ::poll(&pfd, 1, size_t(timeout*1e3/poll_breakout));
-                if (fp_verbose) UHD_LOGV(always) << "  POLLIN: " << poll_ret << std::endl;
+                if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "  POLLIN: " << poll_ret ;
                 if (poll_ret > 0) goto found_user_frame; //good poll, continue on
             }
             return managed_recv_buffer::sptr(); //timed-out for real
@@ -207,7 +203,7 @@ public:
     }
 
     managed_send_buffer::sptr get_send_buff(double timeout){
-        if (fp_verbose) UHD_LOGV(always) << "get_send_buff: " << _send_index << std::endl;
+        if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "get_send_buff: " << _send_index ;
         e100_mmap_zero_copy_msb &msb = *_msb_pool[_send_index];
 
         //poll/wait for a ready frame
@@ -216,7 +212,7 @@ public:
             pfd.fd = _fd;
             pfd.events = POLLOUT;
             ssize_t poll_ret = ::poll(&pfd, 1, size_t(timeout*1e3));
-            if (fp_verbose) UHD_LOGV(always) << "  POLLOUT: " << poll_ret << std::endl;
+            if (fp_verbose) UHD_LOGGER_DEBUG("E100") << "  POLLOUT: " << poll_ret ;
             if (poll_ret <= 0) return managed_send_buffer::sptr();
         }
 

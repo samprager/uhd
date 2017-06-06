@@ -19,10 +19,9 @@
 #include <uhd/types/dict.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/algorithm.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/weak_ptr.hpp>
 #include <boost/functional/hash.hpp>
@@ -53,7 +52,7 @@ static size_t hash_device_addr(
         boost::hash_combine(hash, dev_addr["resource"]);
     }
     else {
-        BOOST_FOREACH(const std::string &key, uhd::sorted(dev_addr.keys())){
+        for(const std::string &key:  uhd::sorted(dev_addr.keys())){
             boost::hash_combine(hash, key);
             boost::hash_combine(hash, dev_addr[key]);
         }
@@ -74,7 +73,7 @@ void device::register_device(
     const make_t &make,
     const device_filter_t filter
 ){
-    UHD_LOGV(always) << "registering device" << std::endl;
+    UHD_LOGGER_TRACE("UHD") << "registering device";
     get_dev_fcn_regs().push_back(dev_fcn_reg_t(find, make, filter));
 }
 
@@ -90,7 +89,7 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
 
     device_addrs_t device_addrs;
 
-    BOOST_FOREACH(const dev_fcn_reg_t &fcn, get_dev_fcn_regs()) {
+    for(const dev_fcn_reg_t &fcn:  get_dev_fcn_regs()) {
         try {
             if (filter == ANY or fcn.get<2>() == filter) {
                 device_addrs_t discovered_addrs = fcn.get<0>()(hint);
@@ -102,7 +101,7 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
             }
         }
         catch (const std::exception &e) {
-            UHD_MSG(error) << "Device discovery error: " << e.what() << std::endl;
+            UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what();
         }
     }
 
@@ -118,17 +117,17 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     typedef boost::tuple<device_addr_t, make_t> dev_addr_make_t;
     std::vector<dev_addr_make_t> dev_addr_makers;
 
-    BOOST_FOREACH(const dev_fcn_reg_t &fcn, get_dev_fcn_regs()){
+    for(const dev_fcn_reg_t &fcn:  get_dev_fcn_regs()){
         try{
             if(filter == ANY or fcn.get<2>() == filter){
-                BOOST_FOREACH(device_addr_t dev_addr, fcn.get<0>()(hint)){
+                for(device_addr_t dev_addr:  fcn.get<0>()(hint)){
                     //append the discovered address and its factory function
                     dev_addr_makers.push_back(dev_addr_make_t(dev_addr, fcn.get<1>()));
                 }
             }
         }
         catch(const std::exception &e){
-            UHD_MSG(error) << "Device discovery error: " << e.what() << std::endl;
+            UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what() ;
         }
     }
 
@@ -150,11 +149,11 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     device_addr_t dev_addr; make_t maker;
     boost::tie(dev_addr, maker) = dev_addr_makers.at(which);
     size_t dev_hash = hash_device_addr(dev_addr);
-    UHD_LOG << boost::format("Device hash: %u") % dev_hash << std::endl;
+    UHD_LOGGER_TRACE("UHD") << boost::format("Device hash: %u") % dev_hash ;
 
     //copy keys that were in hint but not in dev_addr
     //this way, we can pass additional transport arguments
-    BOOST_FOREACH(const std::string &key, hint.keys()){
+    for(const std::string &key:  hint.keys()){
         if (not dev_addr.has_key(key)) dev_addr[key] = hint[key];
     }
 

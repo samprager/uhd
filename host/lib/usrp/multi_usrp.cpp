@@ -17,7 +17,7 @@
 
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
@@ -30,7 +30,6 @@
 #include "legacy_compat.hpp"
 #include <boost/assign/list_of.hpp>
 #include <boost/thread.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <algorithm>
@@ -66,7 +65,7 @@ static void do_samp_rate_warning_message(
 ){
     static const double max_allowed_error = 1.0; //Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error){
-        UHD_MSG(warning) << boost::format(
+        UHD_LOGGER_WARNING("MULTI_USRP") << boost::format(
             "The hardware does not support the requested %s sample rate:\n"
             "Target sample rate: %f MSps\n"
             "Actual sample rate: %f MSps\n"
@@ -97,7 +96,7 @@ static void do_samp_rate_warning_message(
 
     if(requested_freq_success and target_freq_success and rf_lo_tune_success
             and dsp_tune_success) {
-        UHD_MSG(status) << boost::format(
+        UHD_LOGGER_INFO("MULTI_USRP") << boost::format(
                 "Successfully tuned to %f MHz\n\n")
                 % (actual_freq / 1e6);
     } else {
@@ -120,7 +119,7 @@ static void do_samp_rate_warning_message(
 
             results_string += rf_lo_message.str();
 
-            UHD_MSG(status) << results_string;
+            UHD_LOGGER_INFO("MULTI_USRP") << results_string;
 
             return;
         }
@@ -174,7 +173,7 @@ static void do_samp_rate_warning_message(
             results_string += failure_message.str();
         }
 
-        UHD_MSG(warning) << results_string << std::endl;
+        UHD_LOGGER_WARNING("MULTI_USRP") << results_string ;
     }
 }*/
 
@@ -190,7 +189,7 @@ static meta_range_t make_overall_tune_range(
     const double bw
 ){
     meta_range_t range;
-    BOOST_FOREACH(const range_t &sub_range, fe_range){
+    for(const range_t &sub_range:  fe_range){
         range.push_back(range_t(
             sub_range.start() + std::max(dsp_range.start(), -bw/2),
             sub_range.stop() + std::min(dsp_range.stop(), bw/2),
@@ -459,7 +458,7 @@ public:
             if (_tree->exists(mb_root(mboard) / "auto_tick_rate")
                     and _tree->access<bool>(mb_root(mboard) / "auto_tick_rate").get()) {
                 _tree->access<bool>(mb_root(mboard) / "auto_tick_rate").set(false);
-                UHD_MSG(status) << "Setting master clock rate selection to 'manual'." << std::endl;
+                UHD_LOGGER_INFO("MULTI_USRP") << "Setting master clock rate selection to 'manual'.";
             }
             _tree->access<double>(mb_root(mboard) / "tick_rate").set(rate);
             return;
@@ -557,7 +556,7 @@ public:
     }
 
     void set_time_unknown_pps(const time_spec_t &time_spec){
-        UHD_MSG(status) << "    1) catch time transition at pps edge" << std::endl;
+        UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
         boost::system_time end_time = boost::get_system_time() + boost::posix_time::milliseconds(1100);
         time_spec_t time_start_last_pps = get_time_last_pps();
         while (time_start_last_pps == get_time_last_pps())
@@ -573,7 +572,7 @@ public:
             boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
 
-        UHD_MSG(status) << "    2) set times next pps (synchronously)" << std::endl;
+        UHD_LOGGER_INFO("MULTI_USRP") << "    2) set times next pps (synchronously)";
         set_time_next_pps(time_spec, ALL_MBOARDS);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
 
@@ -582,7 +581,7 @@ public:
             time_spec_t time_0 = this->get_time_now(0);
             time_spec_t time_i = this->get_time_now(m);
             if (time_i < time_0 or (time_i - time_0) > time_spec_t(0.01)){ //10 ms: greater than RTT but not too big
-                UHD_MSG(warning) << boost::format(
+                UHD_LOGGER_WARNING("MULTI_USRP") << boost::format(
                     "Detected time deviation between board %d and board 0.\n"
                     "Board 0 time is %f seconds.\n"
                     "Board %d time is %f seconds.\n"
@@ -766,7 +765,7 @@ public:
     rx_streamer::sptr get_rx_stream(const stream_args_t &args) {
         _check_link_rate(args, false);
         if (is_device3()) {
-            UHD_MSG(status) << "[multi_usrp] Getting rx streamer from legacy compat" << std::endl;
+            UHD_LOGGER_DEBUG("MULTI_USRP") << "[multi_usrp] Getting rx streamer from legacy compat" << std::endl;
             return _legacy_compat->get_rx_stream(args);
         }
         return this->get_device()->get_rx_stream(args);
@@ -798,7 +797,7 @@ public:
             {
                 throw uhd::index_error(str(boost::format("multi_usrp::get_rx_subdev_spec(%u) failed to make default spec - %s") % mboard % e.what()));
             }
-            UHD_MSG(status) << "Selecting default RX front end spec: " << spec.to_pp_string() << std::endl;
+            UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default RX front end spec: " << spec.to_pp_string();
         }
         return spec;
     }
@@ -892,7 +891,7 @@ public:
     std::vector<std::string> get_rx_lo_names(size_t chan = 0){
         std::vector<std::string> lo_names;
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
-            BOOST_FOREACH(const std::string &name, _tree->list(rx_rf_fe_root(chan) / "los")) {
+            for(const std::string &name:  _tree->list(rx_rf_fe_root(chan) / "los")) {
                 lo_names.push_back(name);
             }
         }
@@ -906,7 +905,7 @@ public:
                     //Special value ALL_LOS support atomically sets the source for all LOs
                     _tree->access<std::string>(rx_rf_fe_root(chan) / "los" / ALL_LOS / "source" / "value").set(src);
                 } else {
-                    BOOST_FOREACH(const std::string &n, _tree->list(rx_rf_fe_root(chan) / "los")) {
+                    for(const std::string &n:  _tree->list(rx_rf_fe_root(chan) / "los")) {
                         this->set_rx_lo_source(src, n, chan);
                     }
                 }
@@ -969,7 +968,7 @@ public:
                     //Special value ALL_LOS support atomically sets the source for all LOs
                     _tree->access<bool>(rx_rf_fe_root(chan) / "los" / ALL_LOS / "export").set(enabled);
                 } else {
-                    BOOST_FOREACH(const std::string &n, _tree->list(rx_rf_fe_root(chan) / "los")) {
+                    for(const std::string &n:  _tree->list(rx_rf_fe_root(chan) / "los")) {
                         this->set_rx_lo_export_enabled(enabled, n, chan);
                     }
                 }
@@ -1060,7 +1059,7 @@ public:
             if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc")) {
                 bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
                 if(agc) {
-                    UHD_MSG(warning) << "AGC enabled for this channel. Setting will be ignored." << std::endl;
+                    UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
                 }
             }
         } else {
@@ -1068,7 +1067,7 @@ public:
                 if (_tree->exists(rx_rf_fe_root(c) / "gain" / "agc")) {
                     bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
                     if(agc) {
-                        UHD_MSG(warning) << "AGC enabled for this channel. Setting will be ignored." << std::endl;
+                        UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
                     }
                 }
             }
@@ -1098,7 +1097,7 @@ public:
             if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc" / "enable")) {
                 _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").set(enable);
             } else {
-                UHD_MSG(warning) << "AGC is not available on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "AGC is not available on this device." ;
             }
             return;
         }
@@ -1187,7 +1186,7 @@ public:
                 /*For B2xx devices the dc-offset correction is implemented in the rf front-end*/
                 _tree->access<bool>(rx_rf_fe_root(chan) / "dc_offset" / "enable").set(enb);
             } else {
-                UHD_MSG(warning) << "Setting DC offset compensation is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting DC offset compensation is not possible on this device." ;
             }
             return;
         }
@@ -1201,7 +1200,7 @@ public:
             if (_tree->exists(rx_fe_root(chan) / "dc_offset" / "value")) {
                 _tree->access<std::complex<double> >(rx_fe_root(chan) / "dc_offset" / "value").set(offset);
             } else {
-                UHD_MSG(warning) << "Setting DC offset is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting DC offset is not possible on this device." ;
             }
             return;
         }
@@ -1215,7 +1214,7 @@ public:
             if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
                 _tree->access<bool>(rx_rf_fe_root(chan) / "iq_balance" / "enable").set(enb);
             } else {
-                UHD_MSG(warning) << "Setting IQ imbalance compensation is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting IQ imbalance compensation is not possible on this device." ;
             }
             return;
         }
@@ -1229,7 +1228,7 @@ public:
             if (_tree->exists(rx_fe_root(chan) / "iq_balance" / "value")) {
                 _tree->access<std::complex<double> >(rx_fe_root(chan) / "iq_balance" / "value").set(offset);
             } else {
-                UHD_MSG(warning) << "Setting IQ balance is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting IQ balance is not possible on this device." ;
             }
             return;
         }
@@ -1356,7 +1355,7 @@ public:
             {
                 throw uhd::index_error(str(boost::format("multi_usrp::get_tx_subdev_spec(%u) failed to make default spec - %s") % mboard % e.what()));
             }
-            UHD_MSG(status) << "Selecting default TX front end spec: " << spec.to_pp_string() << std::endl;
+            UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default TX front end spec: " << spec.to_pp_string();
         }
         return spec;
     }
@@ -1464,7 +1463,7 @@ public:
       if (gain_range_width == 0.0) {
           return 0.0;
       }
-      double norm_gain = (get_rx_gain(ALL_GAINS, chan) - gain_range.start()) / gain_range_width;
+      double norm_gain = (get_tx_gain(ALL_GAINS, chan) - gain_range.start()) / gain_range_width;
       // Avoid rounding errors:
       if (norm_gain > 1.0) return 1.0;
       if (norm_gain < 0.0) return 0.0;
@@ -1524,7 +1523,7 @@ public:
             if (_tree->exists(tx_fe_root(chan) / "dc_offset" / "value")) {
                 _tree->access<std::complex<double> >(tx_fe_root(chan) / "dc_offset" / "value").set(offset);
             } else {
-                UHD_MSG(warning) << "Setting DC offset is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting DC offset is not possible on this device." ;
             }
             return;
         }
@@ -1538,7 +1537,7 @@ public:
             if (_tree->exists(tx_fe_root(chan) / "iq_balance" / "value")) {
                 _tree->access<std::complex<double> >(tx_fe_root(chan) / "iq_balance" / "value").set(offset);
             } else {
-                UHD_MSG(warning) << "Setting IQ balance is not possible on this device." << std::endl;
+                UHD_LOGGER_WARNING("MULTI_USRP") << "Setting IQ balance is not possible on this device." ;
             }
             return;
         }
@@ -1555,12 +1554,12 @@ public:
         std::vector<std::string> banks;
         if (_tree->exists(mb_root(mboard) / "gpio"))
         {
-            BOOST_FOREACH(const std::string &name, _tree->list(mb_root(mboard) / "gpio"))
+            for(const std::string &name:  _tree->list(mb_root(mboard) / "gpio"))
             {
                 banks.push_back(name);
             }
         }
-        BOOST_FOREACH(const std::string &name, _tree->list(mb_root(mboard) / "dboards"))
+        for(const std::string &name:  _tree->list(mb_root(mboard) / "dboards"))
         {
             banks.push_back("RX"+name);
             banks.push_back("TX"+name);
@@ -1774,8 +1773,12 @@ private:
     {
         try
         {
-            const std::string name = _tree->list("/mboards").at(mboard);
-            return "/mboards/" + name;
+            const std::string tree_path = "/mboards/" + boost::lexical_cast<std::string>(mboard);
+            if (_tree->exists(tree_path)) {
+                return tree_path;
+            } else {
+                throw uhd::index_error(str(boost::format("multi_usrp::mb_root(%u) - path not found") % mboard));
+            }
         }
         catch(const std::exception &e)
         {
@@ -1798,8 +1801,12 @@ private:
 
         try
         {
-            const std::string name = _tree->list(mb_root(mcp.mboard) / "rx_dsps").at(mcp.chan);
-            return mb_root(mcp.mboard) / "rx_dsps" / name;
+            const std::string tree_path = mb_root(mcp.mboard) / "rx_dsps" / boost::lexical_cast<std::string>(mcp.chan);
+            if (_tree->exists(tree_path)) {
+                return tree_path;
+            } else {
+                throw uhd::index_error(str(boost::format("multi_usrp::rx_dsp_root(%u) - mcp(%u) - path not found") % chan % mcp.chan));
+            }
         }
         catch(const std::exception &e)
         {
@@ -1821,8 +1828,12 @@ private:
         }
         try
         {
-            const std::string name = _tree->list(mb_root(mcp.mboard) / "tx_dsps").at(mcp.chan);
-            return mb_root(mcp.mboard) / "tx_dsps" / name;
+            const std::string tree_path = mb_root(mcp.mboard) / "tx_dsps" / boost::lexical_cast<std::string>(mcp.chan);
+            if (_tree->exists(tree_path)) {
+                return tree_path;
+            } else {
+                throw uhd::index_error(str(boost::format("multi_usrp::tx_dsp_root(%u) - mcp(%u) - path not found") % chan % mcp.chan));
+            }
         }
         catch(const std::exception &e)
         {
@@ -1896,10 +1907,10 @@ private:
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg = gain_group::make();
-        BOOST_FOREACH(const std::string &name, _tree->list(mb_root(mcp.mboard) / "rx_codecs" / spec.db_name / "gains")){
+        for(const std::string &name:  _tree->list(mb_root(mcp.mboard) / "rx_codecs" / spec.db_name / "gains")){
             gg->register_fcns("ADC-"+name, make_gain_fcns_from_subtree(_tree->subtree(mb_root(mcp.mboard) / "rx_codecs" / spec.db_name / "gains" / name)), 0 /* low prio */);
         }
-        BOOST_FOREACH(const std::string &name, _tree->list(rx_rf_fe_root(chan) / "gains")){
+        for(const std::string &name:  _tree->list(rx_rf_fe_root(chan) / "gains")){
             gg->register_fcns(name, make_gain_fcns_from_subtree(_tree->subtree(rx_rf_fe_root(chan) / "gains" / name)), 1 /* high prio */);
         }
         return gg;
@@ -1909,10 +1920,10 @@ private:
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg = gain_group::make();
-        BOOST_FOREACH(const std::string &name, _tree->list(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains")){
+        for(const std::string &name:  _tree->list(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains")){
             gg->register_fcns("DAC-"+name, make_gain_fcns_from_subtree(_tree->subtree(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains" / name)), 1 /* high prio */);
         }
-        BOOST_FOREACH(const std::string &name, _tree->list(tx_rf_fe_root(chan) / "gains")){
+        for(const std::string &name:  _tree->list(tx_rf_fe_root(chan) / "gains")){
             gg->register_fcns(name, make_gain_fcns_from_subtree(_tree->subtree(tx_rf_fe_root(chan) / "gains" / name)), 0 /* low prio */);
         }
         return gg;
@@ -1926,7 +1937,7 @@ private:
         size_t bytes_per_sample = convert::get_bytes_per_item(args.otw_format.empty() ? "sc16" : args.otw_format);
         double max_link_rate = 0;
         double sum_rate = 0;
-        BOOST_FOREACH(const size_t chan, args.channels) {
+        for(const size_t chan:  args.channels) {
             mboard_chan_pair mcp = is_tx ? tx_chan_to_mcp(chan) : rx_chan_to_mcp(chan);
             if (_tree->exists(mb_root(mcp.mboard) / "link_max_rate")) {
                 max_link_rate = std::max(
@@ -1938,10 +1949,10 @@ private:
         }
         sum_rate /= get_num_mboards();
         if (max_link_rate > 0 and (max_link_rate / bytes_per_sample) < sum_rate) {
-            UHD_MSG(warning) << boost::format(
+            UHD_LOGGER_WARNING("MULTI_USRP") << boost::format(
                 "The total sum of rates (%f MSps on %u channels) exceeds the maximum capacity of the connection.\n"
                 "This can cause %s."
-            ) % (sum_rate/1e6) % args.channels.size() % (is_tx ? "underruns (U)" : "overflows (O)")  << std::endl;
+            ) % (sum_rate/1e6) % args.channels.size() % (is_tx ? "underruns (U)" : "overflows (O)")  ;
             link_rate_is_ok = false;
         }
 
@@ -1957,6 +1968,6 @@ multi_usrp::~multi_usrp(void){
  * The Make Function
  **********************************************************************/
 multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
-    UHD_LOG << "multi_usrp::make with args " << dev_addr.to_pp_string() << std::endl;
+    UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
     return sptr(new multi_usrp_impl(dev_addr));
 }
