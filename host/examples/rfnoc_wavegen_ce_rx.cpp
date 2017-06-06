@@ -619,11 +619,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //////// 6. Spawn receiver //////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////
-    UHD_MSG(status) << "Samples per packet: " << spp << std::endl;
+    UHD_LOGGER_INFO("RFNOC") << "Samples per packet: " << spp;
     uhd::stream_args_t stream_args(format, "sc16");
     stream_args.args = streamer_args;
     stream_args.args["spp"] = boost::lexical_cast<std::string>(spp);
-    UHD_MSG(status) << "Using streamer args: " << stream_args.args.to_string() << std::endl;
+    UHD_LOGGER_INFO("RFNOC") << "Using streamer args: " << stream_args.args.to_string();
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     if (total_num_samps == 0) {

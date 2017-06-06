@@ -125,7 +125,7 @@ public:
     }
     void register_loopback_self_test()
     {
-        UHD_MSG(status) << "[RFNoC Wavegen] Performing register loopback test... " << std::flush;
+        UHD_LOGGER_INFO("RFNOC") << "[RFNoC Wavegen] Performing register loopback test... ";
         size_t hash = size_t(time(NULL));
         for (size_t i = 0; i < 100; i++)
         {
@@ -133,12 +133,12 @@ public:
             sr_write(SR_TEST, boost::uint32_t(hash));
             boost::uint32_t result = user_reg_read32(RB_TEST);
             if (result != boost::uint32_t(hash)) {
-                UHD_MSG(status) << "fail" << std::endl;
-                UHD_MSG(status) << boost::format("expected: %x result: %x") % boost::uint32_t(hash) % result << std::endl;
+                UHD_LOGGER_INFO("RFNOC") << "fail";
+                UHD_LOGGER_INFO("RFNOC") << boost::format("expected: %x result: %x") % boost::uint32_t(hash) % result;
                 return; // exit on any failure
             }
         }
-        UHD_MSG(status) << "pass" << std::endl;
+        UHD_LOGGER_INFO("RFNOC") << "pass" << std::endl;
     }
 
     void set_waveform(const std::vector<boost::uint32_t> &samples)
@@ -422,9 +422,9 @@ public:
 
     boost::uint32_t get_ctrl_word()
     {
-      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_ctrl_word()" << std::endl;
+      //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_ctrl_word()";
         boost::uint32_t ctrl_word = boost::uint32_t(user_reg_read64(RB_AWG_CTRL));
-      //  UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word;
         UHD_ASSERT_THROW(ctrl_word);
         return ctrl_word;
     }
@@ -432,7 +432,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_src()" << std::endl;
         boost::uint32_t ctrl_word = boost::uint32_t(user_reg_read64(RB_AWG_CTRL));
-      //  UHD_MSG(status) << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_ctrl_word() ctrl_word ==" << ctrl_word << std::endl;
         UHD_ASSERT_THROW(ctrl_word);
         std::string src_str;
         boost::uint32_t mask = 0x00000003;
@@ -452,7 +452,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy_word()" << std::endl;
         boost::uint32_t policy = boost::uint32_t(user_reg_read64(RB_AWG_POLICY));
-      //  UHD_MSG(status) << "wavegen_block::get_policy_word() policy ==" << policy << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_policy_word() policy ==" << policy << std::endl;
         //UHD_ASSERT_THROW(policy);
         UHD_ASSERT_THROW(1);
         return policy;
@@ -461,7 +461,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_policy()" << std::endl;
         boost::uint32_t policy = boost::uint32_t(user_reg_read64(RB_AWG_POLICY));
-      //  UHD_MSG(status) << "wavegen_block::get_policy() policy ==" << policy << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_policy() policy ==" << policy << std::endl;
         //UHD_ASSERT_THROW(policy);
         std::string policy_str;
         if (policy == RADAR_POLICY_AUTO) {
@@ -482,7 +482,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_num_adc_samples()" << std::endl;
         boost::uint32_t samples = boost::uint32_t(user_reg_read64(RB_ADC_LEN));
-    //    UHD_MSG(status) << "wavegen_block::get_num_adc_samples() samples ==" << samples << std::endl;
+    //    UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_num_adc_samples() samples ==" << samples << std::endl;
         UHD_ASSERT_THROW(samples);
         return samples;
     }
@@ -492,7 +492,7 @@ public:
         boost::uint32_t adc_samples = get_num_adc_samples();
         boost::uint32_t wfrm_len = get_waveform_len();
         boost::uint32_t rx_len = adc_samples+wfrm_len;
-    //    UHD_MSG(status) << "wavegen_block::get_rx_len() rx_len ==" << rx_len << std::endl;
+    //    UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_rx_len() rx_len ==" << rx_len << std::endl;
      //   UHD_ASSERT_THROW(rx_len);
         return rx_len;
     }
@@ -501,7 +501,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_waveform_len()" << std::endl;
         boost::uint32_t len = boost::uint32_t(user_reg_read64(RB_AWG_LEN));
-      //  UHD_MSG(status) << "wavegen_block::get_waveform_len() len ==" << len << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_waveform_len() len ==" << len << std::endl;
        // UHD_ASSERT_THROW(len);
         return len;
     }
@@ -510,7 +510,7 @@ public:
     {
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_prf_count()" << std::endl;
         boost::uint64_t prf_count = boost::uint64_t(user_reg_read64(RB_AWG_PRF));
-      //  UHD_MSG(status) << "wavegen_block::get_prf_count() prf_count ==" << prf_count << std::endl;
+      //  UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_prf_count() prf_count ==" << prf_count << std::endl;
         UHD_ASSERT_THROW(prf_count);
         return prf_count;
     }
@@ -518,7 +518,7 @@ public:
     {
     //    UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_state()" << std::endl;
         boost::uint64_t awg_state = boost::uint64_t(user_reg_read64(RB_AWG_STATE));
-    //    UHD_MSG(status) << "wavegen_block::get_state() awg_state ==" << awg_state << std::endl;
+    //    UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_state() awg_state ==" << awg_state << std::endl;
         UHD_ASSERT_THROW(awg_state);
         return awg_state;
     }
@@ -530,7 +530,7 @@ public:
     boost::uint64_t get_vita_time(){
       //  UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::get_vita_time()" << std::endl;
         boost::uint64_t vita_time = boost::uint64_t(user_reg_read64(RB_VITA_TIME));
-    //    UHD_MSG(status) << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
+    //    UHD_LOGGER_INFO("RFNOC") << "wavegen_block::get_vita_time() vita_time ==" << vita_time << std::endl;
         UHD_ASSERT_THROW(vita_time);
         return vita_time;
     }
