@@ -453,6 +453,7 @@ std::vector<std::string> radio_ctrl_impl::get_clock_sources()
 // Custom functions implemented to access Loopback and FP GPIO FPGA Radio Core registers
 void radio_ctrl_impl::my_set_loopback_reg(boost::uint32_t value, const size_t chan)
 {
+  boost::mutex::scoped_lock lock(_mutex);
     UHD_RFNOC_BLOCK_TRACE() << "radio_ctrl_impl::my_set_loopback_reg() " << chan << " " << value << std::endl;
     sr_write(regs::LOOPBACK, value, chan);
 }
