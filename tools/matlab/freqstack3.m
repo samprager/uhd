@@ -185,8 +185,8 @@ elseif(nargin==6)
     upfac = varargin{6};
     
     N = numel(trials);
-    ob = obw(filt,fs);
-    reqbw = N*ob-(N-1)*(ob-dfc);
+%     ob = obw(filt,fs);
+%     reqbw = N*ob-(N-1)*(ob-dfc);
     %upfac_guess = ceil(2*reqbw/fs)
 
     filt = interp(filt,upfac);
