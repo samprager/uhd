@@ -97,7 +97,7 @@ struct e300_fifo_poll_waiter
 {
     e300_fifo_poll_waiter(const int fd):
         fd(fd),
-        _poll_claimed(false)
+       _poll_claimed(false)
     {
         //NOP
     }

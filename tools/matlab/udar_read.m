@@ -40,7 +40,9 @@ for i=1:numel(trials)
     dataf = dir([outdir,base,'*.dat']);
     data = 0;
     for j=1:numel(dataf)
-        dataiq = conj(file2wave([outdir,dataf(j).name]));
+%         dataiq = conj(file2wave([outdir,dataf(j).name]));
+         dataiq = (file2wave([outdir,dataf(j).name]));
+ 
         data = (data*(j-1)+(dataiq))/j;
     end
     fid = fopen([outdir,trials(i).name]);

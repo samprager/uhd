@@ -19,8 +19,16 @@ end
 fileID = fopen(fname,'r');
 data=fread(fileID,format);
 fclose(fileID);
-I = data(2:2:end)';
-Q = data(1:2:end)';
+
+[d, base, ext] = fileparts(fname);
+
+if (strcmp(ext,'.dat'))
+    I = data(1:2:end)';
+    Q = data(2:2:end)';
+else
+    I = data(2:2:end)';
+    Q = data(1:2:end)';
+end
 
 scale = scale_out/double(intmax(format));
 
