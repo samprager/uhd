@@ -1,3 +1,7 @@
+% Note when setting a threshold scale st:
+%   threshold = a*cfar(N,mode)
+%   Prob_false_alarm ~= (a/N + 1)^(-N) 
+
 function s = cfar(varargin)
 s = [];
 if nargin<2

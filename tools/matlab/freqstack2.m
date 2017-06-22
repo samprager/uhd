@@ -84,7 +84,7 @@ if(nargin==2)
     tfilt = t2;
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);
@@ -159,7 +159,7 @@ elseif(nargin==5)
     tfilt = t2;
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);
@@ -225,7 +225,7 @@ elseif(nargin==6)
     tfilt = t2;
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);

@@ -27,6 +27,11 @@ function trials = udar_read(outdir)
 % Created: 2017/04/06 01:03:52; Last Revised: 2017/04/06 01:03:52
 
 %------------- BEGIN CODE --------------
+if (~strcmp(outdir(end),'/')&&(isunix))
+    outdir = [outdir,'/'];
+elseif (~strcmp(outdir(end),'\')&&(ispc))
+    outdir = [outdir,'\'];
+end
 
 trials = dir([outdir,'*-config.txt']);
 for i=1:numel(trials)
@@ -44,7 +49,15 @@ for i=1:numel(trials)
     indC = strfind(s{1},'Freq');
     ind = find(not(cellfun('isempty', indC)));
     freq = str2double(s{2}{ind(1)});
+    indC = strfind(s{1},'RX power dBm');
+    ind = find(not(cellfun('isempty', indC)));
+    rxpower = str2double(s{2}{ind(1)});
+    indC = strfind(s{1},'TX power dBm');
+    ind = find(not(cellfun('isempty', indC)));
+    txpower = str2double(s{2}{ind(1)});
     trials(i).freq = freq;
+    trials(i).rxpower = rxpower;
+    trials(i).txpower = txpower;
     trials(i).data = data;
 end
 end

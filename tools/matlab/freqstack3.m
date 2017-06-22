@@ -82,9 +82,13 @@ if(nargin==2)
 
     gn = [];
     tfilt = t2;
+%     for i=1:N
+%         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
+%             exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+%     end
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);
@@ -150,9 +154,13 @@ elseif(nargin==5)
 
     gn = [];
     tfilt = t2;
+%     for i=1:N
+%         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
+%             exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+%     end
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);
@@ -212,15 +220,21 @@ elseif(nargin==6)
 
     xscale = max(real(filt));
     x_tx = xscale*exp(1i*pi*K*t2.^2).*rect(t2,t2(1),t2(end-ntau),1);
+    
+   
 
     filt = [filt,zeros(1,ntau)];
 
     gn = [];
 
     tfilt = t2;
+%     for i=1:N
+%         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
+%             exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+%     end
     for i=1:N
         gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
-            exp(1i*pi*dTn(i)*fn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
+            exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
     end
 
     dtu = 1/(N*fnq);
