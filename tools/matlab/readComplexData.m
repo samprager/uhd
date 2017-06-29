@@ -1,4 +1,4 @@
-function [dataI, dataQ] = readComplexData(filename,bitformat)
+function varargout = readComplexData(filename,bitformat)
 
 byteoffset = 0;
 packetsize = 512; %528;
@@ -22,5 +22,14 @@ numbytes = (packetsize-headersize)/bytesperword;
 
 dataI = A(1:2:end)';
 dataQ = A(2:2:end)';
+
+if (nargout == 1)
+    varargout{1} = dataI + 1i*dataQ;
+elseif (nargout == 2)
+    varargout{1} = dataI;
+    varargout{2} = dataQ;
+else 
+    error('Expects either 1 or 2 outputs');
+end
 
 end

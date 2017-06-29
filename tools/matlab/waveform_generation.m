@@ -4,7 +4,7 @@ win_types = {'_blk','_hann','_ham','_bhar','_tky','_cheb','_bhann',''};
 
 fs = 200e6;
 n = 4096-128;
-f0 = 1e6; f1 = 50e6; f_ricker =50e6;
+f0 = 1e6; f1 = 80e6; f_ricker =50e6;
 t = linspace(0,n/fs,n);
 ti  = linspace(-n/(2*fs),n/(2*fs),n);
 f = 10;
@@ -27,8 +27,10 @@ s_lin_dsb = exp(1i*2*pi*(.5*(f1/t1(end))*t1.^2));
 s_lin = exp(1i*pi*(.5*(f1/t1(end))*t1.^2));
 
 temp = [zeros(1,512) s_lin];
-wave2file(real(temp),imag(temp),'/Users/sam/outputs/waveform_zeropad50.bin',numel(temp));
+wave2file(real(temp),imag(temp),'/Users/sam/outputs/waveform_zeropad.bin',numel(temp));
 
+temp = [zeros(1,512) s_lin_dsb];
+wave2file(real(temp),imag(temp),'/Users/sam/outputs/waveform_zeropaddsb.bin',numel(temp));
 
 
 % data_gaus = gauspuls(ti,50E6,.8);
@@ -47,6 +49,12 @@ IQ_rick = hilbert(data_rick);
 I_rick = real(IQ_rick); Q_rick = imag(IQ_rick);
 
 I_prn = 2*round(rand(1,n))-1;
+Q_prn = 2*round(rand(1,n))-1;
+
+tempI = [zeros(1,512),I_prn];
+tempQ = [zeros(1,512),Q_prn];
+wave2file(tempI,tempQ,'/Users/sam/outputs/waveform_zeropadprn.bin',numel(tempI));
+
 Q_prn = 2*round(rand(1,n))-1;
 
 data_prnmax = maximal_prn(n);
