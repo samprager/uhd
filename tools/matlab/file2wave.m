@@ -22,7 +22,7 @@ fclose(fileID);
 
 [d, base, ext] = fileparts(fname);
 
-if (strcmp(ext,'.dat'))
+if (strcmp(ext,'.dat')|| strcmp(ext,'.ref'))
     I = data(1:2:end)';
     Q = data(2:2:end)';
 else

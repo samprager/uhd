@@ -15,6 +15,8 @@ function trials = udar_read(outdir)
 %         datenum
 %         freq
 %         data
+%         ref
+%         fs
 %
 %
 % Other m-files required: file2wave.m
@@ -45,22 +47,54 @@ for i=1:numel(trials)
  
         data = (data*(j-1)+(dataiq))/j;
     end
+    reff = dir([outdir,base,'*.ref']);
+    ref = 0;
+    for j=1:numel(reff)
+         refiq = (file2wave([outdir,reff(j).name]));
+         ref = (ref*(j-1)+(refiq))/j;
+    end
     fid = fopen([outdir,trials(i).name]);
     s = textscan(fid,'%s %s','Delimiter',':','CommentStyle','--');
     fclose(fid);
+    
+    indC = strfind(s{1},'AWG Waveform Len');
+    ind = find(not(cellfun('isempty', indC)));
+    awglen = str2double(s{2}{ind(1)});
+    
     indC = strfind(s{1},'Freq');
     ind = find(not(cellfun('isempty', indC)));
     freq = str2double(s{2}{ind(1)});
+    
     indC = strfind(s{1},'RX power dBm');
     ind = find(not(cellfun('isempty', indC)));
-    rxpower = str2double(s{2}{ind(1)});
+    if (ind>0)
+        rxpower = str2double(s{2}{ind(1)});
+    else
+        rxpower = 0;
+    end
     indC = strfind(s{1},'TX power dBm');
     ind = find(not(cellfun('isempty', indC)));
-    txpower = str2double(s{2}{ind(1)});
+    if (ind>9)
+        txpower = str2double(s{2}{ind(1)});
+    else
+        txpower = 0;
+    end
+    
+    indC = strfind(s{1},'Sample Rate');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>9)
+        fs = str2double(s{2}{ind(1)});
+    else
+        fs = 0;
+    end
+    
     trials(i).freq = freq;
     trials(i).rxpower = rxpower;
     trials(i).txpower = txpower;
     trials(i).data = data;
+    trials(i).ref = ref;
+    trials(i).awglen = awglen;
+    trials(i).fs = fs;
 end
 end
 %------------- END OF CODE --------------
