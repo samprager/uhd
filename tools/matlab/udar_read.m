@@ -74,7 +74,7 @@ for i=1:numel(trials)
     end
     indC = strfind(s{1},'TX power dBm');
     ind = find(not(cellfun('isempty', indC)));
-    if (ind>9)
+    if (ind>0)
         txpower = str2double(s{2}{ind(1)});
     else
         txpower = 0;
@@ -82,7 +82,7 @@ for i=1:numel(trials)
     
     indC = strfind(s{1},'Sample Rate');
     ind = find(not(cellfun('isempty', indC)));
-    if (ind>9)
+    if (ind>0)
         fs = str2double(s{2}{ind(1)});
     else
         fs = 0;
@@ -96,5 +96,8 @@ for i=1:numel(trials)
     trials(i).awglen = awglen;
     trials(i).fs = fs;
 end
+
+[~,inds] = sort([trials.freq]);
+trials = trials(inds);
 end
 %------------- END OF CODE --------------

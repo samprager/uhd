@@ -77,7 +77,6 @@ for i=1:N
     filt = [filt; upsample(trials(i).ref,upfac)];
 end
 
-
 ntau = numel(data(1,:))-n; 
 tau=ntau/fs2;
 t = linspace(-Tp/2,Tp/2+tau,n+ntau);
