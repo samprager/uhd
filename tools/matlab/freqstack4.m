@@ -2,9 +2,9 @@ function varargout = freqstack4(varargin)
 % freqstack - Synthesize wide band chirp signal with frequency stacking
 %
 % Usage:
-%    [data_u, filt_u, (x_tx)] = freqstack4(trials,dfc)
-%    [data_u, filt_u, (x_tx)] = freqstack4(trials,dfc,Bs,upfac)
-%    [data_u, filt_u, (x_tx)] = freqstack4(trials,dfc,Bs,upfac,fs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,Bs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac,fs)
 % Inputs:
 %    trials - struct array of trials. Must contain field trials.data,
 %    trials.ref, trials.awglen, and trials.fs
@@ -17,6 +17,7 @@ function varargout = freqstack4(varargin)
 %    data_u - stacked frequency complex data vector
 %    filt_u - stacked frequency matched filter compelex waveform
 %    x_tx - wideband chirp we are attempting to reconstruct
+%    upfac - upsampling factor
 
 % See also: udar_read.m
 
@@ -26,14 +27,18 @@ function varargout = freqstack4(varargin)
 % Created: 2017/04/06 01:13:06; Last Revised: 2017/04/06 01:13:06
 
 %------------- BEGIN CODE --------------
+
 if(nargin==2)
     trials = varargin{1};
-    dfc = varargin{2}; 
-    Bs = dfc;
+    Bs = varargin{2}; 
     fs = trials(1).fs;
     N = numel(trials);
-    upfac = ceil(N*2*Bs/fs);
-    
+    if (N>1)
+        dfc = trials(2).freq-trials(1).freq; 
+    else
+        dfc = Bs;
+    end
+    upfac = ceil(N*2*Bs/fs);    
 elseif(nargin==4)
     trials = varargin{1};
     fs = trials(1).fs;
@@ -61,9 +66,15 @@ n = trials(1).awglen*upfac;
 fs2 = fs*upfac;
 Tp = n/fs2;
 K = Bs/Tp;
-fc0 = 0; fc = fc0+(N-1)*dfc/2;
 fnq = N*Bs*2;
-fn = fc0+(0:(N-1))*dfc;
+fc0 = 0; 
+if (nargin>2)
+    fc = fc0+(N-1)*dfc/2;
+    fn = fc0+(0:(N-1))*dfc;
+else
+    fc = (trials(end).freq+trials(1).freq)/2;
+    fn = [trials.freq];
+end
 dfn = fn-fc;
 dTn = dfn/K;
 
@@ -119,6 +130,9 @@ if(nargout>=2)
 end
 if(nargout>=3)
     varargout{3}=x_tx;
+end
+if(nargout>=4)
+    varargout{4}=upfac;
 end
 end
 %------------- END OF CODE --------------

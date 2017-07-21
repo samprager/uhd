@@ -56,6 +56,19 @@ for i=1:numel(trials)
     fid = fopen([outdir,trials(i).name]);
     s = textscan(fid,'%s %s','Delimiter',':','CommentStyle','--');
     fclose(fid);
+%     for j=1:size(s{1},1)
+%         s{1}{j}
+%         s{2}{j}
+%         key = strrep(s{1}{j},' ','_');
+%         key = strrep(key,'(%)','');
+%         v = str2double(s{2}{j});
+%         if(isfinite(v))
+%             trials(i).(key) = v;
+%         else
+%             trials(i).(key) = s{2}{j};
+%         end
+%     end
+    
     
     indC = strfind(s{1},'AWG Waveform Len');
     ind = find(not(cellfun('isempty', indC)));
@@ -84,8 +97,60 @@ for i=1:numel(trials)
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
         fs = str2double(s{2}{ind(1)});
+        trials(i).fs = fs;
     else
         fs = 0;
+    end
+    
+    indC = strfind(s{1},'AWG file');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        awgfile = s{2}{ind(1)};
+        trials(i).awgfile = awgfile;
+    end
+
+    indC = strfind(s{1},' Wavegen Real Sec');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        wavegentime = str2double(s{2}{ind(1)});
+        trials(i).wavegentime = wavegentime;
+    end
+    
+    indC = strfind(s{1},'Radio Real Sec');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        radiotime = str2double(s{2}{ind(1)});
+        trials(i).radiotime = radiotime;
+    end
+    
+    indC = strfind(s{1},'Timestamp');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        armtime = s{2}{ind(1)};
+        trials(i).armtime = armtime;
+    end
+
+    indC = strfind(s{1},'gps_time');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        gpstime = str2double(s{2}{ind(1)});
+        trials(i).gps_time = gpstime;
+    end
+    
+    indC = strfind(s{1},'gps_position');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        gps_position = s{2}{ind(1)};
+        v = textscan(gps_position,'%f deg %f deg %fm)');
+        trials(i).gps_position = gps_position;
+        trials(i).gps_vec = [v{:}];
+    end
+    
+    indC = strfind(s{1},'IMU');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        imu = s{2}{ind(1)};
+        trials(i).imu = imu;
     end
     
     trials(i).freq = freq;
@@ -94,7 +159,6 @@ for i=1:numel(trials)
     trials(i).data = data;
     trials(i).ref = ref;
     trials(i).awglen = awglen;
-    trials(i).fs = fs;
 end
 
 [~,inds] = sort([trials.freq]);
