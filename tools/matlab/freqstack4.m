@@ -106,20 +106,37 @@ for i=1:N
     gn = [gn;(1/(2*pi*dfc))*(sin(pi*Bs*(tfilt-dTn(i)))./(pi*(tfilt-dTn(i)))).* ...
         exp(1i*pi*dTn(i)*dfn(i)).*exp(1i*2*pi*(tfilt-dTn(i))*dfn(i))];
 end
-
+    
 dtu = 1/(N*fnq);
-zn = []; xn = [];
+% zn = []; xn = [];
+% for i=1:N
+%     zn = [zn;conv(data(i,:).*exp(1i*2*pi*dfn(i)*t),gn(i,:))];
+%     xn = [xn;conv(filt(i,:).*exp(1i*2*pi*dfn(i)*t),gn(i,:))];
+% end
+% 
+% if (N>1)
+%     data_u = sum(zn);
+%     filt_u = sum(xn);
+% else
+%     data_u = zn;
+%     filt_u = xn;
+% end
+
+Xn = []; Zn = [];
+% fftlen = 2*ceil(size(gn,2));
+fftlen = 2*ceil(size(gn,2)/2);
+
 for i=1:N
-    zn = [zn;conv(data(i,:).*exp(1i*2*pi*dfn(i)*t),gn(i,:))];
-    xn = [xn;conv(filt(i,:).*exp(1i*2*pi*dfn(i)*t),gn(i,:))];
+    Xn  = [Xn;fft(gn(i,:),fftlen).*fft((filt(i,:).*exp(1i*2*pi*dfn(i)*t)),fftlen)];
+    Zn  = [Zn;fft(gn(i,:),fftlen).*fft((data(i,:).*exp(1i*2*pi*dfn(i)*t)),fftlen)];
 end
 
 if (N>1)
-    data_u = sum(zn);
-    filt_u = sum(xn);
+    data_u = ifft(sum(Zn));
+    filt_u = ifft(sum(Xn));
 else
-    data_u = zn;
-    filt_u = xn;
+    data_u = ifft(Zn);
+    filt_u = ifft(Xn);
 end
 
 if(nargout>=1)
