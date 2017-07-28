@@ -2,6 +2,7 @@ function varargout = freqstack4(varargin)
 % freqstack - Synthesize wide band chirp signal with frequency stacking
 %
 % Usage:
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,Bs)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac,fs)
@@ -27,8 +28,18 @@ function varargout = freqstack4(varargin)
 % Created: 2017/04/06 01:13:06; Last Revised: 2017/04/06 01:13:06
 
 %------------- BEGIN CODE --------------
-
-if(nargin==2)
+if(nargin==1)
+    trials = varargin{1}; 
+    fs = trials(1).fs;
+    N = numel(trials);
+    if (N>1)
+        dfc = trials(2).freq-trials(1).freq; 
+    else
+        error('One argument requires trials struct array with at least two elements');
+    end
+    Bs = dfc;
+    upfac = ceil(N*Bs/fs); 
+elseif(nargin==2)
     trials = varargin{1};
     Bs = varargin{2}; 
     fs = trials(1).fs;
@@ -38,7 +49,7 @@ if(nargin==2)
     else
         dfc = Bs;
     end
-    upfac = ceil(N*2*Bs/fs);    
+    upfac = ceil(N*Bs/fs);    
 elseif(nargin==4)
     trials = varargin{1};
     fs = trials(1).fs;
@@ -62,7 +73,8 @@ if ((numel(trials(1).ref)==0) || (fs==0) || (~isstruct(trials)))
     error('trials must be a struct with fields trials.data,trials.ref, trials.awglen, (and trials.fs)');
 end
     
-n = trials(1).awglen*upfac;
+%n = trials(1).awglen*upfac;
+n = numel(trials(1).data)*upfac;
 fs2 = fs*upfac;
 Tp = n/fs2;
 K = Bs/Tp;
@@ -123,8 +135,8 @@ dtu = 1/(N*fnq);
 % end
 
 Xn = []; Zn = [];
-% fftlen = 2*ceil(size(gn,2));
-fftlen = 2*ceil(size(gn,2)/2);
+%fftlen = 2*ceil(size(gn,2));
+fftlen = 2*ceil(size(gn,2)/2)+2*ceil(size(filt,2)/2);
 
 for i=1:N
     Xn  = [Xn;fft(gn(i,:),fftlen).*fft((filt(i,:).*exp(1i*2*pi*dfn(i)*t)),fftlen)];
