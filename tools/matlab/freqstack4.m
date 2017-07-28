@@ -35,10 +35,10 @@ if(nargin==1)
     if (N>1)
         dfc = trials(2).freq-trials(1).freq; 
     else
-        error('One argument requires trials struct array with at least two elements');
+        error('When using one argument, trials struct array must contain at least two trials'); 
     end
     Bs = dfc;
-    upfac = ceil(N*Bs/fs); 
+    upfac = ceil(N*Bs/fs);   
 elseif(nargin==2)
     trials = varargin{1};
     Bs = varargin{2}; 
@@ -73,8 +73,8 @@ if ((numel(trials(1).ref)==0) || (fs==0) || (~isstruct(trials)))
     error('trials must be a struct with fields trials.data,trials.ref, trials.awglen, (and trials.fs)');
 end
     
-%n = trials(1).awglen*upfac;
-n = numel(trials(1).data)*upfac;
+
+n = numel(trials(1).data)*upfac;%trials(1).awglen*upfac;
 fs2 = fs*upfac;
 Tp = n/fs2;
 K = Bs/Tp;
@@ -135,8 +135,8 @@ dtu = 1/(N*fnq);
 % end
 
 Xn = []; Zn = [];
-%fftlen = 2*ceil(size(gn,2));
-fftlen = 2*ceil(size(gn,2)/2)+2*ceil(size(filt,2)/2);
+% fftlen = 2*ceil(size(gn,2));
+fftlen = 2*ceil(size(gn,2)/2)+size(filt,2);
 
 for i=1:N
     Xn  = [Xn;fft(gn(i,:),fftlen).*fft((filt(i,:).*exp(1i*2*pi*dfn(i)*t)),fftlen)];
