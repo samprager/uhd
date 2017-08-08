@@ -93,6 +93,20 @@ for i=1:numel(trials)
         txpower = 0;
     end
     
+    indC = strfind(s{1},'RX Gain');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        rxgain = str2double(s{2}{ind(1)});
+    else
+        rxgain = 0;
+    end
+    indC = strfind(s{1},'TX Gain');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        txgain = str2double(s{2}{ind(1)});
+    else
+        txgain = 0;
+    end
     indC = strfind(s{1},'Sample Rate');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
@@ -156,6 +170,8 @@ for i=1:numel(trials)
     trials(i).freq = freq;
     trials(i).rxpower = rxpower;
     trials(i).txpower = txpower;
+    trials(i).rxgain = rxgain;
+    trials(i).txgain = txgain;
     trials(i).data = data;
     trials(i).ref = ref;
     trials(i).awglen = awglen;
