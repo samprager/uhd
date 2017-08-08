@@ -4,6 +4,7 @@ function varargout = freqstack4(varargin)
 % Usage:
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,Bs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack4(trials,dfc,Bs,upfac,fs)
 % Inputs:
@@ -50,6 +51,13 @@ elseif(nargin==2)
         dfc = Bs;
     end
     upfac = ceil(N*Bs/fs);    
+elseif(nargin==3)
+    trials = varargin{1};
+    dfc = varargin{2}; 
+    Bs = varargin{2}; 
+    fs = trials(1).fs;
+    N = numel(trials);
+    upfac = ceil(N*Bs/fs);   
 elseif(nargin==4)
     trials = varargin{1};
     fs = trials(1).fs;
