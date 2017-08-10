@@ -73,7 +73,8 @@ if ((numel(trials(1).ref)==0) || (fs==0) || (~isstruct(trials)))
     error('trials must be a struct with fields trials.data,trials.ref, trials.awglen, (and trials.fs)');
 end
     
-n = trials(1).awglen*upfac;
+% n = trials(1).awglen*upfac;
+n= numel(trials(1).data)*upfac;
 fs2 = fs*upfac;
 Tp = n/fs2;
 K = Bs/Tp;
@@ -94,10 +95,12 @@ data = zeros(N,upfac*numel(trials(1).data));
 filt = zeros(N,upfac*numel(trials(1).ref));
 for i=1:N
     dfft = fftshift(fft(trials(i).data));
-    dfft = [zeros(1,nzero),dfft,zeros(1,nzero)];
+    ftemp = linspace(-fs/2,fs/2,numel(dfft));
+    dfft = [zeros(1,nzero),dfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];
     data(i,:) = ifft(ifftshift(dfft));
     rfft = fftshift(fft(trials(i).ref));
-    rfft = [zeros(1,nzero),rfft,zeros(1,nzero)];
+    ftemp = linspace(-fs/2,fs/2,numel(rfft));
+    rfft = [zeros(1,nzero),rfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];
     filt(i,:) = ifft(ifftshift(rfft));
 end
 
@@ -106,12 +109,16 @@ tau=ntau/fs2;
 t = linspace(-Tp/2,Tp/2+tau,n+ntau);
 t2 = linspace(-N*Tp/2,N*Tp/2+tau,N*n+ntau);
 
+% xn = zeros(1,size(filt,2));
+% zn = zeros(1,size(data,2));
 xn = zeros(1,numel(filt));
 zn = zeros(1,numel(data));
 m = size(data,2);
 for i=1:N
-    xn(m*(i-1)+1:i*m) =  (filt(i,:).*exp(1i*2*pi*dfn(i)*t));
-    zn(m*(i-1)+1:i*m)  = (data(i,:).*exp(1i*2*pi*dfn(i)*t));
+    xn(m*(i-1)+1:i*m) =  (filt(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
+%     xn = xn +  (filt(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
+    zn(m*(i-1)+1:i*m)  = (data(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
+%     zn = zn + (data(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
 end
 % t = linspace(-Tp/2,Tp/2+tau,n+ntau);
 % t2 = linspace(-Tp/2,(N-1)*Tp+tau+Tp/2,N*(n+ntau));

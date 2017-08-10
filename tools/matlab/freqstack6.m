@@ -93,29 +93,42 @@ dTn = dfn/K;
 nzero = (upfac-1)*numel(trials(1).data)/2;
 data = zeros(N,upfac*numel(trials(1).data));
 filt = zeros(N,upfac*numel(trials(1).ref));
-Xn = [];
-Zn = [];
-for i=1:N
-    dfft = fftshift(fft(trials(i).data));
-    ftemp = linspace(-fs/2,fs/2,numel(dfft));
-    rec = rect(ftemp,-Bs/2,Bs/2,1);
-    ind = find(rec==1);
-    Zn = [Zn,dfft(ind)];
-    rfft = fftshift(fft(trials(i).ref));
-    ftemp = linspace(-fs/2,fs/2,numel(rfft));
-    rec = rect(ftemp,-Bs/2,Bs/2,1);
-    ind = find(rec==1);
-    Xn = [Xn,rfft(ind)];
-end
-nzero = max(0,(upfac*numel(trials(1).data)-numel(Zn))/2);
-Zn = [zeros(1,nzero),Zn,zeros(1,nzero)];
-nzero = max(0,(upfac*numel(trials(1).ref)-numel(Xn))/2);
-Xn = [zeros(1,nzero),Xn,zeros(1,nzero)];
 
 ntau = numel(data(1,:))-n; 
 tau=ntau/fs2;
 t = linspace(-Tp/2,Tp/2+tau,n+ntau);
 t2 = linspace(-N*Tp/2,N*Tp/2+tau,N*n+ntau);
+
+
+Xn = [];
+Zn = [];
+for i=1:N
+    dfft = fftshift(fft(trials(i).data));
+    ftemp = linspace(-fs/2,fs/2,numel(dfft));
+%    dfft = dfft.*exp(1i*2*pi*(ftemp+dfn(i))*numel(dfft)*(N/2-i)/fs);
+    rec = rect(ftemp,-Bs/2,Bs/2,1);
+    ind = find(rec==1);
+    if (i<N)
+        Zn = [Zn,dfft(ind(1:end-1))];
+    else
+        Zn = [Zn,dfft(ind)];
+    end
+    rfft = fftshift(fft(trials(i).ref));
+    ftemp = linspace(-fs/2,fs/2,numel(rfft));
+%     rfft = rfft.*exp(1i*2*pi*(ftemp+dfn(i))*numel(rfft)*(N/2-i)/fs);
+    rec = rect(ftemp,-Bs/2,Bs/2,1);
+    ind = find(rec==1);
+    if (i<N)
+        Xn = [Xn,rfft(ind(1:end-1))];
+    else
+        Xn = [Xn,rfft(ind)];
+    end
+end
+nzero = max(0,ceil((upfac*numel(trials(1).data)-numel(Zn))/2));
+Zn = [zeros(1,nzero),Zn,zeros(1,nzero)];
+nzero = max(0,ceil((upfac*numel(trials(1).ref)-numel(Xn))/2));
+Xn = [zeros(1,nzero),Xn,zeros(1,nzero)];
+
 % 
 % % xn = zeros(1,size(filt,2));
 % % zn = zeros(1,size(data,2));
