@@ -144,12 +144,13 @@ Xn = [zeros(1,nzero),Xn,zeros(1,nzero)];
 % % t = linspace(-Tp/2,Tp/2+tau,n+ntau);
 % % t2 = linspace(-Tp/2,(N-1)*Tp+tau+Tp/2,N*(n+ntau));
 
-xscale = max(real(filt(1,:)));
-x_tx = xscale*exp(1i*pi*K*t2.^2).*rect(t2,t2(1),t2(end-ntau),1);
-
 
 data_u = ifft(ifftshift(Zn));
 filt_u = ifft(ifftshift(Xn));
+
+t_tx = linspace(-N*Tp/2,N*Tp/2+tau,numel(Xn));
+xscale = max(real(filt_u));
+x_tx = xscale*exp(1i*pi*K*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
 
  
 if(nargout>=1)

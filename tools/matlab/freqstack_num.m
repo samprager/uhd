@@ -122,8 +122,10 @@ ftemp=linspace(-fs2/2,fs2/2,size(Xn,2));
 for i=1:N
 %    X_rx  = X_rx+Gn(i,:).*Xn(i,:).*ifftshift(rect(linspace(-fs2/2,fs2/2,numel(Xn(i,:))),dfn(i)-Bs/2,dfn(i)+Bs/2,1));
 %    Z_rx  = Z_rx+Gn(i,:).*Zn(i,:).*ifftshift(rect(linspace(-fs2/2,fs2/2,numel(Zn(i,:))),dfn(i)-Bs/2,dfn(i)+Bs/2,1));
-   X_rx  = X_rx+(Xn(i,:)./(Xn(i,:)./X_tx)).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
-   Z_rx  = Z_rx+(Zn(i,:)./(Xn(i,:)./X_tx)).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
+    H = (1./(Xn(i,:)./X_tx));
+    H(~isfinite(H))=1;
+   X_rx  = X_rx+(Xn(i,:).*H).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
+   Z_rx  = Z_rx+(Zn(i,:).*H).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
 end
 data_u = ifft(Z_rx);
 filt_u = ifft(X_rx);

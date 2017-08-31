@@ -1,11 +1,11 @@
-function varargout = freqstack5(varargin)
+function varargout = freqstack_num(varargin)
 % freqstack - Synthesize wide band chirp signal with frequency stacking
 %
 % Usage:
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack5(trials)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack5(trials,Bs)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack5(trials,dfc,Bs,upfac)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack5(trials,dfc,Bs,upfac,fs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_num(trials)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_num(trials,Bs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_num(trials,dfc,Bs,upfac)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_num(trials,dfc,Bs,upfac,fs)
 % Inputs:
 %    trials - struct array of trials. Must contain field trials.data,
 %    trials.ref, trials.awglen, and trials.fs
@@ -65,7 +65,7 @@ elseif(nargin==5)
     upfac = varargin{4};
     fs = varargin{5};
 else
-    usage = sprintf('\n\t[data_u, filt_u, (x_tx)] = freqstack5(trials,dfc)\n\t[data_u, filt_u, (x_tx)] = freqstack5(trials,dfc,Bs,upfac)\n\t[data_u, filt_u, (x_tx)] = freqstack5(trials,dfc,Bs,upfac,fs)');
+    usage = sprintf('\n\t[data_u, filt_u, (x_tx)] = freqstack_num(trials,dfc)\n\t[data_u, filt_u, (x_tx)] = freqstack_num(trials,dfc,Bs,upfac)\n\t[data_u, filt_u, (x_tx)] = freqstack_num(trials,dfc,Bs,upfac,fs)');
     error(['Invalid number of arguments. Usage: ',usage]);
 end
     
@@ -90,50 +90,47 @@ end
 dfn = fn-fc;
 dTn = dfn/K;
 
-nzero = (upfac-1)*numel(trials(1).data)/2;
-data = zeros(N,upfac*numel(trials(1).data));
-filt = zeros(N,upfac*numel(trials(1).ref));
-for i=1:N
-    dfft = fftshift(fft(trials(i).data));
-    ftemp = linspace(-fs/2,fs/2,numel(dfft));
-    dfft = [zeros(1,nzero),dfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];
-    data(i,:) = ifft(ifftshift(dfft));
-    rfft = fftshift(fft(trials(i).ref));
-    ftemp = linspace(-fs/2,fs/2,numel(rfft));
-    rfft = [zeros(1,nzero),rfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];
-    filt(i,:) = ifft(ifftshift(rfft));
-end
-
-ntau = numel(data(1,:))-n; 
+ntau =0; 
 tau=ntau/fs2;
 t = linspace(-Tp/2,Tp/2+tau,n+ntau);
 t2 = linspace(-N*Tp/2,N*Tp/2+tau,N*n+ntau);
 
-% xn = zeros(1,size(filt,2));
-% zn = zeros(1,size(data,2));
-xn = zeros(1,numel(filt));
-zn = zeros(1,numel(data));
-m = size(data,2);
+x_tx = exp(1i*pi*K*t2.^2).*rect(t2,t2(1),t2(end-ntau),1);
+% win = tukeywin(numel(x_tx),0.1).';
+% x_tx=x_tx.*win;
+X_tx = fft(x_tx);
+
+fftlen = numel(x_tx);
+X_tx = fft(x_tx,fftlen);
+Xn = zeros(N,fftlen);
+Zn = zeros(N,fftlen);
+nzero = (upfac-1)*numel(trials(1).data)/2;
 for i=1:N
-    xn(m*(i-1)+1:i*m) =  (filt(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
-%     xn = xn +  (filt(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
-    zn(m*(i-1)+1:i*m)  = (data(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
-%     zn = zn + (data(i,:).*exp(1i*2*pi*dfn(i)*t));%.*exp(1i*pi*dTn(i)*dfn(i));
+    dfft = fftshift(fft(trials(i).data));
+    ftemp = linspace(-fs/2,fs/2,numel(dfft));
+    dfft = [zeros(1,nzero),dfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];   
+    Zn(i,:)  = fft(((ifft(ifftshift(dfft))).*exp(1i*2*pi*dfn(i)*t)),fftlen);
+    rfft = fftshift(fft(trials(i).ref));
+    ftemp = linspace(-fs/2,fs/2,numel(rfft));
+    rfft = [zeros(1,nzero),rfft.*rect(ftemp,-Bs/2,Bs/2,1),zeros(1,nzero)];
+    Xn(i,:)  = fft(((ifft(ifftshift(rfft))).*exp(1i*2*pi*dfn(i)*t)),fftlen);
+end    
+
+Z_rx = 0;
+X_rx = 0;
+ftemp=linspace(-fs2/2,fs2/2,size(Xn,2));
+for i=1:N
+%    X_rx  = X_rx+Gn(i,:).*Xn(i,:).*ifftshift(rect(linspace(-fs2/2,fs2/2,numel(Xn(i,:))),dfn(i)-Bs/2,dfn(i)+Bs/2,1));
+%    Z_rx  = Z_rx+Gn(i,:).*Zn(i,:).*ifftshift(rect(linspace(-fs2/2,fs2/2,numel(Zn(i,:))),dfn(i)-Bs/2,dfn(i)+Bs/2,1));
+    H = (Xn(i,:)./(Xn(i,:)./X_tx));
+    H(~isfinite
+   X_rx  = X_rx+(Xn(i,:)./(Xn(i,:)./X_tx)).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
+   Z_rx  = Z_rx+(Zn(i,:)./(Xn(i,:)./X_tx)).*ifftshift(rect(ftemp,dfn(i)-Bs/2,dfn(i)+Bs/2,1));
 end
-% t = linspace(-Tp/2,Tp/2+tau,n+ntau);
-% t2 = linspace(-Tp/2,(N-1)*Tp+tau+Tp/2,N*(n+ntau));
+data_u = ifft(Z_rx);
+filt_u = ifft(X_rx);
+    
 
-
-data_u = zn;
-filt_u = xn;
-
-t_tx = linspace(-N*Tp/2,N*Tp/2+tau,numel(xn));
-xscale = max(real(filt_u));
-% x_tx = xscale*exp(1i*pi*K*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-x_tx = xscale*exp(1i*pi*((dfn(end)+Bs/2)/(N*Tp/2))*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-
-
- 
 if(nargout>=1)
     varargout{1}=data_u;
 end
