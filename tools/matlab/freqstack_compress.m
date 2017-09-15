@@ -39,7 +39,7 @@ if(nargin==1)
         error('When using one argument, trials struct array must contain at least two trials'); 
     end
     Bs = dfc;
-    upfac = ceil(N*Bs/fs);   
+    upfac = ceil((N)*Bs/fs);   
 elseif(nargin==2)
     trials = varargin{1};
     Bs = varargin{2}; 
@@ -58,7 +58,7 @@ elseif(nargin==4)
     Bs = varargin{3};
     N = numel(trials);
     upfac = varargin{4};
-elseif(nargin==5)
+elseif(nargin>=5)
     trials = varargin{1};
     dfc = varargin{2};
     Bs = varargin{3};
@@ -105,12 +105,12 @@ for i=1:N
     
     flim1 = -Bs/2;
     flim2 = Bs/2;
-    if (i==1)
-        flim1 = ftemp(1);
-    end
-    if(i==N)
-        flim2 = ftemp(end);
-    end
+%     if (i==1)
+%         flim1 = ftemp(1);
+%     end
+%     if(i==N)
+%         flim2 = ftemp(end);
+%     end
     dfft = dfft.*rect(ftemp,flim1,flim2,1);
 
     dfft = [zeros(1,nzero),dfft,zeros(1,nzero)];
@@ -118,13 +118,20 @@ for i=1:N
 
 end
 
-data_u = fftshift(ifft(ifftshift(sum(D))));
+data_u = fftshift(ifft(ifftshift(sum(D,1))));
 
 t_tx = linspace(-Tp/2,Tp/2+tau,numel(data_u));
 % x_tx = exp(1i*pi*K*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
 x_tx = exp(1i*pi*((dfn(end)+Bs/2)/(Tp/2))*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
 
 d_tx = fftshift(ifft(fft(x_tx).*conj(fft(x_tx))));
+
+if (nargin>5)
+    if (strcmp(varargin{6},'rect'))
+        ftemp = linspace(-fs*upfac/2,fs*upfac/2,numel(x_tx));
+        d_tx = fftshift(ifft(ifftshift(rect(ftemp,-1*(dfn(end)+Bs/2),dfn(end)+Bs/2,1))));
+    end
+end
 
 
 l = linspace(-numel(data_u)/2,numel(data_u)/2,numel(data_u));
