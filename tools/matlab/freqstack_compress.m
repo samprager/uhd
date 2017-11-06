@@ -29,6 +29,7 @@ function varargout = freqstack_compress(varargin)
 % Created: 2017/04/06 01:13:06; Last Revised: 2017/04/06 01:13:06
 
 %------------- BEGIN CODE --------------
+usedfc = 1;
 if(nargin==1)
     trials = varargin{1}; 
     fs = trials(1).fs;
@@ -57,12 +58,28 @@ elseif(nargin==4)
     dfc = varargin{2};
     Bs = varargin{3};
     N = numel(trials);
+    if(dfc==-1)
+        usedfc = 0;
+        if (N>1)
+            dfc = trials(2).freq-trials(1).freq; 
+        else
+            dfc = Bs;
+        end
+    end
     upfac = varargin{4};
 elseif(nargin>=5)
     trials = varargin{1};
     dfc = varargin{2};
     Bs = varargin{3};
     N = numel(trials);
+    if(dfc==-1)
+        usedfc = 0;
+        if (N>1)
+            dfc = trials(2).freq-trials(1).freq; 
+        else
+            dfc = Bs;
+        end
+    end
     upfac = varargin{4};
     fs = varargin{5};
 else
@@ -81,7 +98,7 @@ Tp = n/fs2;
 K = Bs/Tp;
 fnq = N*Bs*2;
 fc0 = 0; 
-if (nargin>2)
+if ((nargin>2)&&(usedfc == 1))
     fc = fc0+(N-1)*dfc/2;
     fn = fc0+(0:(N-1))*dfc;
 else
@@ -122,14 +139,26 @@ data_u = fftshift(ifft(ifftshift(sum(D,1))));
 
 t_tx = linspace(-Tp/2,Tp/2+tau,numel(data_u));
 % x_tx = exp(1i*pi*K*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-x_tx = exp(1i*pi*((dfn(end)+Bs/2)/(Tp/2))*t_tx.^2).*rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-
-d_tx = fftshift(ifft(fft(x_tx).*conj(fft(x_tx))));
 
 if (nargin>5)
     if (strcmp(varargin{6},'rect'))
-        ftemp = linspace(-fs*upfac/2,fs*upfac/2,numel(x_tx));
+        ftemp = linspace(-fs*upfac/2,fs*upfac/2,numel(t_tx));
         d_tx = fftshift(ifft(ifftshift(rect(ftemp,-1*(dfn(end)+Bs/2),dfn(end)+Bs/2,1))));
+    else
+        tx_rect =  rect(t_tx,t_tx(1),t_tx(end-ntau),1);
+        if(strcmp(varargin{6},'hamming'))
+            tx_win = tx_rect;
+            tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
+            tx_win(tx_win~=0)=tx_win2;
+        elseif(strcmp(varargin{6},'chebwin'))
+            tx_win = tx_rect;
+            tx_win2 = chebwin(numel(tx_win(tx_win~=0))).';
+            tx_win(tx_win~=0)=tx_win2;
+        else
+            tx_win = tx_rect;
+        end
+        x_tx = exp(1i*pi*((dfn(end)+Bs/2)/(Tp/2))*t_tx.^2).*tx_rect;
+        d_tx = fftshift(ifft(fft(x_tx).*conj(fft(x_tx.*tx_win))));
     end
 end
 
