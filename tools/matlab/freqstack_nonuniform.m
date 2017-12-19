@@ -1,32 +1,39 @@
-function varargout = freqstack_compress(varargin)
+function varargout = freqstack_nonuniform(varargin)
 % freqstack - Synthesize wide band chirp signal with frequency stacking and
-% compress pulse
+% compress pulse for nonuniform case so that overlaps are removed
 %
 % Usage:
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_compress(trials)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_compress(trials,Bs)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_compress(trials,dfc,Bs,upfac)
-%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_compress(trials,dfc,Bs,upfac,fs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,Bs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,fs)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,fs,window)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,window,stitchmode)
+
 % Inputs:
 %    trials - struct array of trials. Must contain field trials.data,
-%    trials.ref, trials.awglen, and trials.fs
+%       trials.ref, trials.awglen, and trials.fs
 %    upfac - upsample factor
 %    dfc - center frequency separation
 %    Bs - sub waveform bandwidth
 %    fs - sample freq
+%    window - 'rect' 'hamming' or 'chebyshev' for linear. 'nl_hamming', etc
+%       for nonlinear
+%    stitchmode - 'optimal' or 'default' or Nx2 array of flims to use
 %
 % Outputs:
 %    data_u - compressed pulse after freq stacking
 %    l - sample lag
 %    d_tx - ideal wideband compressed pulse
 %    upfac - upsampling factor
+%    flims - Nx2 matrix of stitch points used
 
 % See also: udar_read.m
 
 % Author: Samuel Prager
 % University of Southern California
 % email: sprager@usc.edu
-% Created: 2017/04/06 01:13:06; Last Revised: 2017/04/06 01:13:06
+% Created: 2017/12/04 01:13:06; Last Revised: 2017/12/04 01:13:06
 
 %------------- BEGIN CODE --------------
 usedfc = 1;
@@ -86,7 +93,17 @@ else
     usage = sprintf('\n\t[data_u, filt_u, (x_tx)] = freqstack_compress(trials,dfc)\n\t[data_u, filt_u, (x_tx)] = freqstack_compress(trials,dfc,Bs,upfac)\n\t[data_u, filt_u, (x_tx)] = freqstack_compress(trials,dfc,Bs,upfac,fs)');
     error(['Invalid number of arguments. Usage: ',usage]);
 end
-    
+  
+stitchmode = 'default';
+if(nargin>=7)
+    if (isnumeric(varargin{7}))
+        stitchmode = 'provided';
+        flimsin = varargin{7};
+    else
+        stitchmode = varargin{7};
+    end
+end
+
 if ((numel(trials(1).ref)==0) || (fs==0) || (~isstruct(trials)))
     error('trials must be a struct with fields trials.data,trials.ref, trials.awglen, (and trials.fs)');
 end
@@ -115,27 +132,75 @@ ntau = upfac*numel(trials(1).data)-n;
 tau=ntau/fs2;
 
 D = zeros(N,upfac*numel(trials(1).data));
+for i=1:N
+    d = mfiltu(trials(i).data,trials(i).ref,upfac);
+    ttemp = -Tp/2:(1/fs2):(Tp/2-1/fs2);
+    d = d.*exp(1i*2*pi*ttemp*dfn(i));
+    dfft = fftshift(fft(ifftshift(d)));
+    D(i,:) = dfft;
+end
+
+ftemp = -fs2/2:(fs2/n):(fs2/2-fs2/n);
+if(strcmp(stitchmode,'provided'))
+    flims = flimsin;
+else
+    flims = zeros(numel(dfn),2);
+    flims(1,1)=-fs2/2;
+    if (strcmp(stitchmode,'optimal'))
+        f_range = Bs/10;
+        grad_wgt = 1;
+        val_wgt = 1;
+        for i=1:(numel(dfn)-1)
+            flim_c=(dfn(i)+dfn(i+1))/2;
+            flim_1 = flim_c-f_range/2;
+            flim_2 = flim_c+f_range/2;
+            finds = find(ftemp>=flim_1 & ftemp<flim_2);
+        %     d1 = gradient(D(i,finds));
+        %     d2 = gradient(D(i+1,finds));
+            d1 = (D(i,finds));
+            d2 = (D(i+1,finds));
+            [~,minind]=min(val_wgt*abs(d1-d2)+grad_wgt*abs(gradient(d1)-gradient(d2)));
+        %     flims(i,2) = ftemp(finds(1)+minind-1)+fs2/n;
+            flims(i,2) = ftemp(finds(1)+minind-1);
+            flims(i+1,1)=flims(i,2);
+        end
+    else % default
+        for i=1:(numel(dfn)-1)
+            flim_c=(dfn(i)+dfn(i+1))/2;
+            flims(i,2) = (dfn(i)+dfn(i+1))/2;
+            flims(i+1,1)=flims(i,2);
+        end
+    end
+    flims(end,2)=fs2/2;
+end
+
+
+% for i=1:(numel(dfn)-1)
+%     flim_c=(dfn(i)+dfn(i+1))/2;
+%     flims(i,2) = (dfn(i)+dfn(i+1))/2;
+%     flims(i+1,1)=flims(i,2);
+% end
+% flims(end,2)=fs2/2;
 
 for i=1:N
-    dfft = fftshift(fft(trials(i).data).*conj(fft(trials(i).ref)));
-%     ftemp = linspace(-fs/2,fs/2,numel(dfft));
-    dftemp = fs/numel(dfft);
-    ftemp = [-fs/2:dftemp:fs/2-dftemp];
-    
-    flim1 = -Bs/2;
-    flim2 = Bs/2;
-%     if (i==1)
-%         flim1 = ftemp(1);
-%     end
-%     if(i==N)
-%         flim2 = ftemp(end);
-%     end
-    dfft = dfft.*rect(ftemp,flim1,flim2,1);
-
-    dfft = upfac*[zeros(1,nzero),dfft,zeros(1,nzero)];
-    D(i,:) = shift(dfft,dfn(i)*numel(dfft)/fs2);
-
+    D(i,:) = D(i,:).*rect(ftemp,flims(i,1),flims(i,2),1);
 end
+
+% for i=1:N
+%     dfft = fftshift(fft(trials(i).data).*conj(fft(trials(i).ref)));
+% %     ftemp = linspace(-fs/2,fs/2,numel(dfft));
+%     dftemp = fs/numel(dfft);
+%     ftemp = [-fs/2:dftemp:fs/2-dftemp];
+%     
+%     flim1 = -Bs/2;
+%     flim2 = Bs/2;
+% 
+%     dfft = dfft.*rect(ftemp,flim1,flim2,1);
+% 
+%     dfft = [zeros(1,nzero),dfft,zeros(1,nzero)];
+%     D(i,:) = shift(dfft,dfn(i)*numel(dfft)/fs2);
+% 
+% end
 
 data_u = fftshift(ifft(ifftshift(sum(D,1))));
 
@@ -151,11 +216,11 @@ if (nargin>5)
         d_tx = fftshift(ifft(ifftshift(rect(ftemp,-1*(dfn(end)+Bs/2),dfn(end)+Bs/2,1))));
     else
         tx_rect =  rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-        if(strcmp(varargin{6},'hamming'))
+        if(strfind(varargin{6},'hamming'))
             tx_win = tx_rect;
             tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strcmp(varargin{6},'chebwin'))
+        elseif(strfind(varargin{6},'chebwin'))
             tx_win = tx_rect;
             tx_win2 = chebwin(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
@@ -163,7 +228,15 @@ if (nargin>5)
             tx_win = tx_rect;
         end
         x_tx = exp(1i*pi*((dfn(end)+Bs/2)/(Tp/2))*t_tx.^2).*tx_rect;
-        d_tx = fftshift(ifft(fft(x_tx).*conj(fft(x_tx.*tx_win))));
+%         d_tx = fftshift(ifft(fft(x_tx).*conj(fft(x_tx.*tx_win))));
+        s_l = sqrt(tx_win).*x_tx;
+        Btnl = dfn(end)-dfn(1)+Bs;
+        if (strfind(varargin{6},'nl'))
+            [s_nl,~]=nonlinearfm(s_l,fs2,Btnl);
+        else
+            s_nl = s_l;
+        end
+        [d_tx,~]=mfiltu(s_nl,s_nl,1);
     end
 end
 
@@ -183,6 +256,9 @@ if(nargout>=3)
 end
 if(nargout>=4)
     varargout{4}=upfac;
+end
+if(nargout>=5)
+    varargout{5}=flims;
 end
 end
 %------------- END OF CODE --------------

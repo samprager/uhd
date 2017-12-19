@@ -167,6 +167,13 @@ for i=1:numel(trials)
         trials(i).imu = imu;
     end
     
+    indC = strfind(s{1},'Device');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        device = s{2}{ind(1)};
+        trials(i).device = device;
+    end
+    
     trials(i).freq = freq;
     trials(i).rxpower = rxpower;
     trials(i).txpower = txpower;

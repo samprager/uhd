@@ -45,6 +45,9 @@ I_gaus = I_gaus/scale_gaus; Q_gaus = Q_gaus/scale_gaus;
 
 data_rick = rickerWavelet(t,f_ricker,t(end/2));
 data_rick = data_rick/(max(abs(data_rick)));
+
+%%
+
 IQ_rick = hilbert(data_rick);
 I_rick = real(IQ_rick); Q_rick = imag(IQ_rick);
 
