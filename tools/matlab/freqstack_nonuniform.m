@@ -224,6 +224,31 @@ if (nargin>5)
             tx_win = tx_rect;
             tx_win2 = chebwin(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
+        elseif(strfind(varargin{6},'tukey'))
+            tx_win = tx_rect;
+            tx_win2 = tukeywin(numel(tx_win(tx_win~=0)),.2).';
+            tx_win(tx_win~=0)=tx_win2;
+        elseif(strfind(varargin{6},'hann'))
+        % hann window
+            tx_win = tx_rect;
+            k_win = .5;
+            Nwin = numel(tx_win(tx_win~=0));
+            tx_win2 = k_win-(1-k_win)*cos(2*pi*(0:(Nwin-1))/(Nwin-1));
+            tx_win(tx_win~=0)=tx_win2;
+        elseif(strfind(varargin{6},'blackman-harris'))
+        % blackman-harris window
+            tx_win = tx_rect;
+            a_0=0.35875;a_1=0.48829; a_2=0.14128;a_3=0.01168;
+            Nwin = numel(tx_win(tx_win~=0));
+            tx_win2 = a_0-a_1*cos(2*pi*(0:(Nwin-1))/(Nwin-1))+a_2*cos(4*pi*(0:(Nwin-1))/(Nwin-1))-a_3*cos(6*pi*(0:(Nwin-1))/(Nwin-1));
+            tx_win(tx_win~=0)=tx_win2;
+        elseif(contains(varargin{6},'kaiser'))
+            tx_win = tx_rect;
+            Nwin = numel(tx_win(tx_win~=0));
+            alpha=sscanf(varargin{6},'kaiser%g');
+            beta = kaiser_beta(alpha);
+            tx_win2 = kaiser(Nwin,beta).';
+            tx_win(tx_win~=0)=tx_win2;
         else
             tx_win = tx_rect;
         end
