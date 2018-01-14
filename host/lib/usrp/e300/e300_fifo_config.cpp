@@ -97,7 +97,7 @@ struct e300_fifo_poll_waiter
 {
     e300_fifo_poll_waiter(const int fd):
         _fd(fd),
-       _poll_claimed(false)
+        _poll_claimed(false)
     {
         //NOP
     }
@@ -108,14 +108,14 @@ struct e300_fifo_poll_waiter
      */
     void wait(const double timeout)
     {
-      if (timeout == 0) {
-          return;
-      }
+        if (timeout == 0) {
+            return;
+        }
 
-      boost::mutex::scoped_lock l(_mutex);
-        if (_poll_claimed.exchange(true))
+        boost::mutex::scoped_lock l(_mutex);
+        if (_poll_claimed)
         {
-             _cond.timed_wait(l, boost::posix_time::microseconds(timeout*1000000));
+            _cond.timed_wait(l, boost::posix_time::microseconds(timeout*1000000));
         }
         else
         {
@@ -127,16 +127,17 @@ struct e300_fifo_poll_waiter
             ::poll(fds, 1, long(timeout*1000));
             if (fds[0].revents & POLLIN)
                 ::read(_fd, NULL, 0);
+
             l.lock();
-            _poll_claimed = false;
+            _poll_claimed = 0;
             _cond.notify_all();
         }
     }
 
-    std::atomic_bool _poll_claimed;
     boost::condition_variable _cond;
     boost::mutex _mutex;
     int _fd;
+    bool _poll_claimed;
 };
 
 static const size_t DEFAULT_FRAME_SIZE = 2048;
@@ -248,7 +249,7 @@ public:
     UHD_INLINE typename T::sptr get_buff(const double timeout)
     {
         const time_spec_t exit_time = time_spec_t::get_system_time() + time_spec_t(timeout);
-        while(1)
+        while (1)
         {
             if (zf_peek32(_addrs.ctrl + ARBITER_RB_STATUS_OCC))
             {
@@ -261,12 +262,11 @@ public:
                 return _buffs[_index++]->get_new<T>();
             }
             if (time_spec_t::get_system_time() > exit_time) {
-              break;
+                break;
             }
             _waiter->wait(timeout);
             //boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
-        while (time_spec_t::get_system_time() < exit_time);
 
         return typename T::sptr();
     }

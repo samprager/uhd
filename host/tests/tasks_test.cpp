@@ -1,5 +1,5 @@
 //
-// Copyright 2015 Ettus Research LLC
+// Copyright 2010-2011 Ettus Research LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,19 +15,24 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <uhd/error.h>
-#include <uhd/utils/thread_priority.h>
-#include <uhd/utils/thread.hpp>
-#include <uhd/utils/log.hpp>
-#include <uhd/exception.hpp>
-#include <boost/format.hpp>
+#include <boost/test/unit_test.hpp>
+#include <uhd/utils/tasks.hpp>
+#include <thread>
+#include <chrono>
+#include <vector>
 #include <iostream>
 
-uhd_error uhd_set_thread_priority(
-    float priority,
-    bool realtime
-){
-    UHD_SAFE_C(
-        uhd::set_thread_priority(priority, realtime);
-    )
+void test_tasks_sleep(size_t usecs)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(usecs));
+}
+
+BOOST_AUTO_TEST_CASE(tasks_test) {
+
+    static const size_t N_TASKS = 100;
+    std::vector<uhd::task::sptr> test_vec;
+
+    for (size_t i = 0; i < N_TASKS; i++) {
+        test_vec.push_back(uhd::task::make([i](){ test_tasks_sleep(i); }));
+    }
 }
