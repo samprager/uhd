@@ -667,7 +667,16 @@ void e3xx_radio_ctrl_impl::_update_enables(void)
     if ((num_rx + num_tx) == 0) {
         // Ensure at least one RX chain is enabled so AD9361 outputs a sample clock
         _codec_ctrl->set_active_chains(false, false, true, false);
-    } else {
+    }
+    else if (num_rx ==0) {
+        _codec_ctrl->set_active_chains(
+                _is_streamer_active(TX_DIRECTION, FE0),
+                _is_streamer_active(TX_DIRECTION, FE1),
+                true,
+                false
+        );
+    }
+    else {
         _codec_ctrl->set_active_chains(
                 _is_streamer_active(TX_DIRECTION, FE0),
                 _is_streamer_active(TX_DIRECTION, FE1),
