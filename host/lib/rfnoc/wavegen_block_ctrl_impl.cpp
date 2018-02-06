@@ -119,7 +119,8 @@ public:
         wfrm_header.id = rnum;
         wfrm_header.ind = 0;
         wfrm_header.len = 0;
-        _tick_rate = 200e6;
+        // _tick_rate = 200e6;
+        _tick_rate = 214.286e6; //ce_clock rate changed
         _spp = DEFAULT_SPP;
         set_time_now(0.0);
     }

@@ -1454,7 +1454,8 @@ double ad9361_device_t::_setup_rates(const double rate)
         _rfir_factor = 2;
     } else if ((rate > 58e6) && (rate <= 61.44e6)) {
         // RX1 + RX2 enabled, 2, 1, 2, 2
-        _regs.rxfilt = B8(11010110);
+        _regs.rxfilt = B8(11001110);
+
 
         // TX1 + TX2 enabled, 2, 1, 1, 2
         _regs.txfilt = B8(11010010);
@@ -1778,6 +1779,15 @@ void ad9361_device_t::initialize()
 
     /* Set TXers & RXers on (only works in FDD mode) */
     _io_iface->poke8(0x014, 0x21);
+
+    /*    D3—MCS RF Enable
+    Setting this bit keeps the RF LO dividers enabled in Alert mode
+    so that the phase relationship between multiple devices remains
+    constant. If the bit is clear, the dividers power down in Alert
+    mode. The respective LO dividers also power down in FDD
+    Independent mode when the Rx or Tx paths are disabled if the
+    bit is clear.*/
+    _io_iface->poke8(0x001,0x08);
 }
 
 void ad9361_device_t::set_io_iface(ad9361_io::sptr io_iface)

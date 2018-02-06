@@ -28,6 +28,7 @@ UHD_INSTALL(FILES
     fp_compare_epsilon.ipp
     gain_group.hpp
     log.hpp
+    log_add.hpp
     math.hpp
     msg_task.hpp
     paths.hpp
@@ -38,6 +39,7 @@ UHD_INSTALL(FILES
     static.hpp
     tasks.hpp
     thread_priority.hpp
+    thread.hpp
     DESTINATION ${INCLUDE_DIR}/uhd/utils
     COMPONENT headers
 )
