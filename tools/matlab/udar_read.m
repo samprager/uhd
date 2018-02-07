@@ -78,6 +78,14 @@ for i=1:numel(trials)
     ind = find(not(cellfun('isempty', indC)));
     freq = str2double(s{2}{ind(1)});
     
+    indC = strfind(s{1},'RX Freq');
+    ind = find(not(cellfun('isempty', indC)));
+    rxfreq = str2double(s{2}{ind(1)});
+    
+    indC = strfind(s{1},'TX Freq');
+    ind = find(not(cellfun('isempty', indC)));
+    txfreq = str2double(s{2}{ind(1)});
+    
     indC = strfind(s{1},'RX power dBm');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
@@ -173,7 +181,8 @@ for i=1:numel(trials)
         device = s{2}{ind(1)};
         trials(i).device = device;
     end
-    
+    trials(i).txfreq = rxfreq;
+    trials(i).rxfreq = txfreq;
     trials(i).freq = freq;
     trials(i).rxpower = rxpower;
     trials(i).txpower = txpower;
