@@ -45,6 +45,9 @@ public:
     virtual void set_rate(double rate) = 0;
     virtual void send_pulse() = 0;
     virtual void send_pulse(const boost::uint64_t ticks) = 0;
+    virtual void send_pulses(const boost::uint64_t ticks, boost::uint32_t npulses) = 0;
+    virtual void stop_pulses() = 0;
+    virtual void stop_pulses(const boost::uint64_t ticks) = 0;
     virtual void set_ctrl_word(boost::uint32_t ctrl_word) = 0;
     virtual void set_src_awg() = 0;
     virtual void set_src_chirp() = 0;

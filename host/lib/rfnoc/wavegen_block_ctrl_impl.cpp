@@ -264,6 +264,39 @@ public:
         sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
     }
 
+    void send_pulses(const boost::uint64_t ticks, boost::uint32_t npulses){
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::send_pulses(ticks,npulses)" << std::endl;
+
+        // //setup the instruction flag values
+        // cmd word layout: send_imm, chain, reload, stop, npulses (28 bits)
+        boost::uint32_t numlines = (npulses > 0x0FFFFFFF ) ? 0x0FFFFFFF : npulses;            
+        boost::uint32_t cmd_word = 0;
+        cmd_word |= boost::uint32_t(1) << 30; // chain command
+        cmd_word |= (numlines & 0x0FFFFFFF);
+        //issue the stream command
+        // const boost::uint64_t ticks = (stream_cmd.stream_now)? 0 : stream_cmd.time_spec.to_ticks(get_rate());
+
+        //issue the stream command
+        sr_write(SR_RADAR_CTRL_COMMAND, cmd_word);
+        sr_write(SR_RADAR_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
+        sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
+    }
+    void stop_pulses(){
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::stop_pulses()" << std::endl;
+        boost::uint32_t cmd_word_imm = 0x90000000;
+        /* Start immediately */
+        sr_write(SR_RADAR_CTRL_COMMAND, cmd_word_imm);
+        /* Write TIME_LO register to initiate */
+        sr_write(SR_RADAR_CTRL_TIME_LO, 0);
+    }
+    void stop_pulses(const boost::uint64_t ticks){
+        UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::stop_pulses(onst boost::uint64_t ticks)" << std::endl;
+        boost::uint32_t cmd_word = 0x10000000;
+        //issue the stream command
+        sr_write(SR_RADAR_CTRL_COMMAND, cmd_word);
+        sr_write(SR_RADAR_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
+        sr_write(SR_RADAR_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
+    }
     void set_ctrl_word(boost::uint32_t ctrl_word)
     {
         UHD_RFNOC_BLOCK_TRACE() << "wavegen_block::set_ctrl_word()" << std::endl;
