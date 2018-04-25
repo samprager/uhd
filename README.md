@@ -86,20 +86,18 @@ in that directory for more details on the individual tools.
 ## OSX Installation with Homebrew (in usr/local)
 - Replace python executable path and install destinatin as needed.
 - Easiest to install dependencies using brew with:
-$ brew install uhd --only-dependencies
+	$ brew install uhd --only-dependencies
 - This may not install everything however. Manual command:
-$ brew install boost libusb cmake doxygen gpsd readline sqlite openssl python@2
-$ python -m pip install mako requests
+	$ brew install boost libusb cmake doxygen gpsd readline sqlite openssl python@2
+	$ python -m pip install mako requests
 - Download this fork of the repo:
-$ git clone https://github.com/samprager/uhd.git
-$ cd uhd
-$ mkdir build
-$ cd build
-$ CC=/usr/bin/llvm-gcc CXX=/usr/bin/llvm-g++ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/local/bin/python2.7 -DPYTHON_INCLUDE_DIR=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Headers -DPYTHON_LIBRARY=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Python ../host
-$ make
+	$ git clone https://github.com/samprager/uhd.git
+	$ cd uhd
+	$ mkdir build
+	$ cd build
+	$ CC=/usr/bin/llvm-gcc CXX=/usr/bin/llvm-g++ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/local/bin/python2.7 -DPYTHON_INCLUDE_DIR=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Headers -DPYTHON_LIBRARY=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Python ../host
+	$ make
 - If make succeeds, then you can test the build for errors via
-
-$ make test
+	$ make test
 To install the build, issue
-
-$ sudo make install
+	$ sudo make install
