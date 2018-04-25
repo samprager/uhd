@@ -668,9 +668,9 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
                 << boost::format("You requested a receive frame size of (%lu) but your NIC's max frame size is (%lu).")
                 % req_max_frame_size.recv_frame_size
                 % _max_frame_sizes.recv_frame_size
-                
+
                 << boost::format("Please verify your NIC's MTU setting using '%s' or set the recv_frame_size argument appropriately.")
-                % mtu_tool 
+                % mtu_tool
                 << "UHD will use the auto-detected max frame size for this connection."
                 ;
         }
@@ -681,9 +681,9 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
                 << boost::format("You requested a send frame size of (%lu) but your NIC's max frame size is (%lu).")
                 % req_max_frame_size.send_frame_size
                 % _max_frame_sizes.send_frame_size
-                
+
                 << boost::format("Please verify your NIC's MTU setting using '%s' or set the send_frame_size argument appropriately.")
-                % mtu_tool 
+                % mtu_tool
                 << "UHD will use the auto-detected max frame size for this connection."
                 ;
         }
@@ -1239,7 +1239,7 @@ uhd::both_xports_t x300_impl::make_transport(
                 << boost::format("For this connection, UHD recommends a send frame size of at least %lu for best\nperformance, but your system's MTU will only allow %lu.")
                 % eth_data_rec_frame_size
                 % _max_frame_sizes.send_frame_size
-                
+
                 << "This will negatively impact your maximum achievable sample rate."
                 ;
         }
@@ -1249,7 +1249,7 @@ uhd::both_xports_t x300_impl::make_transport(
                 << boost::format("For this connection, UHD recommends a receive frame size of at least %lu for best\nperformance, but your system's MTU will only allow %lu.")
                 % eth_data_rec_frame_size
                 % _max_frame_sizes.recv_frame_size
-                
+
                 << "This will negatively impact your maximum achievable sample rate."
                 ;
         }
@@ -1475,7 +1475,7 @@ void x300_impl::sync_times(mboard_members_t &mb, const uhd::time_spec_t& t)
 
 bool x300_impl::wait_for_clk_locked(mboard_members_t& mb, uint32_t which, double timeout)
 {
-    boost::system_time timeout_time = boost::get_system_time() + boost::posix_time::milliseconds(timeout * 1000.0);
+    boost::system_time timeout_time = boost::get_system_time() + boost::posix_time::milliseconds((long)(timeout * 1000.0));
     do {
         if (mb.fw_regmap->clock_status_reg.read(which)==1)
             return true;
