@@ -88,15 +88,17 @@ Replace python executable path and install destinatin as needed.
 - Easiest to install dependencies using brew with:
 			$ brew install uhd --only-dependencies
 - This may not install everything however. Manual command:
-			$ brew install boost libusb cmake doxygen gpsd readline sqlite openssl python@2
+			$ brew install boost libusb cmake doxygen gpsd readline sqlite openssl python@2 pkg-config
 			$ python -m pip install mako requests
 - Download this fork of the repo:
 			$ git clone https://github.com/samprager/uhd.git
 			$ cd uhd
 			$ mkdir build
 			$ cd build
-			$ CC=/usr/bin/llvm-gcc CXX=/usr/bin/llvm-g++ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/local/bin/python2.7 -DPYTHON_INCLUDE_DIR=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Headers -DPYTHON_LIBRARY=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Python ../host
+			$ CC=/usr/bin/llvm-gcc CXX=/usr/bin/llvm-g++ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/local/bin/python2.7 -DPYTHON_INCLUDE_DIR=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Headers -DPYTHON_LIBRARY=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Python ../host -DENABLE_E300=ON -DENABLE_GPSD=OFF
 			$ make
+- May run into a few  errors involving boost::posix_time::seconds, microseconds, etc and/or unidefified symbols for architecture x86 related to GPS global variables. This is due to boost::posix_time:: no longer accepting doubles as inputs. All input values must be cast to longs.
+			$ CC=/usr/bin/llvm-gcc CXX=/usr/bin/llvm-g++ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/local/bin/python2.7 -DPYTHON_INCLUDE_DIR=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Headers -DPYTHON_LIBRARY=/usr/local/Library/Frameworks/Python.framework/Versions/2.7/Python ../host
 - If make succeeds, then you can test the build for errors via
 			$ make test
 To install the build, issue

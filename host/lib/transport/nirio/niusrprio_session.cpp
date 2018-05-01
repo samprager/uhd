@@ -124,7 +124,7 @@ niriok_proxy::sptr niusrprio_session::create_kernel_proxy(
     nirio_status_chain(temp_rpc_client.niusrprio_get_interface_path(resource_name, interface_path), status);
 
     niriok_proxy::sptr proxy = niriok_proxy::make_and_open(interface_path);
-	
+
     return proxy;
 }
 
@@ -207,7 +207,7 @@ nirio_status niusrprio_session::_ensure_fpga_ready()
         //there is a small chance that the server is still finishing up cleaning up
         //the DMA FIFOs. We currently don't have any feedback from the driver regarding
         //this state so just wait.
-        boost::this_thread::sleep(boost::posix_time::milliseconds(FPGA_READY_TIMEOUT_IN_MS));
+        boost::this_thread::sleep(boost::posix_time::milliseconds((long)FPGA_READY_TIMEOUT_IN_MS));
 
         //Disable all FIFOs in the FPGA
         for (size_t i = 0; i < _lvbitx->get_input_fifo_count(); i++) {
