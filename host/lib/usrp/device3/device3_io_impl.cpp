@@ -1,18 +1,8 @@
 //
 // Copyright 2014-2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // Provides streaming-related functions which are used by device3 objects.
@@ -23,15 +13,14 @@
 #include <uhd/rfnoc/sink_block_ctrl_base.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
-
-#include "../common/async_packet_handler.hpp"
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
-#include "../../rfnoc/rx_stream_terminator.hpp"
-#include "../../rfnoc/tx_stream_terminator.hpp"
 #include <uhd/rfnoc/rate_node_ctrl.hpp>
 #include <uhd/rfnoc/radio_ctrl.hpp>
 #include <uhd/transport/zero_copy_flow_ctrl.hpp>
+#include <uhdlib/rfnoc/rx_stream_terminator.hpp>
+#include <uhdlib/rfnoc/tx_stream_terminator.hpp>
+#include <uhdlib/usrp/common/async_packet_handler.hpp>
 #include <boost/atomic.hpp>
 
 #define UHD_TX_STREAMER_LOG() UHD_LOGGER_TRACE("STREAMER")
@@ -353,9 +342,7 @@ static bool tx_flow_ctrl(
         }
 
         // Look for a flow control message to update the space available in the buffer.
-        // A minimal timeout is used because larger timeouts can cause the thread to be
-        // scheduled out for too long at high data rates and result in underruns.
-        managed_recv_buffer::sptr buff = async_xport->get_recv_buff(0.000001);
+        managed_recv_buffer::sptr buff = async_xport->get_recv_buff();
         if (buff)
         {
             vrt::if_packet_info_t if_packet_info;
@@ -565,6 +552,11 @@ rx_streamer::sptr device3_impl::get_rx_stream(const stream_args_t &args_)
         UHD_RX_STREAMER_LOG() << std::hex << "data_sid = " << xport.send_sid << std::dec << " actual recv_buff_size = " << xport.recv_buff_size ;
 
         // Configure the block
+        // Note: We need to set_destination() after writing to SR_CLEAR_TX_FC.
+        // See noc_shell.v, in the section called Stream Source for details.
+        // Setting SR_CLEAR_TX_FC will actually also clear the destination and
+        // other settings.
+        blk_ctrl->sr_write(uhd::rfnoc::SR_CLEAR_TX_FC, 0xc1ea12, block_port);
         blk_ctrl->set_destination(xport.send_sid.get_src(), block_port);
 
         blk_ctrl->sr_write(uhd::rfnoc::SR_RESP_OUT_DST_SID, xport.send_sid.get_src(), block_port);

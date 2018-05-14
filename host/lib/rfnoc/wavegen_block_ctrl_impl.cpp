@@ -30,7 +30,6 @@
 // #include <boost/random.hpp>
 // #include <boost/random/random_device.hpp>
 #include <random>
-#include "time_core_3000.hpp"
 #include <math.h>
 
 using namespace uhd;
@@ -269,7 +268,7 @@ public:
 
         // //setup the instruction flag values
         // cmd word layout: send_imm, chain, reload, stop, npulses (28 bits)
-        boost::uint32_t numlines = (npulses > 0x0FFFFFFF ) ? 0x0FFFFFFF : npulses;            
+        boost::uint32_t numlines = (npulses > 0x0FFFFFFF ) ? 0x0FFFFFFF : npulses;
         boost::uint32_t cmd_word = 0;
         cmd_word |= boost::uint32_t(1) << 30; // chain command
         cmd_word |= (numlines & 0x0FFFFFFF);

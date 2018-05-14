@@ -1,24 +1,13 @@
 //
 // Copyright 2015-2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "octoclock_impl.hpp"
 #include "common.h"
 
-#include "../../utils/ihex.hpp"
 #include <uhd/device.hpp>
 #include <uhd/image_loader.hpp>
 #include <uhd/transport/udp_simple.hpp>
@@ -27,8 +16,8 @@
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
+#include <uhdlib/utils/ihex.hpp>
 
-#include <stdint.h>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
@@ -40,6 +29,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <stdint.h>
 
 namespace fs = boost::filesystem;
 using namespace uhd;

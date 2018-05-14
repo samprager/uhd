@@ -1,22 +1,13 @@
 //
 // Copyright 2013-2017 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifdef E300_NATIVE
 
+#include <uhdlib/utils/system_time.hpp>
 #include <uhd/config.hpp>
 #include <stdint.h>
 #include <atomic>
@@ -87,7 +78,7 @@ static UHD_INLINE size_t ZF_STREAM_OFF(const size_t which)
 #include <boost/thread/thread.hpp> //sleep
 #include <uhd/types/time_spec.hpp> //timeout
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/atomic.hpp>
+#include <uhdlib/utils/atomic.hpp>
 
 //locking stuff for shared irq
 #include <boost/thread/mutex.hpp>
@@ -248,7 +239,7 @@ public:
     template <typename T>
     UHD_INLINE typename T::sptr get_buff(const double timeout)
     {
-        const time_spec_t exit_time = time_spec_t::get_system_time() + time_spec_t(timeout);
+        const time_spec_t exit_time = uhd::get_system_time() + time_spec_t(timeout);
         while (1)
         {
             if (zf_peek32(_addrs.ctrl + ARBITER_RB_STATUS_OCC))
@@ -261,7 +252,7 @@ public:
                     _index = 0;
                 return _buffs[_index++]->get_new<T>();
             }
-            if (time_spec_t::get_system_time() > exit_time) {
+            if (uhd::get_system_time() > exit_time) {
                 break;
             }
             _waiter->wait(timeout);

@@ -278,7 +278,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     std::cout << boost::format("Creating the USRP device with: %s...") % args << std::endl;
     uhd::device3::sptr usrp = uhd::device3::make(args);
 
-    boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
+    boost::this_thread::sleep(boost::posix_time::seconds((long)setup_time)); //allow for some setup time
     // Reset device streaming state
     usrp->clear();
     uhd::rfnoc::graph::sptr rx_graph = usrp->create_graph("rx_graph");

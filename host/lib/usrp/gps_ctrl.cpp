@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011,2014-2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/usrp/gps_ctrl.hpp>
@@ -306,19 +296,19 @@ private:
     //issue some setup stuff so it spits out the appropriate data
     //none of these should issue replies so we don't bother looking for them
     //we have to sleep between commands because the JL device, despite not acking, takes considerable time to process each command.
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("SYST:COMM:SER:ECHO OFF\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("SYST:COMM:SER:PRO OFF\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("GPS:GPGGA 1\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("GPS:GGAST 0\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("GPS:GPRMC 1\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
     _send("SERV:TRAC 1\r\n");
-     sleep(milliseconds(GPSDO_COMMAND_DELAY_MS));
+     sleep(milliseconds((long)GPSDO_COMMAND_DELAY_MS));
   }
 
   //helper function to retrieve a field from an NMEA sentence
