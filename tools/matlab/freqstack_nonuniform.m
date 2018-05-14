@@ -135,7 +135,10 @@ D = zeros(N,upfac*numel(trials(1).data));
 for i=1:N
     d = mfiltu(trials(i).data,trials(i).ref,upfac);
     ttemp = -Tp/2:(1/fs2):(Tp/2-1/fs2);
-    d = d.*exp(1i*2*pi*ttemp*dfn(i));
+%     d = d.*exp(1i*2*pi*ttemp*dfn(i));
+% add small random offset to reduce likelihood of quantization harmonics
+    d = d.*exp(1i*2*pi*ttemp*(dfn(i)+.1*randn(1,1)));
+
     dfft = fftshift(fft(ifftshift(d)));
     D(i,:) = dfft;
 end
@@ -242,6 +245,12 @@ if (nargin>5)
             Nwin = numel(tx_win(tx_win~=0));
             tx_win2 = a_0-a_1*cos(2*pi*(0:(Nwin-1))/(Nwin-1))+a_2*cos(4*pi*(0:(Nwin-1))/(Nwin-1))-a_3*cos(6*pi*(0:(Nwin-1))/(Nwin-1));
             tx_win(tx_win~=0)=tx_win2;
+        elseif(strfind(varargin{6},'hpf'))
+        % high pass filter
+            tx_win = tx_rect;
+            tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
+            tx_win2(ceil(end/2):end)=1;
+            tx_win(tx_win~=0)=tx_win2;  
         elseif(contains(varargin{6},'kaiser'))
             tx_win = tx_rect;
             Nwin = numel(tx_win(tx_win~=0));

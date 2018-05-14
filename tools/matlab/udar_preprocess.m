@@ -59,6 +59,16 @@ defaultVal = 1;
 errorMsg = 'Value must be 0 (false) or 1 (true)'; 
 validationFcn = @(x) assert((isnumeric(x) && isscalar(x) && ((x==1)||(x==0)))||(islogical(x)) && (x >= 0),errorMsg);
 addParameter(p,paramName,defaultVal,validationFcn);
+paramName = 'WaveRef';
+defaultVal = 1;
+errorMsg = 'Value must be 0 (false) or 1 (true)'; 
+validationFcn = @(x) assert((isnumeric(x) && isscalar(x) && ((x==1)||(x==0)))||(islogical(x)) && (x >= 0),errorMsg);
+addParameter(p,paramName,defaultVal,validationFcn);
+paramName = 'WaveData';
+defaultVal = 0;
+errorMsg = 'Value must be 0 (false) or 1 (true)'; 
+validationFcn = @(x) assert((isnumeric(x) && isscalar(x) && ((x==1)||(x==0)))||(islogical(x)) && (x >= 0),errorMsg);
+addParameter(p,paramName,defaultVal,validationFcn);
 paramName = 'LinearPhaseFit';
 defaultVal = 0;
 errorMsg = 'Value must be 0 (false) or 1 (true)'; 
@@ -97,6 +107,9 @@ fmax = inparams.Freqs(end);
 zp_pre = inparams.Zeropad;
 wavedir = inparams.WaveDirectory;
 correct_phase = inparams.CorrectPhase;
+wave_ref = inparams.WaveRef;
+wave_data = inparams.WaveData;
+
 lin_phase_fit = inparams.LinearPhaseFit;
 iq_equalize = inparams.IQEqualize;
 
@@ -193,6 +206,15 @@ for i=1:numel(trialsout)
     reftrials(i).awglen = trialsout(i).awglen;
     reftrials(i).freq = trialsout(i).freq;
     reftrials(i).filt = filt;
+    
+    if (wave_ref)
+            trialsout(i).ref = zeroext(filt,numel(trialsout(i).ref));
+            reftrials(i).ref = trialsout(i).ref;
+    end
+    if (wave_data)
+%         trials(i).data = trials(i).ref;
+        reftrials(i).data = trialsout(i).ref;
+    end
 
 end
 

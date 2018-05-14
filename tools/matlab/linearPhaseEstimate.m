@@ -1,7 +1,10 @@
-function b = linearPhaseEstimate(d,fs,varargin)
+function varargout = linearPhaseEstimate(d,fs,varargin)
 %linearPhaseEstimate - estimate linear phase slope over occupied bw
 
 % Syntax:  b = linearPhaseEstimate(d,fs,bwpercent=.99)
+%          [b,A] = linearPhaseEstimate(d,fs,bwpercent=.99)
+%          [b,A,dphase] = linearPhaseEstimate(d,fs,bwpercent=.99)
+%
 %
 % Inputs:
 %    d - time domain signal
@@ -9,8 +12,9 @@ function b = linearPhaseEstimate(d,fs,varargin)
 %    bwpercent (optional) - obw percent to estimate over (default = .99)
 %
 % Outputs:
-%    output1 - Description
-%    output2 - Description
+%    b - LMMSE linear phase estimate of bwpercent of OBW
+%    A - A = [ones(Nd,1),f(:)];
+%    dphase - unwrapped phase of input signal in frequency domain
 %
 % Example: 
 %    Line 1 of example
@@ -63,4 +67,17 @@ A = [ones(Nd,1),f(:)];
 A_obw = [ones(numel(fobw),1),fobw(:)];
 
 b = (A_obw'*A_obw)\(A_obw'*dphase_obw(:));
+
+if(nargout>=1)
+    varargout{1}=b;
+end
+
+if(nargout>=2)
+    varargout{2}=A;
+end
+
+if(nargout>=3)
+    varargout{3}=dphase;
+end
+end
 %------------- END OF CODE --------------
