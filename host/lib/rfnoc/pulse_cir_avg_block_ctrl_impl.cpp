@@ -25,7 +25,7 @@
 */
 #include <uhd/rfnoc/pulse_cir_avg_block_ctrl.hpp>
 #include <uhd/convert.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 
 using namespace uhd::rfnoc;
 
@@ -41,7 +41,7 @@ public:
     void set_pulse_cir_avg(const uint32_t threshold, const uint32_t avg_size, const uint32_t seq_len)
     {
         UHD_RFNOC_BLOCK_TRACE() << "pulse_cir_avg::set_pulse_cir_avg()" << std::endl;
-        UHD_MSG(status) << "Configuring PulseCir avg. Threshold : " << threshold << "Avg_size : " << avg_size << "Seq_len : " << seq_len << std::endl;
+        UHD_LOGGER_INFO("RFNOC")  << "Configuring PulseCir avg. Threshold : " << threshold << "Avg_size : " << avg_size << "Seq_len : " << seq_len << std::endl;
 
         // if(avg_size > 7) {
         //    throw uhd::value_error(str(boost::format("log2(avg_size) should be <= 7 - Maximum averaging factor is 256")));
