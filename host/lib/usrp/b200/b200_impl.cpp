@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cmath>
+#include <chrono>
 
 #include "../../transport/libusb1_base.hpp"
 
@@ -34,7 +35,9 @@ using namespace uhd::usrp;
 using namespace uhd::usrp::gpio_atr;
 using namespace uhd::transport;
 
-static const boost::posix_time::milliseconds REENUMERATION_TIMEOUT_MS(3000);
+namespace {
+    constexpr int64_t  REENUMERATION_TIMEOUT_MS = 3000;
+}
 
 // B200 + B210:
 class b200_ad9361_client_t : public ad9361_params {
@@ -197,13 +200,14 @@ static device_addrs_t b200_find(const device_addr_t &hint)
         found++;
     }
 
-    const boost::system_time timeout_time = boost::get_system_time() + REENUMERATION_TIMEOUT_MS;
-
+    const auto timeout_time =
+        std::chrono::steady_clock::now()
+        + std::chrono::milliseconds(REENUMERATION_TIMEOUT_MS);
     //search for the device until found or timeout
-    while (boost::get_system_time() < timeout_time and b200_addrs.empty() and found != 0)
-    {
-        for(usb_device_handle::sptr handle:  get_b200_device_handles(hint))
-        {
+    while (std::chrono::steady_clock::now() < timeout_time
+            and b200_addrs.empty()
+            and found != 0) {
+        for(usb_device_handle::sptr handle:  get_b200_device_handles(hint)) {
             usb_control::sptr control;
             try{control = usb_control::make(handle, 0);}
             catch(const uhd::exception &){continue;} //ignore claimed
@@ -928,6 +932,17 @@ void b200_impl::enforce_tick_rate_limits(size_t chan_count, double tick_rate, co
                 boost::format("current master clock rate (%.6f MHz) exceeds maximum possible master clock rate (%.6f MHz) when using %d %s channels")
                     % (tick_rate/1e6)
                     % (max_tick_rate/1e6)
+                    % chan_count
+                    % (direction.empty() ? "data" : direction)
+            ));
+        }
+        const double min_tick_rate = ad9361_device_t::AD9361_MIN_CLOCK_RATE / ((chan_count <= 1) ? 1 : 2);
+        if (min_tick_rate - tick_rate >= 1.0)
+        {
+            throw uhd::value_error(boost::str(
+                boost::format("current master clock rate (%.6f MHz) is less than minimum possible master clock rate (%.6f MHz) when using %d %s channels")
+                    % (tick_rate/1e6)
+                    % (min_tick_rate/1e6)
                     % chan_count
                     % (direction.empty() ? "data" : direction)
             ));

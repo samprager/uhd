@@ -1993,6 +1993,48 @@ void ad9361_device_t::set_active_chains(bool tx1, bool tx2, bool rx1, bool rx2)
         _io_iface->poke8(0x014, 0x21);
 }
 
+/* Setup Timing mode depending on active channels.
+ *
+ * LVDS interface can have two timing modes - 1R1T and 2R2T
+ */
+void ad9361_device_t::set_timing_mode(const ad9361_device_t::timing_mode_t timing_mode)
+{
+    switch (_client_params->get_digital_interface_mode()) {
+    case AD9361_DDR_FDD_LVCMOS: {
+        switch(timing_mode) {
+        case TIMING_MODE_1R1T: {
+            _io_iface->poke8(0x010, 0xc8); // Swap I&Q on Tx, Swap I&Q on Rx, Toggle frame sync mode
+            break;
+        }
+        case TIMING_MODE_2R2T: {
+            throw uhd::runtime_error("[ad9361_device_t] [set_timing_mode] 2R2T timing mode not supported for CMOS");
+            break;
+        }
+        default:
+        UHD_THROW_INVALID_CODE_PATH();
+        }
+    break;
+    }
+    case AD9361_DDR_FDD_LVDS: {
+        switch(timing_mode) {
+        case TIMING_MODE_1R1T: {
+            _io_iface->poke8(0x010, 0xc8); // Swap I&Q on Tx, Swap I&Q on Rx, Toggle frame sync mode, 1R1T timing.
+            break;
+        }
+        case TIMING_MODE_2R2T: {
+            _io_iface->poke8(0x010, 0xcc); // Swap I&Q on Tx, Swap I&Q on Rx, Toggle frame sync mode, 2R2T timing.
+            break;
+        }
+        default:
+        UHD_THROW_INVALID_CODE_PATH();
+        }
+    break;
+    }
+    default:
+        throw uhd::runtime_error("[ad9361_device_t] NOT IMPLEMENTED");
+    }
+}
+
 /* Tune the RX or TX frequency.
  *
  * This is the publicly-accessible tune function. It makes sure the tune
@@ -2197,15 +2239,15 @@ double ad9361_device_t::_get_temperature(const double cal_offset, const double t
     _io_iface->poke8(0x00B, 0); //set offset to 0
 
     _io_iface->poke8(0x00C, 0x01); //start reading, clears bit 0x00C[1]
-    boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
-    boost::posix_time::time_duration elapsed;
+    auto end_time =
+        std::chrono::steady_clock::now()
+        + std::chrono::milliseconds(int64_t(timeout * 1000));
     //wait for valid data (toggle of bit 1 in 0x00C)
     while(((_io_iface->peek8(0x00C) >> 1) & 0x01) == 0) {
         std::this_thread::sleep_for(std::chrono::microseconds(100));
-        elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
-        if(elapsed.total_milliseconds() > (timeout*1000))
-        {
-            throw uhd::runtime_error("[ad9361_device_t] timeout while reading temperature");
+        if (std::chrono::steady_clock::now() > end_time) {
+            throw uhd::runtime_error(
+                "[ad9361_device_t] timeout while reading temperature");
         }
     }
     _io_iface->poke8(0x00C, 0x00); //clear read flag
