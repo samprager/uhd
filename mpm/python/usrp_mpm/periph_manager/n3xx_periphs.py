@@ -176,6 +176,7 @@ class MboardRegsControl(object):
     MB_SFP1_INFO    = 0x002C
     MB_GPIO_MASTER  = 0x0030
     MB_GPIO_RADIO_SRC  = 0x0034
+    MB_XBAR_BASEPORT   = 0x0038
 
     # Bitfield locations for the MB_CLOCK_CTRL register.
     MB_CLOCK_CTRL_PPS_SEL_INT_10 = 0 # pps_sel is one-hot encoded!
@@ -187,6 +188,7 @@ class MboardRegsControl(object):
     MB_CLOCK_CTRL_PPS_OUT_EN = 4 # output enabled = 1
     MB_CLOCK_CTRL_MEAS_CLK_RESET = 12 # set to 1 to reset mmcm, default is 0
     MB_CLOCK_CTRL_MEAS_CLK_LOCKED = 13 # locked indication for meas_clk mmcm
+    MB_CLOCK_CTRL_DISABLE_REF_CLK = 16 # to disable the ref_clk, write a '1'
 
     def __init__(self, label, log):
         self.log = log
@@ -204,7 +206,7 @@ class MboardRegsControl(object):
         The return is a tuple of
         2 numbers: (major compat number, minor compat number )
         """
-        with self.regs.open():
+        with self.regs:
             compat_number = self.peek32(self.M_COMPAT_NUM)
         minor = compat_number & 0xff
         major = (compat_number>>16) & 0xff
@@ -215,7 +217,7 @@ class MboardRegsControl(object):
         Arguments:
             value {unsigned} -- value is a single bit bit mask of 12 pins GPIO
         """
-        with self.regs.open():
+        with self.regs:
             return self.poke32(self.MB_GPIO_MASTER, value)
 
     def get_fp_gpio_master(self):
@@ -224,7 +226,7 @@ class MboardRegsControl(object):
            0: means the pin is driven by PL
            1: means the pin is driven by PS
         """
-        with self.regs.open():
+        with self.regs:
             return self.peek32(self.MB_GPIO_MASTER) & 0xfff
 
     def set_fp_gpio_radio_src(self, value):
@@ -236,7 +238,7 @@ class MboardRegsControl(object):
            10: means the pin is driven by radio 2
            11: means the pin is driven by radio 3
         """
-        with self.regs.open():
+        with self.regs:
             return self.poke32(self.MB_GPIO_RADIO_SRC, value)
 
     def get_fp_gpio_radio_src(self):
@@ -247,7 +249,7 @@ class MboardRegsControl(object):
            10: means the pin is driven by radio 2
            11: means the pin is driven by radio 3
         """
-        with self.regs.open():
+        with self.regs:
             return self.peek32(self.MB_GPIO_RADIO_SRC) & 0xffffff
 
     def get_build_timestamp(self):
@@ -256,7 +258,7 @@ class MboardRegsControl(object):
         The return is datetime string with the  ISO 8601 format
         (YYYY-MM-DD HH:MM:SS.mmmmmm)
         """
-        with self.regs.open():
+        with self.regs:
             datestamp_rb = self.peek32(self.MB_DATESTAMP)
         if datestamp_rb > 0:
             dt_str = datetime.datetime(
@@ -278,7 +280,7 @@ class MboardRegsControl(object):
         The return is a tuple of
         2 numbers: (short git hash, bool: is the tree dirty?)
         """
-        with self.regs.open():
+        with self.regs:
             git_hash_rb = self.peek32(self.MB_GIT_HASH)
         git_hash = git_hash_rb & 0x0FFFFFFF
         tree_dirty = ((git_hash_rb & 0xF0000000) > 0)
@@ -293,7 +295,9 @@ class MboardRegsControl(object):
         """
         pps_sel_val = 0x0
         if time_source == 'internal':
-            assert ref_clk_freq in (10e6, 25e6)
+            assert ref_clk_freq in (10e6, 25e6), \
+                "Invalid reference frequency for time source 'internal'. Must " \
+                "be either 10 MHz or 25 MHz. Check clock and time source match."
             if ref_clk_freq == 10e6:
                 self.log.debug("Setting time source to internal "
                                "(10 MHz reference)...")
@@ -315,9 +319,9 @@ class MboardRegsControl(object):
             self.log.debug("Setting time source to sfp1...")
             pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_SFP1
         else:
-            assert False
+            raise RuntimeError("Invalid time source: {}".format(time_source))
 
-        with self.regs.open():
+        with self.regs:
             reg_val = self.peek32(self.MB_CLOCK_CTRL) & 0xFFFFFF90
             # prevent glitches by writing a cleared value first, then the final value.
             self.poke32(self.MB_CLOCK_CTRL, reg_val)
@@ -332,12 +336,28 @@ class MboardRegsControl(object):
         self.log.trace("%s PPS/Trig output!",
                        "Enabling" if enable else "Disabling")
         mask = 0xFFFFFFFF ^ (0b1 << self.MB_CLOCK_CTRL_PPS_OUT_EN)
-        with self.regs.open():
+        with self.regs:
             # mask the bit to clear it:
             reg_val = self.peek32(self.MB_CLOCK_CTRL) & mask
             if enable:
                 # set the bit if desired:
                 reg_val = reg_val | (0b1 << self.MB_CLOCK_CTRL_PPS_OUT_EN)
+            self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
+            self.poke32(self.MB_CLOCK_CTRL, reg_val)
+
+    def enable_ref_clk(self, enable):
+        """
+        Enables the reference clock internal to the FPGA
+        """
+        self.log.trace("%s the Reference Clock!",
+                       "Enabling" if enable else "Disabling")
+        mask = 0xFFFFFFFF ^ (0b1 << self.MB_CLOCK_CTRL_DISABLE_REF_CLK)
+        with self.regs:
+            # mask the bit to clear it and therefore enable the clock:
+            reg_val = self.peek32(self.MB_CLOCK_CTRL) & mask
+            if not enable:
+                # set the bit if not enabled (note this is a DISABLE bit when = 1):
+                reg_val = reg_val | (0b1 << self.MB_CLOCK_CTRL_DISABLE_REF_CLK)
             self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
             self.poke32(self.MB_CLOCK_CTRL, reg_val)
 
@@ -348,7 +368,7 @@ class MboardRegsControl(object):
         self.log.trace("%s measurement clock MMCM reset...",
                        "Asserting" if reset else "Clearing")
         mask = 0xFFFFFFFF ^ (0b1 << self.MB_CLOCK_CTRL_MEAS_CLK_RESET)
-        with self.regs.open():
+        with self.regs:
             # mask the bit to clear it
             reg_val = self.peek32(self.MB_CLOCK_CTRL) & mask
             if reset:
@@ -362,7 +382,7 @@ class MboardRegsControl(object):
         Check the status of the MMCM for the measurement clock in the FPGA TDC.
         """
         mask = 0b1 << self.MB_CLOCK_CTRL_MEAS_CLK_LOCKED
-        with self.regs.open():
+        with self.regs:
             reg_val = self.peek32(self.MB_CLOCK_CTRL)
         locked = (reg_val & mask) > 0
         if not locked:
@@ -377,7 +397,7 @@ class MboardRegsControl(object):
         Reads the type of the FPGA image currently loaded
         Returns a string with the type (ie HG, XG, AA, etc.)
         """
-        with self.regs.open():
+        with self.regs:
             sfp0_info_rb = self.peek32(self.MB_SFP0_INFO)
             sfp1_info_rb = self.peek32(self.MB_SFP1_INFO)
         # Print the registers values as 32-bit hex values
@@ -393,3 +413,7 @@ class MboardRegsControl(object):
                              .format(sfp0_type, sfp1_type))
         return ""
 
+    def get_xbar_baseport(self):
+        "Get the RFNoC crossbar base port"
+        with self.regs:
+            return self.peek32(self.MB_XBAR_BASEPORT)

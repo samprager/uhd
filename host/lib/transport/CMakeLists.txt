@@ -112,6 +112,7 @@ LIBUHD_PYTHON_GEN_SOURCE(
 )
 
 LIBUHD_APPEND_SOURCES(
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_flow_ctrl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_recv_offload.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tcp_zero_copy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_pool.cpp
@@ -129,14 +130,16 @@ IF(ENABLE_X300)
 ENDIF(ENABLE_X300)
 
 IF(ENABLE_LIBERIO)
-    MESSAGE(STATUS "")
-    MESSAGE(STATUS "liberio support enabled.")
     INCLUDE_DIRECTORIES(${LIBERIO_INCLUDE_DIRS})
     LIBUHD_APPEND_LIBS(${LIBERIO_LIBRARIES})
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/liberio_zero_copy.cpp
     )
 ENDIF(ENABLE_LIBERIO)
+
+IF(ENABLE_DPDK)
+    INCLUDE_SUBDIRECTORY(uhd-dpdk)
+ENDIF(ENABLE_DPDK)
 
 # Verbose Debug output for send/recv
 SET( UHD_TXRX_DEBUG_PRINTS OFF CACHE BOOL "Use verbose debug output for send/recv" )

@@ -8,16 +8,14 @@ N3xx implementation module
 """
 
 from __future__ import print_function
-import os
 import copy
-import shutil
-import subprocess
-import json
-import datetime
+import re
 import threading
+import time
 from six import iteritems, itervalues
 from usrp_mpm.cores import WhiteRabbitRegsControl
-from usrp_mpm.gpsd_iface import GPSDIface
+from usrp_mpm.components import ZynqComponents
+from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.periph_manager import PeriphManagerBase
 from usrp_mpm.mpmtypes import SID
 from usrp_mpm.mpmutils import assert_compat_number, str2bool, poll_with_timeout
@@ -37,7 +35,7 @@ N3XX_DEFAULT_TIME_SOURCE = 'internal'
 N3XX_DEFAULT_ENABLE_GPS = True
 N3XX_DEFAULT_ENABLE_FPGPIO = True
 N3XX_DEFAULT_ENABLE_PPS_EXPORT = True
-N3XX_FPGA_COMPAT = (5, 2)
+N3XX_FPGA_COMPAT = (5, 3)
 N3XX_MONITOR_THREAD_INTERVAL = 1.0 # seconds
 
 # Import daughterboard PIDs from their respective classes
@@ -86,7 +84,7 @@ class N3xxXportMgrLiberio(XportMgrLiberio):
 ###############################################################################
 # Main Class
 ###############################################################################
-class n3xx(PeriphManagerBase):
+class n3xx(ZynqComponents, PeriphManagerBase):
     """
     Holds N3xx specific attributes and methods
     """
@@ -95,7 +93,9 @@ class n3xx(PeriphManagerBase):
     # manager class. The format of this map is:
     # (motherboard product code, (Slot-A DB PID, [Slot-B DB PID])) -> product
     product_map = {
+        ('n300', tuple()) : 'n300',
         ('n300', (MG_PID,       )): 'n300', # Slot B is empty
+        ('n310', tuple()) : 'n310',
         ('n310', (MG_PID, MG_PID)): 'n310',
         ('n310', (MG_PID,       )): 'n310', # If Slot B is empty, we can
                                             # still use the n310.bin image.
@@ -115,13 +115,10 @@ class n3xx(PeriphManagerBase):
     mboard_eeprom_offset = 0
     mboard_eeprom_max_len = 256
     mboard_info = {"type": "n3xx"}
-    mboard_max_rev = 5 # 5 == RevF
+    mboard_max_rev = 6 # 6 == RevG
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
         'gps_locked': 'get_gps_lock_sensor',
-        'gps_time': 'get_gps_time_sensor',
-        'gps_tpv': 'get_gps_tpv_sensor',
-        'gps_sky': 'get_gps_sky_sensor',
         'temp': 'get_temp_sensor',
         'fan': 'get_fan_sensor',
     }
@@ -157,12 +154,15 @@ class n3xx(PeriphManagerBase):
         """
         Hard-code our product map
         """
+        # Add the default PeriphManagerBase information first
+        device_info = super().generate_device_info(
+            eeprom_md, mboard_info, dboard_infos)
+        # Then add N3xx-specific information
         mb_pid = eeprom_md.get('pid')
         lookup_key = (
             n3xx.pids.get(mb_pid, 'unknown'),
             tuple([x['pid'] for x in dboard_infos]),
         )
-        device_info = mboard_info
         device_info['product'] = cls.product_map.get(lookup_key, 'unknown')
         return device_info
 
@@ -191,6 +191,7 @@ class n3xx(PeriphManagerBase):
         self._time_source = None
         self._available_endpoints = list(range(256))
         self._bp_leds = None
+        self._gpsd = None
         super(n3xx, self).__init__(args)
         if not self._device_initialized:
             # Don't try and figure out what's going on. Just give up.
@@ -201,6 +202,11 @@ class n3xx(PeriphManagerBase):
             self.log.error("Failed to initialize motherboard: %s", str(ex))
             self._initialization_status = str(ex)
             self._device_initialized = False
+        try:
+            if not args.get('skip_boot_init', False):
+                self.init(args)
+        except Exception as ex:
+            self.log.warning("Failed to init device on boot!")
 
     def _check_fpga_compat(self):
         " Throw an exception if the compat numbers don't match up "
@@ -232,15 +238,12 @@ class n3xx(PeriphManagerBase):
             self._clock_source = N3XX_DEFAULT_CLOCK_SOURCE
             self._time_source = N3XX_DEFAULT_TIME_SOURCE
         else:
-            self.set_clock_source(
-                default_args.get('clock_source', N3XX_DEFAULT_CLOCK_SOURCE)
-            )
-            self.set_time_source(
-                default_args.get('time_source', N3XX_DEFAULT_TIME_SOURCE)
-            )
-            self.enable_pps_out(
-                default_args.get('pps_export', N3XX_DEFAULT_ENABLE_PPS_EXPORT)
-            )
+            self.set_sync_source( {
+                'clock_source': default_args.get('clock_source',
+                                                 N3XX_DEFAULT_CLOCK_SOURCE),
+                'time_source' : default_args.get('time_source',
+                                                 N3XX_DEFAULT_TIME_SOURCE)
+            } )
 
     def _init_meas_clock(self):
         """
@@ -316,11 +319,14 @@ class n3xx(PeriphManagerBase):
         self.mboard_regs_control.get_build_timestamp()
         self._check_fpga_compat()
         self._update_fpga_type()
+        self.crossbar_base_port = self.mboard_regs_control.get_xbar_baseport()
         # Init clocking
         self.enable_ref_clock(enable=True)
         self._ext_clock_freq = None
         self._init_ref_clock_and_time(args)
         self._init_meas_clock()
+        # Init GPSd iface and GPS sensors
+        self._init_gps_sensors()
         # Init CHDR transports
         self._xport_mgrs = {
             'udp': N3xxXportMgrUDP(self.log.getChild('UDP')),
@@ -337,6 +343,22 @@ class n3xx(PeriphManagerBase):
         # Init complete.
         self.log.debug("Device info: {}".format(self.device_info))
 
+    def _init_gps_sensors(self):
+        "Init and register the GPSd Iface and related sensor functions"
+        self.log.trace("Initializing GPSd interface")
+        self._gpsd = GPSDIfaceExtension()
+        new_methods = self._gpsd.extend(self)
+        for method_name in new_methods:
+            try:
+                # Extract the sensor name from the getter
+                sensor_name = re.search(r"get_(.*)_sensor", method_name).group(1)
+                # Register it with the MB sensor framework
+                self.mboard_sensor_callback_map[sensor_name] = method_name
+                self.log.trace("Adding %s sensor function", sensor_name)
+            except AttributeError:
+                # re.search will return None is if can't find the sensor name
+                self.log.warning("Error while registering sensor function: %s", method_name)
+
     ###########################################################################
     # Session init and deinit
     ###########################################################################
@@ -349,17 +371,11 @@ class n3xx(PeriphManagerBase):
             self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
-        # We need to disable the PPS out during clock initialization in order
+        # We need to disable the PPS out during clock and dboard initialization in order
         # to avoid glitches.
-        enable_pps_out_state = self._default_args.get(
-            'pps_export',
-            N3XX_DEFAULT_ENABLE_PPS_EXPORT
-        )
         self.enable_pps_out(False)
-        if "clock_source" in args:
-            self.set_clock_source(args.get("clock_source"))
         if "clock_source" in args or "time_source" in args:
-            self.set_time_source(args.get("time_source", self.get_time_source()))
+            self.set_sync_source(args)
         # Uh oh, some hard coded product-related info: The N300 has no LO
         # source connectors on the front panel, so we assume that if this was
         # selected, it was an artifact from N310-related code. The user gets
@@ -370,10 +386,14 @@ class n3xx(PeriphManagerBase):
                     self.log.warning("The N300 variant does not support "
                                      "external LOs! Setting to internal.")
                     args[lo_source] = 'internal'
+        # Note: The parent class takes care of calling init() on all the
+        # daughterboards
         result = super(n3xx, self).init(args)
-        # Now the clocks are all enabled, we can also re-enable PPS export if
-        # it was turned off:
-        self.enable_pps_out(enable_pps_out_state)
+        # Now the clocks are all enabled, we can also enable PPS export:
+        self.enable_pps_out(args.get(
+            'pps_export',
+            N3XX_DEFAULT_ENABLE_PPS_EXPORT
+        ))
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.init(args)
         return result
@@ -501,74 +521,10 @@ class n3xx(PeriphManagerBase):
         return self._clock_source
 
     def set_clock_source(self, *args):
-        """
-        Switch reference clock.
-
-        Throws if clock_source is not a valid value.
-        """
+        " Sets a new reference clock source "
         clock_source = args[0]
-        assert clock_source in self.get_clock_sources()
-        self.log.debug("Setting clock source to `{}'".format(clock_source))
-        if clock_source == self.get_clock_source():
-            self.log.trace("Nothing to do -- clock source already set.")
-            return
-        if clock_source == 'internal':
-            self._gpios.set("CLK-MAINSEL-EX_B")
-            self._gpios.set("CLK-MAINSEL-25MHz")
-            self._gpios.reset("CLK-MAINSEL-GPS")
-        elif clock_source == 'gpsdo':
-            self._gpios.set("CLK-MAINSEL-EX_B")
-            self._gpios.reset("CLK-MAINSEL-25MHz")
-            self._gpios.set("CLK-MAINSEL-GPS")
-        else: # external
-            self._gpios.reset("CLK-MAINSEL-EX_B")
-            self._gpios.reset("CLK-MAINSEL-GPS")
-            # SKY13350 needs to be in known state
-            self._gpios.set("CLK-MAINSEL-25MHz")
-        self._clock_source = clock_source
-        ref_clk_freq = self.get_ref_clock_freq()
-        self.log.debug("Reference clock frequency is: {} MHz".format(
-            ref_clk_freq/1e6
-        ))
-        for slot, dboard in enumerate(self.dboards):
-            if hasattr(dboard, 'update_ref_clock_freq'):
-                self.log.trace(
-                    "Updating reference clock on dboard %d to %f MHz...",
-                    slot, ref_clk_freq/1e6
-                )
-                dboard.update_ref_clock_freq(ref_clk_freq)
-
-    def set_ref_clock_freq(self, freq):
-        """
-        Tell our USRP what the frequency of the external reference clock is.
-
-        Will throw if it's not a valid value.
-        """
-        assert freq in (10e6, 20e6, 25e6)
-        self.log.debug("We've been told the external reference clock " \
-                       "frequency is {} MHz.".format(freq/1e6))
-        if self._ext_clk_freq == freq:
-            self.log.trace("New external reference clock frequency " \
-                           "assignment matches previous assignment. Ignoring " \
-                           "update command.")
-            return
-        self._ext_clock_freq = freq
-        if self.get_clock_source() == 'external':
-            for slot, dboard in enumerate(self.dboards):
-                if hasattr(dboard, 'update_ref_clock_freq'):
-                    self.log.trace(
-                        "Updating reference clock on dboard %d to %f MHz...",
-                        slot, freq/1e6
-                    )
-                    dboard.update_ref_clock_freq(freq)
-
-    def get_ref_clock_freq(self):
-        " Returns the currently active reference clock frequency"
-        return {
-            'internal': 25e6,
-            'external': self._ext_clock_freq,
-            'gpsdo': 20e6,
-        }[self._clock_source]
+        source = {"clock_source": clock_source}
+        self.set_sync_source(source)
 
     def get_time_sources(self):
         " Returns list of valid time sources "
@@ -580,22 +536,81 @@ class n3xx(PeriphManagerBase):
 
     def set_time_source(self, time_source):
         " Set a time source "
+        source = {"time_source": time_source}
+        self.set_sync_source(source)
+
+    def set_sync_source(self, args):
+        """
+        Selects reference clock and PPS sources. Unconditionally re-applies the time
+        source to ensure continuity between the reference clock and time rates.
+        """
+        clock_source = args.get('clock_source',self._clock_source)
+        if clock_source != self._clock_source:
+            assert clock_source in self.get_clock_sources()
+            self.log.debug("Setting clock source to `{}'".format(clock_source))
+            # Place the DB clocks in a safe state to allow reference clock transitions. This
+            # leaves all the DB clocks OFF.
+            for slot, dboard in enumerate(self.dboards):
+                if hasattr(dboard, 'set_clk_safe_state'):
+                    self.log.trace(
+                        "Setting dboard %d components to safe clocking state...", slot)
+                    dboard.set_clk_safe_state()
+            # Disable the Ref Clock in the FPGA before throwing the external switches.
+            self.mboard_regs_control.enable_ref_clk(False)
+            # Set the external switches to bring in the new source.
+            if clock_source == 'internal':
+                self._gpios.set("CLK-MAINSEL-EX_B")
+                self._gpios.set("CLK-MAINSEL-25MHz")
+                self._gpios.reset("CLK-MAINSEL-GPS")
+            elif clock_source == 'gpsdo':
+                self._gpios.set("CLK-MAINSEL-EX_B")
+                self._gpios.reset("CLK-MAINSEL-25MHz")
+                self._gpios.set("CLK-MAINSEL-GPS")
+            else: # external
+                self._gpios.reset("CLK-MAINSEL-EX_B")
+                self._gpios.reset("CLK-MAINSEL-GPS")
+                # SKY13350 needs to be in known state
+                self._gpios.set("CLK-MAINSEL-25MHz")
+            self._clock_source = clock_source
+            self.log.debug("Reference clock source is: {}" \
+                           .format(self._clock_source))
+            self.log.debug("Reference clock frequency is: {} MHz" \
+                           .format(self.get_ref_clock_freq()/1e6))
+            # Enable the Ref Clock in the FPGA after giving it a chance to settle. The
+            # settling time is a guess.
+            time.sleep(0.100)
+            self.mboard_regs_control.enable_ref_clk(True)
+        else:
+            self.log.trace("New reference clock source " \
+                           "assignment matches previous assignment. Ignoring " \
+                           "update command.")
+        # Whenever the clock source changes, re-apply the time source to ensure
+        # frequency changes are applied to the internal PPS counters.
+        # If the time_source is not passed as an arg, use the current source.
+        time_source = args.get('time_source',self._time_source)
         assert time_source in self.get_time_sources()
+        # Perform the assignment regardless of whether the source was previously
+        # selected, since the internal PPS generator needs to change depending on the
+        # refclk frequency.
         self._time_source = time_source
-        self.mboard_regs_control.set_time_source(time_source, self.get_ref_clock_freq())
+        ref_clk_freq = self.get_ref_clock_freq()
+        self.mboard_regs_control.set_time_source(time_source, ref_clk_freq)
         if time_source == 'sfp0':
             # This error is specific to slave and master mode for White Rabbit.
-            # Grand Master mode will require the external or gpsdo sources (not supported).
-            if (time_source == 'sfp0' or time_source == 'sfp1') and \
-              self.get_clock_source() != 'internal':
-                error_msg = "Time source sfp(0|1) requires the internal clock source!"
+            # Grand Master mode will require the external or gpsdo
+            # sources (not supported).
+            if time_source in ('sfp0', 'sfp1') \
+                    and self.get_clock_source() != 'internal':
+                error_msg = "Time source {} requires `internal` clock source!".format(
+                    time_source)
                 self.log.error(error_msg)
                 raise RuntimeError(error_msg)
-            if self.updateable_components['fpga']['type'] != 'WX':
-                self.log.error("{} time source requires 'WX' FPGA type" \
-                               .format(time_source))
-                raise RuntimeError("{} time source requires 'WX' FPGA type" \
-                               .format(time_source))
+            sfp_time_source_images = ('WX',)
+            if self.updateable_components['fpga']['type'] not in sfp_time_source_images:
+                self.log.error("{} time source requires FPGA types {}" \
+                               .format(time_source, sfp_time_source_images))
+                raise RuntimeError("{} time source requires FPGA types {}" \
+                               .format(time_source, sfp_time_source_images))
             # Only open UIO to the WR core once we're guaranteed it exists.
             wr_regs_control = WhiteRabbitRegsControl(
                 self.wr_regs_label, self.log)
@@ -611,7 +626,54 @@ class n3xx(PeriphManagerBase):
                 self.log.error("{} timebase failed to lock within 40 seconds. Status: 0x{:X}" \
                                .format(time_source, wr_regs_control.get_time_lock_status()))
                 raise RuntimeError("Failed to lock SFP timebase.")
+        # Update the DB with the correct Ref Clock frequency and force a re-init.
+        for slot, dboard in enumerate(self.dboards):
+            if hasattr(dboard, 'update_ref_clock_freq'):
+                self.log.trace(
+                    "Updating reference clock on dboard %d to %f MHz...",
+                    slot, ref_clk_freq/1e6
+                )
+                dboard.update_ref_clock_freq(ref_clk_freq)
 
+    def set_ref_clock_freq(self, freq):
+        """
+        Tell our USRP what the frequency of the external reference clock is.
+
+        Will throw if it's not a valid value.
+        """
+        if freq not in (10e6, 20e6, 25e6):
+            self.log.error("{} is not a supported external reference clock frequency!" \
+                           .format(freq/1e6))
+            raise RuntimeError("{} is not a supported external reference clock " \
+                               "frequency!".format(freq/1e6))
+        self.log.debug("We've been told the external reference clock " \
+                       "frequency is now {} MHz.".format(freq/1e6))
+        if self._ext_clock_freq == freq:
+            self.log.trace("New external reference clock frequency " \
+                           "assignment matches previous assignment. Ignoring " \
+                           "update command.")
+            return
+        if (freq == 20e6) and (self.get_time_source() != 'external'):
+            self.log.error("Setting the external reference clock to {} MHz is only " \
+                           "allowed when using 'external' time_source. Set the " \
+                           "time_source to 'external' first, and then set the new " \
+                           "external clock rate.".format(freq/1e6))
+            raise RuntimeError("Setting the external reference clock to {} MHz is " \
+                               "only allowed when using 'external' time_source." \
+                               .format(freq/1e6))
+        self._ext_clock_freq = freq
+        # If the external source is currently selected we also need to re-apply the
+        # time_source. This call also updates the dboards' rates.
+        if self.get_clock_source() == 'external':
+            self.set_time_source(self.get_time_source())
+
+    def get_ref_clock_freq(self):
+        " Returns the currently active reference clock frequency"
+        return {
+            'internal': 25e6,
+            'external': self._ext_clock_freq,
+            'gpsdo': 20e6,
+        }[self._clock_source]
 
     def set_fp_gpio_master(self, value):
         """set driver for front panel GPIO
@@ -709,6 +771,7 @@ class n3xx(PeriphManagerBase):
 
     ###########################################################################
     # Sensors
+    # Note: GPS sensors are registered at runtime
     ###########################################################################
     def get_ref_lock_sensor(self):
         """
@@ -784,71 +847,6 @@ class n3xx(PeriphManagerBase):
             'unit': 'locked' if gps_locked else 'unlocked',
             'value': str(gps_locked).lower(),
         }
-
-    def get_gps_time_sensor(self):
-        """
-        Calculates GPS time using a TPV response from GPSd, and returns as a sensor dict
-
-        This time is not high accuracy.
-        """
-        self.log.trace("Polling GPS time results from GPSD")
-        with GPSDIface() as gps_iface:
-            response_mode = 0
-            # Read responses from GPSD until we get a non-trivial mode
-            while response_mode <= 0:
-                gps_info = gps_iface.get_gps_info(resp_class='tpv', timeout=15)
-                self.log.trace("GPS info: {}".format(gps_info))
-                response_mode = gps_info.get("mode", 0)
-        time_str = gps_info.get("time", "")
-        self.log.trace("GPS time string: {}".format(time_str))
-        time_dt = datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
-        self.log.trace("GPS datetime: {}".format(time_dt))
-        epoch_dt = datetime.datetime(1970, 1, 1)
-        gps_time = int((time_dt - epoch_dt).total_seconds())
-        return {
-            'name': 'gps_time',
-            'type': 'INTEGER',
-            'unit': 'seconds',
-            'value': str(gps_time),
-        }
-
-    def get_gps_tpv_sensor(self):
-        """
-        Get a TPV response from GPSd as a sensor dict
-        """
-        self.log.trace("Polling GPS TPV results from GPSD")
-        with GPSDIface() as gps_iface:
-            response_mode = 0
-            # Read responses from GPSD until we get a non-trivial mode
-            while response_mode <= 0:
-                gps_info = gps_iface.get_gps_info(resp_class='tpv', timeout=15)
-                self.log.trace("GPS info: {}".format(gps_info))
-                response_mode = gps_info.get("mode", 0)
-            # Return the JSON'd results
-            gps_tpv = json.dumps(gps_info)
-            return {
-                'name': 'gps_tpv',
-                'type': 'STRING',
-                'unit': '',
-                'value': gps_tpv,
-            }
-
-    def get_gps_sky_sensor(self):
-        """
-        Get a SKY response from GPSd as a sensor dict
-        """
-        self.log.trace("Polling GPS SKY results from GPSD")
-        with GPSDIface() as gps_iface:
-            # Just get the first SKY result
-            gps_info = gps_iface.get_gps_info(resp_class='sky', timeout=15)
-            # Return the JSON'd results
-            gps_sky = json.dumps(gps_info)
-            return {
-                'name': 'gps_sky',
-                'type': 'STRING',
-                'unit': '',
-                'value': gps_sky,
-            }
 
     ###########################################################################
     # EEPROMs
@@ -934,80 +932,13 @@ class n3xx(PeriphManagerBase):
     ###########################################################################
     # Component updating
     ###########################################################################
-    @no_rpc
-    def update_fpga(self, filepath, metadata):
-        """
-        Update the FPGA image in the filesystem and reload the overlay
-        :param filepath: path to new FPGA image
-        :param metadata: Dictionary of strings containing metadata
-        """
-        self.log.trace("Updating FPGA with image at {} (metadata: `{}')"
-                       .format(filepath, str(metadata)))
-        _, file_extension = os.path.splitext(filepath)
-        # Cut off the period from the file extension
-        file_extension = file_extension[1:].lower()
-        binfile_path = self.updateable_components['fpga']['path'].format(
-            self.device_info['product'])
-        if file_extension == "bit":
-            self.log.trace("Converting bit to bin file and writing to {}"
-                           .format(binfile_path))
-            from usrp_mpm.fpga_bit_to_bin import fpga_bit_to_bin
-            fpga_bit_to_bin(filepath, binfile_path, flip=True)
-        elif file_extension == "bin":
-            self.log.trace("Copying bin file to %s", binfile_path)
-            shutil.copy(filepath, binfile_path)
-        else:
-            self.log.error("Invalid FPGA bitfile: %s", filepath)
-            raise RuntimeError("Invalid N3xx FPGA bitfile")
-        # RPC server will reload the periph manager after this.
-        return True
-
+    # Note: Component updating functions defined by ZynqComponents
     @no_rpc
     def _update_fpga_type(self):
         """Update the fpga type stored in the updateable components"""
         fpga_type = self.mboard_regs_control.get_fpga_type()
         self.log.debug("Updating mboard FPGA type info to {}".format(fpga_type))
         self.updateable_components['fpga']['type'] = fpga_type
-
-    @no_rpc
-    def update_dts(self, filepath, metadata):
-        """
-        Update the DTS image in the filesystem
-        :param filepath: path to new DTS image
-        :param metadata: Dictionary of strings containing metadata
-        """
-        dtsfile_path = self.updateable_components['dts']['path'].format(
-            self.device_info['product'])
-        self.log.trace("Updating DTS with image at %s to %s (metadata: %s)",
-                       filepath, dtsfile_path, str(metadata))
-        shutil.copy(filepath, dtsfile_path)
-        dtbofile_path = self.updateable_components['dts']['output'].format(
-            self.device_info['product'])
-        self.log.trace("Compiling to %s...", dtbofile_path)
-        dtc_command = [
-            'dtc',
-            '--symbols',
-            '-O', 'dtb',
-            '-q', # Suppress warnings
-            '-o',
-            dtbofile_path,
-            dtsfile_path,
-        ]
-        self.log.trace("Executing command: `$ %s'", " ".join(dtc_command))
-        try:
-            out = subprocess.check_output(dtc_command)
-            if out.strip() != "":
-                # Keep this as debug because dtc is an external tool and
-                # something could go wrong with it that's outside of our control
-                self.log.debug("`dtc' command output: \n%s", out)
-        except OSError as ex:
-            self.log.error("Could not execute `dtc' command. Binary probably "\
-                           "not installed. Please compile DTS by hand.")
-            # No fatal error here, in order not to break the current workflow
-        except subprocess.CalledProcessError as ex:
-            self.log.error("Error executing `dtc': %s", str(ex))
-            return False
-        return True
 
     #######################################################################
     # Claimer API

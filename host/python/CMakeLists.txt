@@ -27,9 +27,15 @@ TARGET_INCLUDE_DIRECTORIES(pyuhd PUBLIC
     ${PYTHON_NUMPY_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
 )
+
 TARGET_LINK_LIBRARIES(pyuhd ${BOOST_PYTHON_LIBRARY} ${Boost_LIBRARIES} ${PYTHON_LIBRARY} uhd)
 # Copy pyuhd library to the staging directory
-SET(PYUHD_LIBRARY_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}pyuhd${CMAKE_SHARED_LIBRARY_SUFFIX})
+IF(WIN32)
+    SET(PYUHD_LIBRARY_NAME libpyuhd.pyd)
+ELSE()
+    SET(PYUHD_LIBRARY_NAME libpyuhd${CMAKE_SHARED_LIBRARY_SUFFIX})
+ENDIF(WIN32)
+
 ADD_CUSTOM_COMMAND(TARGET pyuhd
     POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:pyuhd> ${CMAKE_CURRENT_BINARY_DIR}/uhd/${PYUHD_LIBRARY_NAME})
 
@@ -48,19 +54,27 @@ CONFIGURE_FILE(${SETUP_PY_IN} ${SETUP_PY})
 
 ADD_CUSTOM_COMMAND(OUTPUT ${TIMESTAMP_FILE}
   COMMAND ${CMAKE_COMMAND} -E copy ${PYUHD_FILES} ${CMAKE_CURRENT_BINARY_DIR}/uhd
-  COMMAND ${PYTHON} ${SETUP_PY} -q build
+  COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} -q build
   COMMAND ${CMAKE_COMMAND} -E touch ${TIMESTAMP_FILE}
   DEPENDS ${PYUHD_FILES})
 
 ADD_CUSTOM_TARGET(pyuhd_library ALL DEPENDS ${TIMESTAMP_FILE} pyuhd)
 IF(HAVE_PYTHON_VIRTUALENV)
-    INSTALL(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} -q install --force)")
+    # In virtualenvs, let setuptools do its thing
+    INSTALL(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} -q install --force)")
 ELSE()
-    EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c
-      "from distutils import sysconfig; print(sysconfig.get_python_lib(plat_specific=True, prefix=''))"
-      OUTPUT_VARIABLE UHD_PYTHON_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    MESSAGE(STATUS "Utilizing the python install directory: ${CMAKE_INSTALL_PREFIX}/${UHD_PYTHON_DIR}")
-    INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/uhd DESTINATION ${CMAKE_INSTALL_PREFIX}/${UHD_PYTHON_DIR})
-ENDIF()
+    # Otherwise, use distutils to determine the correct relative path for Python
+    # packages, and install to our prefix
+    IF(NOT DEFINED UHD_PYTHON_DIR)
+        execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
+            "from __future__ import print_function;\
+            from distutils import sysconfig;\
+            print(sysconfig.get_python_lib(plat_specific=True, prefix='${CMAKE_INSTALL_PREFIX}'));"
+            OUTPUT_VARIABLE UHD_PYTHON_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    ENDIF(NOT DEFINED UHD_PYTHON_DIR)
+    file(TO_CMAKE_PATH ${UHD_PYTHON_DIR} UHD_PYTHON_DIR)
 
+    MESSAGE(STATUS "Utilizing the python install directory: ${UHD_PYTHON_DIR}")
+    INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/uhd DESTINATION ${UHD_PYTHON_DIR} COMPONENT pythonapi)
+ENDIF(HAVE_PYTHON_VIRTUALENV)

@@ -472,7 +472,7 @@ public:
      * Time and clock control
      *************************************************************************/
 
-    /*! 
+    /*!
      * Set the time source for this radio.
      *
      * May affect other radio blocks.
@@ -531,6 +531,9 @@ public:
      */
     virtual std::string get_dboard_fe_from_chan(const size_t chan, const uhd::direction_t dir) = 0;
 
+    /*! Enable or disable the setting of timestamps on Rx.
+     */
+    virtual void enable_rx_timestamps(const bool enable, const size_t chan) = 0;
 
     // Custom functions implemented to access Loopback and FP GPIO FPGA Radio Core registers
     virtual void my_set_loopback_reg(boost::uint32_t value, const size_t chan) = 0;

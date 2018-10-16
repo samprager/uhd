@@ -242,7 +242,7 @@ public:
     {
         UHD_THROW_INVALID_CODE_PATH();
     }
-    
+
 private:
     void _transact() {
         {

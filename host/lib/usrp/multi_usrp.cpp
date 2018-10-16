@@ -32,6 +32,8 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
+const size_t multi_usrp::ALL_MBOARDS = size_t(~0);
+const size_t multi_usrp::ALL_CHANS = size_t(~0);
 const std::string multi_usrp::ALL_GAINS = "";
 const std::string multi_usrp::ALL_LOS = "all";
 
@@ -454,7 +456,7 @@ public:
         const auto mb_eeprom =
             _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
         usrp_info["mboard_id"] = _tree->access<std::string>(mb_root(mcp.mboard) / "name").get();
-        usrp_info["mboard_name"] = mb_eeprom["name"];
+        usrp_info["mboard_name"] = mb_eeprom.get("name", "n/a");
         usrp_info["mboard_serial"] = mb_eeprom["serial"];
         usrp_info["tx_subdev_name"] = _tree->access<std::string>(tx_rf_fe_root(chan) / "name").get();
         usrp_info["tx_subdev_spec"] = _tree->access<subdev_spec_t>(mb_root(mcp.mboard) / "tx_subdev_spec").get().to_string();
@@ -820,6 +822,18 @@ public:
         }
     }
 
+    wb_iface::sptr get_user_settings_iface(const size_t chan)
+    {
+        const auto user_settings_path =
+            rx_rf_fe_root(chan) / "user_settings" / "iface";
+        if (_tree->exists(user_settings_path)) {
+            return _tree->access<wb_iface::sptr>(user_settings_path).get();
+        }
+        UHD_LOG_WARNING("MULTI_USRP",
+            "Attempting to read back non-existant user settings iface!");
+        return nullptr;
+    }
+
     /*******************************************************************
      * RX methods
      ******************************************************************/
@@ -907,19 +921,22 @@ public:
     }
 
     tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan){
-        tune_request_t local_request = tune_request;
 
         // If any mixer is driven by an external LO the daughterboard assumes that no CORDIC correction is
         // necessary. Since the LO might be sourced from another daughterboard which would normally apply a
-        // cordic correction we must disable all DSP tuning to ensure identical configurations across daughterboards.
+        // cordic correction a manual DSP tune policy should be used to ensure identical configurations across
+        // daughterboards.
         if (tune_request.dsp_freq_policy == tune_request.POLICY_AUTO and
             tune_request.rf_freq_policy  == tune_request.POLICY_AUTO)
         {
             for (size_t c = 0; c < get_rx_num_channels(); c++) {
-                UHD_VAR(get_rx_lo_source(ALL_LOS, c));
-                if (get_rx_lo_source(ALL_LOS, c) == "external") {
-                    local_request.dsp_freq_policy = tune_request.POLICY_MANUAL;
-                    local_request.dsp_freq = 0;
+                const bool external_all_los = _tree->exists(rx_rf_fe_root(chan) / "los" / ALL_LOS)
+                                              && get_rx_lo_source(ALL_LOS, c) == "external";
+                if (external_all_los) {
+                    UHD_LOGGER_WARNING("MULTI_USRP")
+                            << "At least one channel is using an external LO."
+                            << "Using a manual DSP frequency policy is recommended to ensure "
+                            << "the same frequency shift on all channels.";
                     break;
                 }
             }
@@ -928,7 +945,7 @@ public:
         tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
                 _tree->subtree(rx_dsp_root(chan)),
                 _tree->subtree(rx_rf_fe_root(chan)),
-                local_request);
+                tune_request);
         //do_tune_freq_results_message(tune_request, result, get_rx_freq(chan), "RX");
         return result;
     }
@@ -1541,6 +1558,15 @@ public:
         }
     }
 
+    meta_range_t get_rx_dc_offset_range(size_t chan) {
+        if (_tree->exists(rx_fe_root(chan) / "dc_offset" / "range")) {
+            return _tree->access<uhd::meta_range_t>(rx_fe_root(chan) / "dc_offset" / "range").get();
+        } else {
+            UHD_LOGGER_WARNING("MULTI_USRP") << "This device does not support querying the RX DC offset range." ;
+            return meta_range_t(0, 0);
+        }
+    }
+
     void set_rx_iq_balance(const bool enb, size_t chan){
         if (chan != ALL_CHANS){
             if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
@@ -1909,6 +1935,15 @@ public:
         }
         for (size_t c = 0; c < get_tx_num_channels(); c++){
             this->set_tx_dc_offset(offset, c);
+        }
+    }
+
+    meta_range_t get_tx_dc_offset_range(size_t chan) {
+        if (_tree->exists(tx_fe_root(chan) / "dc_offset" / "range")) {
+            return _tree->access<uhd::meta_range_t>(tx_fe_root(chan) / "dc_offset" / "range").get();
+        } else {
+            UHD_LOGGER_WARNING("MULTI_USRP") << "This device does not support querying the TX DC offset range." ;
+            return meta_range_t(0, 0);
         }
     }
 

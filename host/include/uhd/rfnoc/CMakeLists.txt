@@ -27,10 +27,12 @@ IF(ENABLE_RFNOC)
         tick_node_ctrl.hpp
         # Block controllers
         ddc_block_ctrl.hpp
+        dma_fifo_block_ctrl.hpp
         duc_block_ctrl.hpp
         fir_block_ctrl.hpp
         null_block_ctrl.hpp
         radio_ctrl.hpp
+        replay_block_ctrl.hpp
         siggen_block_ctrl.hpp
         window_block_ctrl.hpp
         wavegen_block_ctrl.hpp
