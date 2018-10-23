@@ -1,0 +1,38 @@
+var soft__register_8hpp =
+[
+    [ "soft_register_base", "classuhd_1_1soft__register__base.html", "classuhd_1_1soft__register__base" ],
+    [ "soft_register_t", "classuhd_1_1soft__register__t.html", "classuhd_1_1soft__register__t" ],
+    [ "soft_register_sync_t", "classuhd_1_1soft__register__sync__t.html", "classuhd_1_1soft__register__sync__t" ],
+    [ "soft_regmap_accessor_t", "classuhd_1_1soft__regmap__accessor__t.html", "classuhd_1_1soft__regmap__accessor__t" ],
+    [ "soft_regmap_t", "classuhd_1_1soft__regmap__t.html", "classuhd_1_1soft__regmap__t" ],
+    [ "soft_regmap_db_t", "classuhd_1_1soft__regmap__db__t.html", "classuhd_1_1soft__regmap__db__t" ],
+    [ "UHD_DEFINE_SOFT_REG_FIELD", "soft__register_8hpp.html#a90948c954ccce196de880718aa843876", null ],
+    [ "soft_reg16_ro_sync_t", "soft__register_8hpp.html#a4bf4410d5cde466aaac2028f9dd798b6", null ],
+    [ "soft_reg16_ro_t", "soft__register_8hpp.html#a026553b903f7b78e7b789010a31bd2c4", null ],
+    [ "soft_reg16_rw_sync_t", "soft__register_8hpp.html#a977a06babf4f9f5d7049d6d0b3499042", null ],
+    [ "soft_reg16_rw_t", "soft__register_8hpp.html#a990fe39b190249bdd599512203c2df55", null ],
+    [ "soft_reg16_wo_sync_t", "soft__register_8hpp.html#a0eb2908dc5ce51b7840fcae053ddc527", null ],
+    [ "soft_reg16_wo_t", "soft__register_8hpp.html#a8f1e7e71a2626c92fdceb9635aaae477", null ],
+    [ "soft_reg32_ro_sync_t", "soft__register_8hpp.html#a177c31678c712acced8173ec404ad178", null ],
+    [ "soft_reg32_ro_t", "soft__register_8hpp.html#a26cdfcc7c8077f1e46cf22fd42686bf3", null ],
+    [ "soft_reg32_rw_sync_t", "soft__register_8hpp.html#a2b29a17b5d81aa4c837bdce36604d216", null ],
+    [ "soft_reg32_rw_t", "soft__register_8hpp.html#a2713c13f3072e311ded9a42f7bbafc3a", null ],
+    [ "soft_reg32_wo_sync_t", "soft__register_8hpp.html#acde92b4ca30b6504fb6a96b7f6c61e87", null ],
+    [ "soft_reg32_wo_t", "soft__register_8hpp.html#aec1dacc012e2ba6f3b5d9bc0fa12fdba", null ],
+    [ "soft_reg64_ro_sync_t", "soft__register_8hpp.html#a10bbd65b2e073c7aab4b68ad06409919", null ],
+    [ "soft_reg64_ro_t", "soft__register_8hpp.html#a302ff6d870309d2427457b5eb86d42bd", null ],
+    [ "soft_reg64_rw_sync_t", "soft__register_8hpp.html#aa3d5beba78098ab13c9a04645994e12c", null ],
+    [ "soft_reg64_rw_t", "soft__register_8hpp.html#ae50db623231bbad7ddb6ee53137bdb6d", null ],
+    [ "soft_reg64_wo_sync_t", "soft__register_8hpp.html#afe8fb35f779a9404633aa59b2bf2d569", null ],
+    [ "soft_reg64_wo_t", "soft__register_8hpp.html#a0a51d59cd94438b1ce2e007835a7d945", null ],
+    [ "soft_reg_field_t", "soft__register_8hpp.html#a26b715eb56721759ca7b040c035c2842", null ],
+    [ "soft_reg_flush_mode_t", "soft__register_8hpp.html#ad780ee43a0ed61d03b7c217e1e7c3e21", [
+      [ "OPTIMIZED_FLUSH", "soft__register_8hpp.html#ad780ee43a0ed61d03b7c217e1e7c3e21a74d5568c04bd90ae11f4bf02012a2e4a", null ],
+      [ "ALWAYS_FLUSH", "soft__register_8hpp.html#ad780ee43a0ed61d03b7c217e1e7c3e21ae613792d0cb1e928c6cafd7f595f7ab4", null ]
+    ] ],
+    [ "likely", "soft__register_8hpp.html#a05c1925e6ba499c5855e20c5a5b6e352", null ],
+    [ "mask", "soft__register_8hpp.html#a07cf4a63f8c8b7dd4a81f3d796212f39", null ],
+    [ "shift", "soft__register_8hpp.html#a10e6b68c969d1a68e7fb6515b1060123", null ],
+    [ "unlikely", "soft__register_8hpp.html#a13b304ec2c517bfba480c1f59ca180d0", null ],
+    [ "width", "soft__register_8hpp.html#af204ce6f004a1d780d7dff246a6dffbb", null ]
+];

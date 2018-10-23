@@ -1,0 +1,15 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: UHD
+Description: Ettus Research - USRP Hardware Driver
+URL: https://github.com/EttusResearch/uhd
+Version: 3.14.0.rfnoc-devel-783-g9e1383d8
+Requires:
+Requires.private: 
+Conflicts:
+Cflags: -I${includedir} -I/usr/local/include
+Libs: -L${libdir} -luhd -lboost_system
+Libs.private: -L/usr/local/lib
