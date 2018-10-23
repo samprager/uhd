@@ -1770,6 +1770,16 @@ void ad9361_device_t::initialize()
 
     /* Set TXers & RXers on (only works in FDD mode) */
     _io_iface->poke8(0x014, 0x21);
+
+    /*    D3—MCS RF Enable
+    Setting this bit keeps the RF LO dividers enabled in Alert mode
+    so that the phase relationship between multiple devices remains
+    constant. If the bit is clear, the dividers power down in Alert
+    mode. The respective LO dividers also power down in FDD
+    Independent mode when the Rx or Tx paths are disabled if the
+    bit is clear.*/
+    _io_iface->poke8(0x001,0x08);
+
 }
 
 void ad9361_device_t::set_io_iface(ad9361_io::sptr io_iface)

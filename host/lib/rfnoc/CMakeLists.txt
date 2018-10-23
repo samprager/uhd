@@ -40,6 +40,8 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/radio_ctrl_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/siggen_block_ctrl_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dma_fifo_block_ctrl_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wavegen_block_ctrl_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pulse_cir_avg_block_ctrl_impl.cpp
 )
 
 INCLUDE_SUBDIRECTORY(nocscript)
