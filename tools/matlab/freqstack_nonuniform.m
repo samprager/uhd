@@ -9,6 +9,7 @@ function varargout = freqstack_nonuniform(varargin)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,fs)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,fs,window)
 %    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,window,stitchmode)
+%    [data_u, filt_u, (x_tx), (upfac)] = freqstack_nonuniform(trials,dfc,Bs,upfac,window,smoothphase)
 
 % Inputs:
 %    trials - struct array of trials. Must contain field trials.data,
@@ -20,6 +21,8 @@ function varargout = freqstack_nonuniform(varargin)
 %    window - 'rect' 'hamming' or 'chebyshev' for linear. 'nl_hamming', etc
 %       for nonlinear
 %    stitchmode - 'optimal' or 'default' or Nx2 array of flims to use
+%   smoothphase - 1: smoothe spectrum phase to be continuous 0: do nothing
+%   (default)
 %
 % Outputs:
 %    data_u - compressed pulse after freq stacking
@@ -104,6 +107,11 @@ if(nargin>=7)
     end
 end
 
+smoothphase = 0;
+if(nargin>=8)
+    smoothphase  = varargin{8};
+end
+
 if ((numel(trials(1).ref)==0) || (fs==0) || (~isstruct(trials)))
     error('trials must be a struct with fields trials.data,trials.ref, trials.awglen, (and trials.fs)');
 end
@@ -184,9 +192,27 @@ end
 %     flims(i+1,1)=flims(i,2);
 % end
 % flims(end,2)=fs2/2;
-
+Dfull = D;
 for i=1:N
     D(i,:) = D(i,:).*rect(ftemp,flims(i,1),flims(i,2),1);
+%     Correct phase to make continuous.
+    if (smoothphase==1 && (i>1))
+%         Dpev = D(i-1,:);
+%         fprevind = find(ftemp==flims(i-1,2))-1;
+%         phase_prev = angle(Dpev(fprevind));
+
+        Dpev = Dfull(i-1,:);
+        phase_prev = angle(Dpev(ftemp==flims(i,1)));
+        
+        Dnow = D(i,:);
+        phase_now = angle(Dnow(ftemp==flims(i,1)));
+        D(i,:) = D(i,:)*exp(1i*(phase_prev-phase_now));
+        Dfull(i,:)=Dfull(i,:)*exp(1i*(phase_prev-phase_now));
+%     else
+%         Dnow = D(i,:);
+%         phase_now = angle(Dnow(ftemp==flims(i,1)));
+%         D(i,:) = D(i,:)*exp(1i*(-phase_now));
+    end
 end
 
 % for i=1:N

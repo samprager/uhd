@@ -53,6 +53,9 @@ function win = getWindow(windowstr,Ns)
     % dolph-chebyshev window
         win = chebwin(Ns).';
     elseif(contains(windowstr,'kaiser'))
+        windowstr=strrep(windowstr,'_','');
+        windowstr=strrep(windowstr,'{','');
+        windowstr=strrep(windowstr,'}','');
         alpha=sscanf(windowstr,'kaiser%g');
         beta = kaiser_beta(alpha);
         win = kaiser(Ns,beta).';
