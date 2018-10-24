@@ -154,6 +154,7 @@ public:
             throw uhd::assertion_error("ad9361_ctrl: Timing mode not supported");
         }
         _device.set_timing_mode((timing_mode == "2R2T")? ad9361_device_t::TIMING_MODE_2R2T : ad9361_device_t::TIMING_MODE_1R1T);
+
     }
 
     //! tune the given frontend, return the exact value
@@ -312,5 +313,12 @@ ad9361_ctrl::sptr ad9361_ctrl::make_spi(
     uint32_t slave_num
 ) {
     boost::shared_ptr<ad9361_io_spi> spi_io_iface = boost::make_shared<ad9361_io_spi>(spi_iface, slave_num);
+    return sptr(new ad9361_ctrl_impl(client_settings, spi_io_iface));
+}
+
+ad9361_ctrl::sptr ad9361_ctrl::make_spi(
+    ad9361_params::sptr client_settings,
+    ad9361_io::sptr spi_io_iface
+) {
     return sptr(new ad9361_ctrl_impl(client_settings, spi_io_iface));
 }

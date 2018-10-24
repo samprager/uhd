@@ -17,10 +17,10 @@ FIND_PACKAGE(Git QUIET)
 #  - Increment patch for bugfixes and docs
 #  - set UHD_VERSION_DEVEL to true for master and development branches
 ########################################################################
-SET(UHD_VERSION_MAJOR 4)
-SET(UHD_VERSION_API   0)
-SET(UHD_VERSION_ABI   0)
-SET(UHD_VERSION_PATCH rfnoc)
+SET(UHD_VERSION_MAJOR   3)
+SET(UHD_VERSION_API    14)
+SET(UHD_VERSION_ABI     0)
+SET(UHD_VERSION_PATCH   0)
 SET(UHD_VERSION_DEVEL TRUE)
 
 ########################################################################
@@ -43,8 +43,8 @@ IF(GIT_FOUND)
     )
     IF(_git_branch_result EQUAL 0)
         SET(UHD_GIT_BRANCH ${_git_branch})
-        IF(UHD_GIT_BRANCH STREQUAL "maint")
-            MESSAGE(STATUS "Operating on maint branch (stable).")
+        IF(UHD_GIT_BRANCH MATCHES "^UHD-")
+            MESSAGE(STATUS "Operating on release branch (${UHD_GIT_BRANCH}).")
 	    SET(UHD_VERSION_DEVEL FALSE)
         ELSEIF(UHD_GIT_BRANCH STREQUAL "master")
             MESSAGE(STATUS "Operating on master branch.")
@@ -64,6 +64,10 @@ IF(GIT_FOUND)
 ELSE(GIT_FOUND)
     MESSAGE(WARNING "Could not detect git executable! Could not determine exact version of UHD!")
 ENDIF(GIT_FOUND)
+IF(DEFINED UHD_GIT_BRANCH_OVERRIDE)
+    MESSAGE(STATUS "Overriding auto-detected git branch and setting to: ${UHD_GIT_BRANCH_OVERRIDE}")
+    SET(UHD_GIT_BRANCH ${UHD_GIT_BRANCH_OVERRIDE})
+ENDIF(DEFINED UHD_GIT_BRANCH_OVERRIDE)
 
 ########################################################################
 # Version information discovery through git log

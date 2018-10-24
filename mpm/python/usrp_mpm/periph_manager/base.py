@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Ettus Research, a National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -95,6 +95,9 @@ class PeriphManagerBase(object):
     # depending on the severity of the issue. If fewer dboards are found,
     # that's generally considered OK.
     max_num_dboards = 2
+    # The index of the first port of the RFNoC crossbar which is connected to
+    # an RFNoC block
+    crossbar_base_port = 0
     # Address of the daughterboard EEPROMs. This could be something like
     # "e0004000.i2c". This value will be passed to get_eeprom_paths() to
     # determine a full path to an EEPROM device.
@@ -137,6 +140,15 @@ class PeriphManagerBase(object):
         mboard_info -- Dictionary; motherboard info
         device_args -- List of dictionaries; daughterboard info
         """
+        # Try to add the MPM Git hash and version
+        try:
+            from usrp_mpm import __version__, __githash__
+            version_string = __version__
+            if len(__githash__):
+                version_string += "-g" + __githash__
+        except ImportError:
+            version_string = ""
+        mboard_info["mpm_version"] = version_string
         return mboard_info
 
     @staticmethod
@@ -165,9 +177,6 @@ class PeriphManagerBase(object):
         # Set up logging
         self.log = get_logger('PeriphManager')
         self.claimed = False
-        # The _init_args are a check for the args that passed into init(). This
-        # should always be a dictionary (or dictionary-like object).
-        self._init_args = {}
         try:
             self._eeprom_head, self._eeprom_rawdata = \
                 self._read_mboard_eeprom()
@@ -202,6 +211,7 @@ class PeriphManagerBase(object):
             self.log.error("Failed to initialize device: %s", str(ex))
             self._device_initialized = False
             self._initialization_status = str(ex)
+        super(PeriphManagerBase, self).__init__()
 
     def _read_mboard_eeprom(self):
         """
@@ -429,7 +439,6 @@ class PeriphManagerBase(object):
             self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
-        self._init_args = args
         if len(self.dboards) == 0:
             return True
         if args.get("serialize_init", False):
@@ -670,7 +679,7 @@ class PeriphManagerBase(object):
 
         xbar_index -- The index of the crossbar that's being queried
         """
-        return 3 # FIXME It's 3 because 0,1,2 are SFP,SFP,DMA
+        return self.crossbar_base_port
 
     def set_xbar_local_addr(self, xbar_index, local_addr):
         """

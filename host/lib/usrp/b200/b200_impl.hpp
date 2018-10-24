@@ -32,6 +32,7 @@
 #include <uhdlib/usrp/cores/radio_ctrl_core_3000.hpp>
 #include <uhdlib/usrp/cores/rx_dsp_core_3000.hpp>
 #include <uhdlib/usrp/cores/tx_dsp_core_3000.hpp>
+#include <uhdlib/usrp/cores/user_settings_core_3000.hpp>
 #include <uhdlib/usrp/common/recv_packet_demuxer_3000.hpp>
 #include <uhdlib/usrp/common/ad936x_manager.hpp>
 #include <uhdlib/usrp/common/adf4001_ctrl.hpp>
@@ -40,8 +41,8 @@
 
 static const uint8_t  B200_FW_COMPAT_NUM_MAJOR = 8;
 static const uint8_t  B200_FW_COMPAT_NUM_MINOR = 0;
-static const uint16_t B200_FPGA_COMPAT_NUM = 14;
-static const uint16_t B205_FPGA_COMPAT_NUM = 5;
+static const uint16_t B200_FPGA_COMPAT_NUM = 15;
+static const uint16_t B205_FPGA_COMPAT_NUM = 6;
 static const double          B200_BUS_CLOCK_RATE = 100e6;
 static const uint32_t B200_GPSDO_ST_NONE = 0x83;
 static const size_t B200_MAX_RATE_USB2              =  53248000; // bytes/s
@@ -79,6 +80,12 @@ static const unsigned char B200_USB_DATA_RECV_INTERFACE = 2;
 static const unsigned char B200_USB_DATA_RECV_ENDPOINT  = 6;
 static const unsigned char B200_USB_DATA_SEND_INTERFACE = 1;
 static const unsigned char B200_USB_DATA_SEND_ENDPOINT  = 2;
+
+// Default recv_frame_size. Must not be a multiple of 512.
+static const int B200_USB_DATA_DEFAULT_FRAME_SIZE = 8176;
+// recv_frame_size values below this will be upped to this value
+static const int B200_USB_DATA_MIN_RECV_FRAME_SIZE = 40;
+static const int B200_USB_DATA_MAX_RECV_FRAME_SIZE = 16360;
 
 /*
  * VID/PID pairs for all B2xx products
@@ -121,6 +128,9 @@ private:
     b200_product_t  _product;
     size_t          _revision;
     bool            _gpsdo_capable;
+    //! This flag is true if the FPGA has custom (user) registers and access to
+    // those needs to be enabled from software.
+    const bool      _enable_user_regs;
 
     //controllers
     b200_iface::sptr _iface;
@@ -182,6 +192,7 @@ private:
         tx_dsp_core_3000::sptr duc;
         boost::weak_ptr<uhd::rx_streamer> rx_streamer;
         boost::weak_ptr<uhd::tx_streamer> tx_streamer;
+        user_settings_core_3000::sptr user_settings;
         bool ant_rx2;
     };
     std::vector<radio_perifs_t> _radio_perifs;

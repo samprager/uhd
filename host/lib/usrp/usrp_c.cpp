@@ -85,7 +85,7 @@ UHD_SINGLETON_FCN(usrp_ptrs, get_usrp_ptrs);
 static boost::mutex _rx_streamer_make_mutex;
 uhd_error uhd_rx_streamer_make(uhd_rx_streamer_handle* h){
     UHD_SAFE_C(
-        boost::mutex::scoped_lock(_rx_streamer_make_mutex);
+        boost::mutex::scoped_lock lock(_rx_streamer_make_mutex);
         (*h) = new uhd_rx_streamer;
     )
 }
@@ -435,7 +435,7 @@ uhd_error uhd_usrp_get_mboard_name(
 uhd_error uhd_usrp_get_time_now(
     uhd_usrp_handle h,
     size_t mboard,
-    time_t *full_secs_out,
+    int64_t *full_secs_out,
     double *frac_secs_out
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
@@ -448,7 +448,7 @@ uhd_error uhd_usrp_get_time_now(
 uhd_error uhd_usrp_get_time_last_pps(
     uhd_usrp_handle h,
     size_t mboard,
-    time_t *full_secs_out,
+    int64_t *full_secs_out,
     double *frac_secs_out
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
@@ -460,7 +460,7 @@ uhd_error uhd_usrp_get_time_last_pps(
 
 uhd_error uhd_usrp_set_time_now(
     uhd_usrp_handle h,
-    time_t full_secs,
+    int64_t full_secs,
     double frac_secs,
     size_t mboard
 ){
@@ -472,7 +472,7 @@ uhd_error uhd_usrp_set_time_now(
 
 uhd_error uhd_usrp_set_time_next_pps(
     uhd_usrp_handle h,
-    time_t full_secs,
+    int64_t full_secs,
     double frac_secs,
     size_t mboard
 ){
@@ -484,7 +484,7 @@ uhd_error uhd_usrp_set_time_next_pps(
 
 uhd_error uhd_usrp_set_time_unknown_pps(
     uhd_usrp_handle h,
-    time_t full_secs,
+    int64_t full_secs,
     double frac_secs
 ){
     UHD_SAFE_C_SAVE_ERROR(h,
@@ -505,7 +505,7 @@ uhd_error uhd_usrp_get_time_synchronized(
 
 uhd_error uhd_usrp_set_command_time(
     uhd_usrp_handle h,
-    time_t full_secs,
+    int64_t full_secs,
     double frac_secs,
     size_t mboard
 ){

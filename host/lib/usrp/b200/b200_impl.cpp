@@ -18,7 +18,6 @@
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <boost/format.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/make_shared.hpp>
@@ -277,6 +276,7 @@ UHD_STATIC_BLOCK(register_b200_device)
 b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::sptr &handle) :
     _product(B200), // Some safe value
     _revision(0),
+    _enable_user_regs(device_addr.has_key("enable_user_regs")),
     _time_source(UNKNOWN),
     _tick_rate(0.0) // Forces a clock initialization at startup
 {
@@ -519,9 +519,48 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
     // before being cleared.
     ////////////////////////////////////////////////////////////////////
     device_addr_t data_xport_args;
-    data_xport_args["recv_frame_size"] = device_addr.get("recv_frame_size", "8192");
+    const int max_transfer = usb_speed == 3 ? 1024 : 512;
+    int recv_frame_size = device_addr.cast<int>(
+        "recv_frame_size",
+        B200_USB_DATA_DEFAULT_FRAME_SIZE
+    );
+    // Check that recv_frame_size limits.
+    if (recv_frame_size < B200_USB_DATA_MIN_RECV_FRAME_SIZE) {
+        UHD_LOGGER_WARNING("B200")
+            << "Requested recv_frame_size of " << recv_frame_size
+            << " is too small. It will be set to "
+            << B200_USB_DATA_MIN_RECV_FRAME_SIZE << ".";
+        recv_frame_size = B200_USB_DATA_MIN_RECV_FRAME_SIZE;
+    } else if (recv_frame_size > B200_USB_DATA_MAX_RECV_FRAME_SIZE) {
+        UHD_LOGGER_WARNING("B200")
+            << "Requested recv_frame_size of " << recv_frame_size
+            << " is too large. It will be set to "
+            << B200_USB_DATA_MAX_RECV_FRAME_SIZE << ".";
+        recv_frame_size = B200_USB_DATA_MAX_RECV_FRAME_SIZE;
+    } else if (recv_frame_size % max_transfer == 0 or recv_frame_size % 8 != 0) {
+        // The Cypress FX3 does not properly handle recv_frame_sizes that are
+        // aligned to the maximum transfer size and the FPGA code requires the
+        // data to be aligned to 8 byte words.  The code below coerces the
+        // recv_frame_size to a value that is a multiple of 8 bytes, not
+        // a multiple of the maximum transfer size, and aligned to 24 bytes
+        // to support full 8 byte word alignment for sc8, sc12, and sc16 data
+        // types.
+
+        // Align to 8 byte words
+        recv_frame_size += 8 - (recv_frame_size % 8);
+        if (recv_frame_size % max_transfer == 0) {
+            recv_frame_size = (((recv_frame_size - 16) / 24) * 24) + 16;
+        }
+        UHD_LOGGER_WARNING("B200")
+            << "The recv_frame_size must be a multiple of 8 bytes and not a multiple of "
+            << max_transfer << " bytes.  Requested recv_frame_size of "
+            << device_addr["recv_frame_size"]
+            << " coerced to " << recv_frame_size << ".";
+    }
+
+    data_xport_args["recv_frame_size"] = std::to_string(recv_frame_size);
     data_xport_args["num_recv_frames"] = device_addr.get("num_recv_frames", "16");
-    data_xport_args["send_frame_size"] = device_addr.get("send_frame_size", "8192");
+    data_xport_args["send_frame_size"] = device_addr.get("send_frame_size", std::to_string(B200_USB_DATA_DEFAULT_FRAME_SIZE));
     data_xport_args["num_send_frames"] = device_addr.get("num_send_frames", "16");
 
     // This may throw a uhd::usb_error, which will be caught by b200_make().
@@ -757,15 +796,6 @@ b200_impl::~b200_impl(void)
 /***********************************************************************
  * setup radio control objects
  **********************************************************************/
-
-void lambda_set_bool_prop(boost::weak_ptr<property_tree> tree_wptr, fs_path path, bool value, double)
-{
-    property_tree::sptr tree = tree_wptr.lock();
-    if (tree) {
-        tree->access<bool>(path).set(value);
-    }
-}
-
 void b200_impl::setup_radio(const size_t dspno)
 {
     radio_perifs_t &perif = _radio_perifs[dspno];
@@ -807,6 +837,18 @@ void b200_impl::setup_radio(const size_t dspno)
     perif.duc = tx_dsp_core_3000::make(perif.ctrl, TOREG(SR_TX_DSP));
     perif.duc->set_link_rate(10e9/8); //whatever
     perif.duc->set_freq(tx_dsp_core_3000::DEFAULT_CORDIC_FREQ);
+    if (_enable_user_regs) {
+        UHD_LOG_DEBUG("B200", "Enabling user settings registers");
+        perif.user_settings = user_settings_core_3000::make(perif.ctrl,
+            TOREG(SR_USER_SR_BASE),
+            TOREG(SR_USER_RB_ADDR)
+        );
+        if (!perif.user_settings) {
+            const std::string error_msg = "Failed to create user settings bus!";
+            UHD_LOG_ERROR("B200", error_msg);
+            throw uhd::runtime_error(error_msg);
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////
     // create time control objects
@@ -824,7 +866,12 @@ void b200_impl::setup_radio(const size_t dspno)
     _tree->create<bool>(rx_dsp_path / "rate" / "set").set(false);
     _tree->access<double>(rx_dsp_path / "rate" / "value")
         .set_coercer(boost::bind(&b200_impl::coerce_rx_samp_rate, this, perif.ddc, dspno, _1))
-        .add_coerced_subscriber(boost::bind(&lambda_set_bool_prop, boost::weak_ptr<property_tree>(_tree), rx_dsp_path / "rate" / "set", true, _1))
+        .add_coerced_subscriber([this, rx_dsp_path](const double){
+            if (this->_tree) {
+                this->_tree->access<bool>(rx_dsp_path / "rate" / "set")
+                    .set(true);
+            }
+        })
         .add_coerced_subscriber(boost::bind(&b200_impl::update_rx_samp_rate, this, dspno, _1))
     ;
     _tree->create<stream_cmd_t>(rx_dsp_path / "stream_cmd")
@@ -842,7 +889,12 @@ void b200_impl::setup_radio(const size_t dspno)
     _tree->create<bool>(tx_dsp_path / "rate" / "set").set(false);
     _tree->access<double>(tx_dsp_path / "rate" / "value")
         .set_coercer(boost::bind(&b200_impl::coerce_tx_samp_rate, this, perif.duc, dspno, _1))
-        .add_coerced_subscriber(boost::bind(&lambda_set_bool_prop, boost::weak_ptr<property_tree>(_tree), tx_dsp_path / "rate" / "set", true, _1))
+        .add_coerced_subscriber([this, tx_dsp_path](const double){
+            if (this->_tree) {
+                this->_tree->access<bool>(tx_dsp_path / "rate" / "set")
+                    .set(true);
+            }
+        })
         .add_coerced_subscriber(boost::bind(&b200_impl::update_tx_samp_rate, this, dspno, _1))
     ;
     _tree->access<double>(mb_path / "tick_rate")
@@ -885,6 +937,11 @@ void b200_impl::setup_radio(const size_t dspno)
             static const std::vector<std::string> ants(1, "TX/RX");
             _tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options").set(ants);
             _tree->create<std::string>(rf_fe_path / "antenna" / "value").set("TX/RX");
+        }
+
+        if (_enable_user_regs) {
+            _tree->create<uhd::wb_iface::sptr>(rf_fe_path / "user_settings/iface")
+                .set(perif.user_settings);
         }
     }
 }
