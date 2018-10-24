@@ -201,6 +201,26 @@ for i=1:numel(trials)
         device = s{2}{ind(1)};
         trials(i).device = device;
     end
+    
+    indC = strfind(s{1},'TOF sync');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        tofsync = str2double(s{2}{ind(1)});
+        trials(i).tofsync = tofsync;
+    end
+    indC = strfind(s{1},'TOF local');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        toflocal = str2double(s{2}{ind(1)});
+        trials(i).toflocal = toflocal;
+    end
+    indC = strfind(s{1},'Fslope');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        fslope = str2double(s{2}{ind(1)});
+        trials(i).fslope = fslope;
+    end
+    
     trials(i).txfreq = rxfreq;
     trials(i).rxfreq = txfreq;
     trials(i).freq = freq;

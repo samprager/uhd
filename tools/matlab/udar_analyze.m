@@ -71,11 +71,19 @@ for i=2:numel(trials)
     if (foverlap>0)
         bweffavg = bweffavg+(Bs-foverlap)/Bs;
         navg = navg+1;
+    else
+        % bands are spaced out
+        bweffavg = bweffavg+(Bs-foverlap)/Bs;
+        navg = navg+1;
     end
 %     bweffs = [bweffs,bweffavg/navg];
 
 end
-bweffavg = bweffavg/navg;
+if (navg==0) 
+    bweffavg = 1; 
+else
+    bweffavg = bweffavg/navg;
+end
 % figure(500);hold on; plot(bweffs); title('bweffs');
 
 freq_rec = freqs;
