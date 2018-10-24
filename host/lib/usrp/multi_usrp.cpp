@@ -81,15 +81,12 @@ static void do_samp_rate_warning_message(
     const double actual_rf_freq = tune_result.actual_rf_freq;
     const double target_dsp_freq = tune_result.target_dsp_freq;
     const double actual_dsp_freq = tune_result.actual_dsp_freq;
-
     if (tune_req.rf_freq_policy == tune_request_t::POLICY_MANUAL) return;
     if (tune_req.dsp_freq_policy == tune_request_t::POLICY_MANUAL) return;
-
     bool requested_freq_success = uhd::math::frequencies_are_equal(target_freq, clipped_target_freq);
     bool target_freq_success = uhd::math::frequencies_are_equal(clipped_target_freq, actual_freq);
     bool rf_lo_tune_success = uhd::math::frequencies_are_equal(target_rf_freq, actual_rf_freq);
     bool dsp_tune_success = uhd::math::frequencies_are_equal(target_dsp_freq, actual_dsp_freq);
-
     if(requested_freq_success and target_freq_success and rf_lo_tune_success
             and dsp_tune_success) {
         UHD_LOGGER_INFO("MULTI_USRP") << boost::format(
@@ -99,7 +96,6 @@ static void do_samp_rate_warning_message(
         boost::format base_message ("Tune Request: %f MHz\n");
         base_message % (target_freq / 1e6);
         std::string results_string = base_message.str();
-
         if(requested_freq_success and (not rf_lo_tune_success)) {
             boost::format rf_lo_message(
                 "  The RF LO does not support the requested frequency:\n"
@@ -112,24 +108,18 @@ static void do_samp_rate_warning_message(
             rf_lo_message % (target_rf_freq / 1e6) % (actual_rf_freq / 1e6)
                 % (target_dsp_freq / 1e6) % (actual_dsp_freq / 1e6)
                 % (actual_freq / 1e6);
-
             results_string += rf_lo_message.str();
-
             UHD_LOGGER_INFO("MULTI_USRP") << results_string;
-
             return;
         }
-
         if(not requested_freq_success) {
             boost::format failure_message(
                 "  The requested %s frequency is outside of the system range, and has been clipped:\n"
                 "    Target Frequency: %f MHz\n"
                 "    Clipped Target Frequency: %f MHz\n");
             failure_message % xx % (target_freq / 1e6) % (clipped_target_freq / 1e6);
-
             results_string += failure_message.str();
         }
-
         if(not rf_lo_tune_success) {
             boost::format rf_lo_message(
                 "  The RF LO does not support the requested frequency:\n"
@@ -140,24 +130,19 @@ static void do_samp_rate_warning_message(
                 "    DSP Result: %f MHz\n");
             rf_lo_message % (target_rf_freq / 1e6) % (actual_rf_freq / 1e6)
                 % (target_dsp_freq / 1e6) % (actual_dsp_freq / 1e6);
-
             results_string += rf_lo_message.str();
-
         } else if(not dsp_tune_success) {
             boost::format dsp_message(
                 "  The DSP does not support the requested frequency:\n"
                 "    Requested DSP Frequency: %f MHz\n"
                 "    DSP Result: %f MHz\n");
             dsp_message % (target_dsp_freq / 1e6) % (actual_dsp_freq / 1e6);
-
             results_string += dsp_message.str();
         }
-
         if(target_freq_success) {
             boost::format success_message(
                 "  Successfully tuned to %f MHz\n\n");
             success_message % (actual_freq / 1e6);
-
             results_string += success_message.str();
         } else {
             boost::format failure_message(
@@ -165,10 +150,8 @@ static void do_samp_rate_warning_message(
                 "    Target Frequency: %f MHz\n"
                 "    Actual Frequency: %f MHz\n\n");
             failure_message % (clipped_target_freq / 1e6) % (actual_freq / 1e6);
-
             results_string += failure_message.str();
         }
-
         UHD_LOGGER_WARNING("MULTI_USRP") << results_string ;
     }
 }*/
@@ -722,7 +705,20 @@ public:
 
     void set_time_source(const std::string &source, const size_t mboard){
         if (mboard != ALL_MBOARDS){
-            _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
+            const auto time_source_path =
+                mb_root(mboard) / "time_source/value";
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(time_source_path)) {
+                _tree->access<std::string>(time_source_path).set(source);
+            } else if (_tree->exists(sync_source_path)) {
+                auto sync_source =
+                    _tree->access<device_addr_t>(sync_source_path).get();
+                sync_source["time_source"] = source;
+                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
+            } else {
+                throw uhd::runtime_error("Can't set time source on this device.");
+            }
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++){
@@ -731,16 +727,53 @@ public:
     }
 
     std::string get_time_source(const size_t mboard){
-        return _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").get();
+        const auto time_source_path = mb_root(mboard) / "time_source/value";
+        if (_tree->exists(time_source_path)) {
+            return _tree->access<std::string>(time_source_path).get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/value")) {
+            auto sync_source = _tree->access<device_addr_t>(
+                mb_root(mboard) / "sync_source" / "value").get();
+            if (sync_source.has_key("time_source")) {
+                return sync_source.get("time_source");
+            }
+        }
+        throw uhd::runtime_error("Cannot query time_source on this device!");
     }
 
     std::vector<std::string> get_time_sources(const size_t mboard){
-        return _tree->access<std::vector<std::string> >(mb_root(mboard) / "time_source" / "options").get();
+        const auto time_source_path = mb_root(mboard) / "time_source/options";
+        if (_tree->exists(time_source_path)) {
+            return _tree->access<std::vector<std::string>>(time_source_path)
+                .get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/options")) {
+            const auto sync_sources = get_sync_sources(mboard);
+            std::vector<std::string> time_sources;
+            for (const auto& sync_source : sync_sources) {
+                if (sync_source.has_key("time_source")) {
+                    time_sources.push_back(sync_source.get("time_source"));
+                }
+            }
+        }
+        throw uhd::runtime_error("Cannot query time_source on this device!");
     }
 
     void set_clock_source(const std::string &source, const size_t mboard){
         if (mboard != ALL_MBOARDS){
-            _tree->access<std::string>(mb_root(mboard) / "clock_source" / "value").set(source);
+            const auto clock_source_path =
+                mb_root(mboard) / "clock_source/value";
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(clock_source_path)) {
+                _tree->access<std::string>(clock_source_path).set(source);
+            } else if (_tree->exists(sync_source_path)) {
+                auto sync_source =
+                    _tree->access<device_addr_t>(sync_source_path).get();
+                sync_source["clock_source"] = source;
+                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
+            } else {
+                throw uhd::runtime_error(
+                    "Can't set clock source on this device.");
+            }
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++){
@@ -749,11 +782,115 @@ public:
     }
 
     std::string get_clock_source(const size_t mboard){
-        return _tree->access<std::string>(mb_root(mboard) / "clock_source" / "value").get();
+        const auto clock_source_path = mb_root(mboard) / "clock_source/value";
+        if (_tree->exists(clock_source_path)) {
+            return _tree->access<std::string>(
+                    mb_root(mboard) / "clock_source" / "value").get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/value")) {
+            auto sync_source = _tree->access<device_addr_t>(
+                mb_root(mboard) / "sync_source" / "value").get();
+            if (sync_source.has_key("clock_source")) {
+                return sync_source.get("clock_source");
+            }
+        }
+        throw uhd::runtime_error("Cannot query clock_source on this device!");
+    }
+
+    void set_sync_source(
+        const std::string &clock_source,
+        const std::string &time_source,
+        const size_t mboard
+    ) {
+        device_addr_t sync_args;
+        sync_args["clock_source"] = clock_source;
+        sync_args["time_source"] = time_source;
+        set_sync_source(sync_args, mboard);
+    }
+
+    void set_sync_source(
+        const device_addr_t& sync_source,
+        const size_t mboard
+    ) {
+        if (mboard != ALL_MBOARDS) {
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(sync_source_path)) {
+                _tree->access<device_addr_t>(sync_source_path)
+                    .set(sync_source);
+            } else if (_tree->exists(mb_root(mboard) / "clock_source/value")
+                    and _tree->exists(mb_root(mboard) / "time_source/value")
+                    and sync_source.has_key("clock_source")
+                    and sync_source.has_key("time_source")) {
+                const std::string clock_source = sync_source["clock_source"];
+                const std::string time_source = sync_source["time_source"];
+                set_clock_source(clock_source, mboard);
+                set_time_source(time_source, mboard);
+            } else {
+                throw uhd::runtime_error(
+                    "Can't set sync source on this device.");
+            }
+            return;
+        }
+        for (size_t m = 0; m < get_num_mboards(); m++){
+            this->set_sync_source(sync_source, m);
+        }
+
+    }
+
+    device_addr_t get_sync_source(const size_t mboard)
+    {
+        const auto sync_source_path = mb_root(mboard) / "sync_source/value";
+        if (_tree->exists(sync_source_path)) {
+            return _tree->access<device_addr_t>(sync_source_path).get();
+        }
+        // If this path is not there, we fall back to the oldschool method and
+        // convert to a new-fangled sync source dictionary
+        const std::string clock_source = get_clock_source(mboard);
+        const std::string time_source = get_time_source(mboard);
+        device_addr_t sync_source;
+        sync_source["clock_source"] = clock_source;
+        sync_source["time_source"] = time_source;
+        return sync_source;
+    }
+
+    std::vector<device_addr_t> get_sync_sources(const size_t mboard)
+    {
+        const auto sync_source_path = mb_root(mboard) / "sync_source/options";
+        if (_tree->exists(sync_source_path)) {
+            return _tree->access<std::vector<device_addr_t>>(sync_source_path).get();
+        }
+        // If this path is not there, we fall back to the oldschool method and
+        // convert to a new-fangled sync source dictionary
+        const auto clock_sources = get_clock_sources(mboard);
+        const auto time_sources = get_time_sources(mboard);
+        std::vector<device_addr_t> sync_sources;
+        for (const auto& clock_source : clock_sources) {
+            for (const auto& time_source : time_sources) {
+                device_addr_t sync_source;
+                sync_source["clock_source"] = clock_source;
+                sync_source["time_source"] = time_source;
+                sync_sources.push_back(sync_source);
+            }
+        }
+
+        return sync_sources;
     }
 
     std::vector<std::string> get_clock_sources(const size_t mboard){
-        return _tree->access<std::vector<std::string> >(mb_root(mboard) / "clock_source" / "options").get();
+        const auto clock_source_path = mb_root(mboard) / "clock_source/options";
+        if (_tree->exists(clock_source_path)) {
+            return _tree->access<std::vector<std::string>>(clock_source_path)
+                .get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/options")) {
+            const auto sync_sources = get_sync_sources(mboard);
+            std::vector<std::string> clock_sources;
+            for (const auto& sync_source : sync_sources) {
+                if (sync_source.has_key("clock_source")) {
+                    clock_sources.push_back(sync_source.get("clock_source"));
+                }
+            }
+        }
+        throw uhd::runtime_error("Cannot query clock_source on this device!");
     }
 
     void set_clock_source_out(const bool enb, const size_t mboard)
@@ -1038,7 +1175,7 @@ public:
             }
         } else {
             // If the daughterboard doesn't expose it's LO(s) then it can only be internal
-            return std::vector<std::string> (1, "internal");
+            return std::vector<std::string>(1, "internal");
         }
     }
 
