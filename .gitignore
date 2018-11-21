@@ -2,3 +2,5 @@ debian
 *~
 *swp
 *.pyc
+/build
+*.DS_Store
