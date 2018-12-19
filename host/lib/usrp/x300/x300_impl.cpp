@@ -131,6 +131,9 @@ static device_addrs_t x300_find_with_addr(const device_addr_t &hint)
                 case x300_impl::USRP_X310_MB:
                     new_addr["product"] = "X310";
                     break;
+                case x300_impl::USRP_X310_MB_NI_2974:
+                    new_addr["product"] = "NI-2974";
+                    break;
                 default:
                     break;
             }
@@ -188,6 +191,10 @@ static device_addrs_t x300_find_pcie(const device_addr_t &hint, bool explicit_qu
             case x300_impl::USRP_X310_MB:
                 new_addr["product"] = "X310";
                 break;
+            case x300_impl::USRP_X310_MB_NI_2974:
+                new_addr["product"] = "NI-2974";
+                break;
+
             default:
                 continue;
         }
@@ -598,11 +605,12 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
                 lvbitx.reset(new x300_lvbitx(dev_addr["fpga"]));
                 break;
             case USRP_X310_MB:
+            case USRP_X310_MB_NI_2974:
                 lvbitx.reset(new x310_lvbitx(dev_addr["fpga"]));
                 break;
             default:
                 nirio_status_to_exception(status, "Motherboard detection error. Please ensure that you \
-                    have a valid USRP X3x0, NI USRP-294xR or NI USRP-295xR device and that all the device \
+                    have a valid USRP X3x0, NI USRP-294xR, NI USRP-295xR or NI USRP-2974 device and that all the device \
                     drivers have loaded successfully.");
         }
         //Load the lvbitx onto the device
@@ -720,6 +728,7 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
         UHD_LOGGER_WARNING("X300") << "UHD is operating in EEPROM Recovery Mode which disables hardware version "
                             "checks.\nOperating in this mode may cause hardware damage and unstable "
                             "radio performance!";
+        return;
     }
 
     ////////////////////////////////////////////////////////////////////
@@ -732,6 +741,9 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
             break;
         case USRP_X310_MB:
             product_name = "X310";
+            break;
+        case USRP_X310_MB_NI_2974:
+            product_name = "NI-2974";
             break;
         default:
             if (not mb.args.get_recover_mb_eeprom())
@@ -871,18 +883,15 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
     ////////////////////////////////////////////////////////////////////
     // read hardware revision and compatibility number
     ////////////////////////////////////////////////////////////////////
-    const bool recover_mb_eeprom = mb.args.get_recover_mb_eeprom();
     mb.hw_rev = 0;
     if(mb_eeprom.has_key("revision") and not mb_eeprom["revision"].empty()) {
         try {
             mb.hw_rev = boost::lexical_cast<size_t>(mb_eeprom["revision"]);
         } catch(...) {
-            if (not recover_mb_eeprom)
-                throw uhd::runtime_error("Revision in EEPROM is invalid! Please reprogram your EEPROM.");
+            throw uhd::runtime_error("Revision in EEPROM is invalid! Please reprogram your EEPROM.");
         }
     } else {
-        if (not recover_mb_eeprom)
-            throw uhd::runtime_error("No revision detected. MB EEPROM must be reprogrammed!");
+        throw uhd::runtime_error("No revision detected. MB EEPROM must be reprogrammed!");
     }
 
     size_t hw_rev_compat = 0;
@@ -891,12 +900,10 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
             try {
                 hw_rev_compat = boost::lexical_cast<size_t>(mb_eeprom["revision_compat"]);
             } catch(...) {
-                if (not recover_mb_eeprom)
-                    throw uhd::runtime_error("Revision compat in EEPROM is invalid! Please reprogram your EEPROM.");
+                throw uhd::runtime_error("Revision compat in EEPROM is invalid! Please reprogram your EEPROM.");
             }
         } else {
-            if (not recover_mb_eeprom)
-                throw uhd::runtime_error("No revision compat detected. MB EEPROM must be reprogrammed!");
+            throw uhd::runtime_error("No revision compat detected. MB EEPROM must be reprogrammed!");
         }
     } else {
         //For older HW just assume that revision_compat = revision
@@ -904,15 +911,13 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
     }
 
     if (hw_rev_compat > X300_REVISION_COMPAT) {
-        if (not recover_mb_eeprom)
-            throw uhd::runtime_error(str(boost::format(
-                "Hardware is too new for this software. Please upgrade to a driver that supports hardware revision %d.")
-                % mb.hw_rev));
+        throw uhd::runtime_error(str(boost::format(
+            "Hardware is too new for this software. Please upgrade to a driver that supports hardware revision %d.")
+            % mb.hw_rev));
     } else if (mb.hw_rev < X300_REVISION_MIN) { //Compare min against the revision (and not compat) to give us more leeway for partial support for a compat
-        if (not recover_mb_eeprom)
-            throw uhd::runtime_error(str(boost::format(
-                "Software is too new for this hardware. Please downgrade to a driver that supports hardware revision %d.")
-                % mb.hw_rev));
+        throw uhd::runtime_error(str(boost::format(
+            "Software is too new for this hardware. Please downgrade to a driver that supports hardware revision %d.")
+            % mb.hw_rev));
     }
 
     ////////////////////////////////////////////////////////////////////
@@ -1105,7 +1110,7 @@ void x300_impl::setup_mb(const size_t mb_i, const uhd::device_addr_t &dev_addr)
                 mb.radios,
                 mb.args.get_ext_adc_self_test_duration()
             );
-        } else if (not recover_mb_eeprom){
+        } else {
             for (size_t i = 0; i < mb.radios.size(); i++) {
                 mb.radios.at(i)->self_test_adc();
             }
@@ -1292,7 +1297,13 @@ uhd::both_xports_t x300_impl::make_transport(
             next_src_addr==0 ? x300::SRC_ADDR0 : x300::SRC_ADDR1;
         const uint32_t xbar_src_dst =
             conn.type==X300_IFACE_ETH0 ? x300::XB_DST_E0 : x300::XB_DST_E1;
-        if (xport_type != TX_DATA) next_src_addr = (next_src_addr + 1) % mb.eth_conns.size();
+
+        // Do not increment src addr for tx_data by default, using dual ethernet
+        // with the DMA FIFO causes sequence errors to DMA FIFO bandwidth
+        // limitations.
+        if (xport_type != TX_DATA || mb.args.get_enable_tx_dual_eth()) {
+            next_src_addr = (next_src_addr + 1) % mb.eth_conns.size();
+        }
 
         xports.send_sid = this->allocate_sid(mb, address, xbar_src_addr, xbar_src_dst);
         xports.recv_sid = xports.send_sid.reversed();
@@ -1874,6 +1885,8 @@ x300_impl::x300_mboard_t x300_impl::get_mb_type_from_pcie(const std::string& res
                 case X310_2954R_40MHz_PCIE_SSID_ADC_18:
                 case X310_2955R_PCIE_SSID_ADC_18:
                     mb_type = USRP_X310_MB; break;
+                case X310_2974_PCIE_SSID_ADC_18:
+                    mb_type = USRP_X310_MB_NI_2974; break;
                 default:
                     mb_type = UNKNOWN;      break;
             }
@@ -1933,6 +1946,9 @@ x300_impl::x300_mboard_t x300_impl::get_mb_type_from_eeprom(const uhd::usrp::mbo
             case X310_2954R_40MHz_PCIE_SSID_ADC_18:
             case X310_2955R_PCIE_SSID_ADC_18:
                 mb_type = USRP_X310_MB; break;
+            case X310_2974_PCIE_SSID_ADC_18:
+                mb_type = USRP_X310_MB_NI_2974; break;
+
             default:
                 UHD_LOGGER_WARNING("X300") << "X300 unknown product code in EEPROM: " << product_num ;
                 mb_type = UNKNOWN;      break;
