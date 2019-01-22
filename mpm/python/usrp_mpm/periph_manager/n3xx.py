@@ -21,13 +21,16 @@ from usrp_mpm.mpmtypes import SID
 from usrp_mpm.mpmutils import assert_compat_number, str2bool, poll_with_timeout
 from usrp_mpm.rpc_server import no_rpc
 from usrp_mpm.sys_utils import dtoverlay
+from usrp_mpm.sys_utils import i2c_dev
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value
 from usrp_mpm.xports import XportMgrUDP, XportMgrLiberio
 from usrp_mpm.periph_manager.n3xx_periphs import TCA6424
 from usrp_mpm.periph_manager.n3xx_periphs import BackpanelGPIO
 from usrp_mpm.periph_manager.n3xx_periphs import MboardRegsControl
+from usrp_mpm.periph_manager.n3xx_periphs import RetimerQSFP
 from usrp_mpm.dboard_manager.magnesium import Magnesium
 from usrp_mpm.dboard_manager.eiscat import EISCAT
+from usrp_mpm.dboard_manager.rhodium import Rhodium
 
 N3XX_DEFAULT_EXT_CLOCK_FREQ = 10e6
 N3XX_DEFAULT_CLOCK_SOURCE = 'internal'
@@ -35,12 +38,16 @@ N3XX_DEFAULT_TIME_SOURCE = 'internal'
 N3XX_DEFAULT_ENABLE_GPS = True
 N3XX_DEFAULT_ENABLE_FPGPIO = True
 N3XX_DEFAULT_ENABLE_PPS_EXPORT = True
+N32X_DEFAULT_QSFP_RATE_PRESET = 'Ethernet'
+N32X_DEFAULT_QSFP_DRIVER_PRESET = 'Optical'
+N32X_QSFP_I2C_LABEL = 'qsfp-i2c'
 N3XX_FPGA_COMPAT = (5, 3)
 N3XX_MONITOR_THREAD_INTERVAL = 1.0 # seconds
 
 # Import daughterboard PIDs from their respective classes
 MG_PID = Magnesium.pids[0]
 EISCAT_PID = EISCAT.pids[0]
+RHODIUM_PID = Rhodium.pids[0]
 
 ###############################################################################
 # Transport managers
@@ -49,6 +56,12 @@ class N3xxXportMgrUDP(XportMgrUDP):
     " N3xx-specific UDP configuration "
     xbar_dev = "/dev/crossbar0"
     iface_config = {
+        'bridge0': {
+            'label': 'misc-enet-regs0',
+            'xbar': 0,
+            'xbar_port': 0,
+            'ctrl_src_addr': 0,
+        },
         'sfp0': {
             'label': 'misc-enet-regs0',
             'xbar': 0,
@@ -74,6 +87,7 @@ class N3xxXportMgrUDP(XportMgrUDP):
             'ctrl_src_addr': 1,
         },
     }
+    bridges = {'bridge0': ['sfp0', 'sfp1', 'bridge0']}
 
 class N3xxXportMgrLiberio(XportMgrLiberio):
     " N3xx-specific Liberio configuration "
@@ -101,7 +115,9 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                                             # still use the n310.bin image.
                                             # We'll leave this here for
                                             # debugging purposes.
-        ('n310', (EISCAT_PID, EISCAT_PID)): 'eiscat',
+        ('n310', (EISCAT_PID , EISCAT_PID )): 'eiscat',
+        ('n310', (RHODIUM_PID, RHODIUM_PID)): 'n320',
+        ('n310', (RHODIUM_PID,            )): 'n320',
     }
 
     #########################################################################
@@ -217,7 +233,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             if not args.get('skip_boot_init', False):
                 self.init(args)
         except Exception as ex:
-            self.log.warning("Failed to init device on boot!")
+            self.log.warning("Failed to initialize device on boot: %s", str(ex))
 
     def _check_fpga_compat(self):
         " Throw an exception if the compat numbers don't match up "
@@ -338,9 +354,21 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         self._init_meas_clock()
         # Init GPSd iface and GPS sensors
         self._init_gps_sensors()
+        # Init QSFP board (if available)
+        qsfp_i2c = i2c_dev.of_get_i2c_adapter(N32X_QSFP_I2C_LABEL)
+        if qsfp_i2c:
+            self.log.debug("Creating QSFP Retimer control object...")
+            self._qsfp_retimer = RetimerQSFP(qsfp_i2c)
+            self._qsfp_retimer.set_rate_preset(N32X_DEFAULT_QSFP_RATE_PRESET)
+            self._qsfp_retimer.set_driver_preset(N32X_DEFAULT_QSFP_DRIVER_PRESET)
+        elif self.device_info['product'] == 'n320':
+            # If we have an N320, we should also have the QSFP board, but we
+            # won't freak out if we can't find it. Maybe someone removed or
+            # disabled it.
+            self.log.warning("No QSFP board detected!")
         # Init CHDR transports
         self._xport_mgrs = {
-            'udp': N3xxXportMgrUDP(self.log.getChild('UDP')),
+            'udp': N3xxXportMgrUDP(self.log.getChild('UDP'), args),
             'liberio': N3xxXportMgrLiberio(self.log.getChild('liberio')),
         }
         # Spawn status monitoring thread
@@ -387,8 +415,12 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         self.enable_pps_out(False)
         # if there's no clock_source or time_source params, we added here since
         # dboards init procedures need them.
-        args['clock_source'] = args.get('clock_source', N3XX_DEFAULT_CLOCK_SOURCE)
-        args['time_source'] = args.get('time_source', N3XX_DEFAULT_TIME_SOURCE)
+        # At this point, both the self._clock_source and self._time_source global
+        # properties should have been set to either the default values (first time
+        # init() is run); or to the previous configured values (updated after a
+        # successful clocking configuration).
+        args['clock_source'] = args.get('clock_source', self._clock_source)
+        args['time_source'] = args.get('time_source', self._time_source)
         self.set_sync_source(args)
         # Uh oh, some hard coded product-related info: The N300 has no LO
         # source connectors on the front panel, so we assume that if this was
@@ -518,6 +550,8 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         device_info.update({
             'fpga_version': "{}.{}".format(
                 *self.mboard_regs_control.get_compat_number()),
+            'fpga_version_hash': "{:x}.{}".format(
+                *self.mboard_regs_control.get_git_hash()),
             'fpga': self.updateable_components.get('fpga', {}).get('type', ""),
         })
         return device_info

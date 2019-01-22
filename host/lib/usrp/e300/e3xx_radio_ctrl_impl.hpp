@@ -43,6 +43,7 @@ public:
      * API calls
      ***********************************************************************/
     double set_rate(double rate);
+    void set_tx_antenna(const std::string &ant, const size_t chan);
     void set_rx_antenna(const std::string &ant, const size_t chan);
 
     double set_tx_frequency(const double freq, const size_t chan);
@@ -146,4 +147,3 @@ private: // members
 }} /* namespace uhd::rfnoc */
 
 #endif /* INCLUDED_LIBUHD_RFNOC_E3XX_RADIO_CTRL_IMPL_HPP */
-// vim: sw=4 et:

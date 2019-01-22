@@ -13,6 +13,7 @@
 using namespace uhd;
 
 namespace {
+// clang-format off
 constexpr double LMX2592_DOUBLER_MAX_REF_FREQ = 60e6;
 constexpr double LMX2592_MAX_FREQ_PFD = 125e6;
 
@@ -71,6 +72,7 @@ constexpr std::array<std::array<int, NUM_CHDIV_STAGES>, NUM_DIVIDERS> LMX2592_CH
 constexpr int SPI_ADDR_SHIFT = 16;
 constexpr int SPI_ADDR_MASK = 0x7f;
 constexpr int SPI_READ_FLAG = 1 << 23;
+// clang-format on
 
 enum intermediate_frequency_t {
     FVCO,
@@ -682,16 +684,16 @@ private: // Members
         // shift away from the closest integer boundary i.e. towards 0.5
         const double delta_fnum_sign = ((((double)fnum) / ((double)fden)) < 0.5) ? 1 : -1;
 
-        while (abs(min_offset.first) < spur_dodging_threshold)
+        while (std::abs(min_offset.first) < spur_dodging_threshold)
         {
             double shift = spur_dodging_threshold;
             // if the spur is in the same direction as the desired shift direction...
             if (std::signbit(min_offset.first) == std::signbit(delta_fnum_sign))
             {
-                shift += abs(min_offset.first);
+                shift += std::abs(min_offset.first);
             }
             else {
-                shift -= abs(min_offset.first);
+                shift -= std::abs(min_offset.first);
             }
 
             // convert shift of IF value to shift of Frf_in

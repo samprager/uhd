@@ -283,7 +283,7 @@ class e320(ZynqComponents, PeriphManagerBase):
         self._init_gps_sensors()
         # Init CHDR transports
         self._xport_mgrs = {
-            'udp': E320XportMgrUDP(self.log.getChild('UDP')),
+            'udp': E320XportMgrUDP(self.log.getChild('UDP'), args),
             'liberio': E320XportMgrLiberio(self.log.getChild('liberio')),
         }
         # Spawn status monitoring thread
@@ -645,7 +645,7 @@ class e320(ZynqComponents, PeriphManagerBase):
         """
         Get lock status of GPS as a sensor dict
         """
-        gps_locked = self.mboard_regs_control.get_gps_locked_val()
+        gps_locked = bool(self.mboard_regs_control.get_gps_locked_val())
         return {
             'name': 'gps_lock',
             'type': 'BOOLEAN',
