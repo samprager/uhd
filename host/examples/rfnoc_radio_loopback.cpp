@@ -180,7 +180,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     rx_radio_ctrl->set_rx_streamer(true, rx_chan);
 
     // Allow for some setup time
-    std::this_thread::sleep_for(std::chrono::milliseconds(int64_t(setup_time * 1000)));
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(int64_t(setup_time * 1000)));
 
     // Arm SIGINT handler
     std::signal(SIGINT, &sig_int_handler);
