@@ -34,6 +34,9 @@ if(ENABLE_RFNOC)
         radio_ctrl.hpp
         siggen_block_ctrl.hpp
         window_block_ctrl.hpp
+        wavegen_block_ctrl.hpp
+        pulse_cir_avg_block_ctrl.hpp
+        doppler_tracker_block_ctrl.hpp
         DESTINATION ${INCLUDE_DIR}/uhd/rfnoc
         COMPONENT headers
     )
@@ -41,4 +44,3 @@ endif(ENABLE_RFNOC)
 
 add_subdirectory(blocks)
 #add_subdirectory(components)
-
