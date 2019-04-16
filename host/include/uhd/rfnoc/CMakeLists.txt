@@ -36,7 +36,7 @@ if(ENABLE_RFNOC)
         window_block_ctrl.hpp
         wavegen_block_ctrl.hpp
         pulse_cir_avg_block_ctrl.hpp
-        doppler_tracker_block_ctrl.hpp
+        dopplertracker_block_ctrl.hpp
         DESTINATION ${INCLUDE_DIR}/uhd/rfnoc
         COMPONENT headers
     )
