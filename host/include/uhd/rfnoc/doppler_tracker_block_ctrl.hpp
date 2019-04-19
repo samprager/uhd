@@ -19,8 +19,8 @@
  */
 
 
-#ifndef INCLUDED_LIBUHD_RFNOC_DOPPLERTRACKER_BLOCK_CTRL_HPP
-#define INCLUDED_LIBUHD_RFNOC_DOPPLERTRACKER_BLOCK_CTRL_HPP
+#ifndef INCLUDED_LIBUHD_RFNOC_DOPPLER_TRACKER_BLOCK_CTRL_HPP
+#define INCLUDED_LIBUHD_RFNOC_DOPPLER_TRACKER_BLOCK_CTRL_HPP
 
 #include <uhd/rfnoc/source_block_ctrl_base.hpp>
 #include <uhd/rfnoc/sink_block_ctrl_base.hpp>
@@ -31,10 +31,10 @@ namespace uhd {
 /*! \brief Block controller for the standard copy RFNoC block.
  *
  */
-class UHD_RFNOC_API dopplertracker_block_ctrl : public source_block_ctrl_base, public sink_block_ctrl_base
+class UHD_RFNOC_API doppler_tracker_block_ctrl : public source_block_ctrl_base, public sink_block_ctrl_base
 {
 public:
-    UHD_RFNOC_BLOCK_OBJECT(dopplertracker_block_ctrl)
+    UHD_RFNOC_BLOCK_OBJECT(doppler_tracker_block_ctrl)
 
     /*!
      * Your block configuration here
@@ -51,8 +51,8 @@ public:
     virtual uint64_t get_cycles_per_sec() = 0;
     virtual uint64_t get_zc_count() = 0;
 
-}; /* class dopplertracker_block_ctrl*/
+}; /* class doppler_tracker_block_ctrl*/
 
 }} /* namespace uhd::rfnoc */
 
-#endif /* INCLUDED_LIBUHD_RFNOC_DOPPLERTRACKER_BLOCK_CTRL_HPP */
+#endif /* INCLUDED_LIBUHD_RFNOC_DOPPLER_TRACKER_BLOCK_CTRL_HPP */

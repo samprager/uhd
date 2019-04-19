@@ -19,7 +19,7 @@
  */
 
 
-#include <uhd/rfnoc/dopplertracker_block_ctrl.hpp>
+#include <uhd/rfnoc/doppler_tracker_block_ctrl.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/types/ranges.hpp>
@@ -36,7 +36,7 @@ using namespace uhd;
 using namespace uhd::rfnoc;
 
 
-class dopplertracker_block_ctrl_impl : public dopplertracker_block_ctrl
+class doppler_tracker_block_ctrl_impl : public doppler_tracker_block_ctrl
 {
 public:
     static const boost::uint32_t SR_SUM_LEN = 192;
@@ -55,7 +55,7 @@ public:
 
     static const boost::uint32_t DEFAULT_SPP = 64;
 
-    UHD_RFNOC_BLOCK_CONSTRUCTOR(dopplertracker_block_ctrl),
+    UHD_RFNOC_BLOCK_CONSTRUCTOR(doppler_tracker_block_ctrl),
         _item_type("sc16") // We only support sc16 in this block
     {
         set_mavg_len(1);
@@ -137,4 +137,4 @@ private:
     int _spp;
 };
 
-UHD_RFNOC_BLOCK_REGISTER(dopplertracker_block_ctrl,"dopplertracker");
+UHD_RFNOC_BLOCK_REGISTER(doppler_tracker_block_ctrl,"DopplerTracker");
