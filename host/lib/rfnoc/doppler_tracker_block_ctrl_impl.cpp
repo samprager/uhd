@@ -158,13 +158,13 @@ public:
     uint32_t get_zc_threshold()
     {
       uint64_t val = get_zc_thresh_offset();
-      uin32_t val32 = uint32_t((0xFFFFFFFF00000000 & val)>>32);
+      uint32_t val32 = uint32_t((0xFFFFFFFF00000000 & val)>>32);
       return val32;
 
     }
     uint32_t get_zc_offset(){
       uint64_t val = get_zc_thresh_offset();
-      uin32_t val32 = uint32_t(0x00000000FFFFFFFF & val);
+      uint32_t val32 = uint32_t(0x00000000FFFFFFFF & val);
       return val32;
     }
 
