@@ -1063,4 +1063,3 @@ legacy_compat::sptr legacy_compat::make(
     legacy_cache[device.get()] = new_legacy_compat;
     return new_legacy_compat;
 }
-

@@ -51,6 +51,7 @@ public:
     static const boost::uint32_t RB_DIVISOR         = 1;
     static const boost::uint32_t RB_CYCLES_PER_SEC  = 2;
     static const boost::uint32_t RB_ZC                 = 3;
+    static const boost::uint32_t RB_THRESH_OFFSET      = 4;
 
 
     static const boost::uint32_t DEFAULT_SPP = 64;
@@ -60,6 +61,10 @@ public:
     {
         set_mavg_len(1);
         set_zcsum_len(1);
+        set_zc_threshold(100,100);
+        set_zc_offset(0,0);
+        set_rate(125.0e6); //ce_clock rate changed
+
     }
     void set_mavg_len(uint32_t val)
     {
@@ -106,6 +111,10 @@ public:
       UHD_RFNOC_BLOCK_TRACE() << "dopplertracker_block::set_zcsum_len()" << std::endl;
       sr_write(SR_ZC_SUM_LEN, val);
     }
+    void set_rate(double rate){
+      _tick_rate = rate;
+    }
+
     uint64_t get_mavg_len()
     {
       uint64_t val = boost::uint64_t(user_reg_read64(RB_SUM_LEN));
@@ -121,15 +130,61 @@ public:
       uint64_t val = boost::uint64_t(user_reg_read64(RB_CYCLES_PER_SEC));
       return val;
     }
+
+    void get_cycles_per_sec(int32_t &zcpsI,int32_t &zcpsQ){
+      uint64_t zcps = get_cycles_per_sec();
+      zcpsI = int32_t((0xFFFFFFFF00000000 & zcps)>>32);
+      zcpsQ = int32_t((0x00000000FFFFFFFF & zcps));
+    }
+
     uint64_t get_zc_count()
     {
       uint64_t val = boost::uint64_t(user_reg_read64(RB_ZC));
       return val;
     }
+    void get_zc_count(int32_t &zcI,int32_t &zcQ){
+      uint64_t zccount = get_zc_count();
+      zcI = int32_t((0xFFFFFFFF00000000 & zccount)>>32);
+      zcQ = int32_t((0x00000000FFFFFFFF & zccount));
+    }
+    void get_counts(int32_t &zcI,int32_t &zcQ,int32_t &zcpsI,int32_t &zcpsQ){
+      get_zc_count(zcI,zcQ);
+      get_cycles_per_sec(zcpsI,zcpsQ);
+    }
+    uint64_t get_zc_thresh_offset(){
+      uint64_t val = boost::uint64_t(user_reg_read64(RB_THRESH_OFFSET));
+      return val;
+    }
+    uint32_t get_zc_threshold()
+    {
+      uint64_t val = get_zc_thresh_offset();
+      uin32_t val32 = uint32_t((0xFFFFFFFF00000000 & val)>>32);
+      return val32;
 
+    }
+    uint32_t get_zc_offset(){
+      uint64_t val = get_zc_thresh_offset();
+      uin32_t val32 = uint32_t(0x00000000FFFFFFFF & val);
+      return val32;
+    }
 
+    double get_rate(){
+       return _tick_rate;
+    }
 
+    void get_zc_doppler_freq(double &fcI,double &fcQ){
+      int32_t zcI,zcQ;
+      get_zc_count(zcI,zcQ);
+      fcI = get_rate() / (2.0 *((double) zcI + 1.0));
+      fcQ = get_rate() / (2.0 *((double) zcQ + 1.0));
+    }
 
+    void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ){
+      int32_t zcpsI,zcpsQ;
+      get_cycles_per_sec(zcpsI,zcpsQ);
+      fcpsI = (double) zcpsI;
+      fcpsQ = (double) zcpsQ;
+    }
 
 private:
     const std::string _item_type;
