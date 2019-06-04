@@ -60,7 +60,7 @@ public:
     virtual uint32_t get_zc_offset() = 0;
     virtual double get_rate() = 0;
     virtual void get_zc_doppler_freq(double &fcI,double &fcQ) = 0;
-    virtual void void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ) = 0;
+    virtual void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ) = 0;
 
 }; /* class doppler_tracker_block_ctrl*/
 
