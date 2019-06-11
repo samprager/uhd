@@ -206,8 +206,8 @@ public:
       int32_t zcI,zcQ;
       get_zc_count(zcI,zcQ);
       double zc_ref_rate = (double)_zc_ref_rate;
-      fzcI = (get_rate()/zc_ref_rate)*.5*((double)zcI); //freq in hz
-      fzcQ = (get_rate()/zc_ref_rate)*.5*((double)zcQ); //freq in hz
+      fcI = (get_rate()/zc_ref_rate)*.5*((double)zcI); //freq in hz
+      fcQ = (get_rate()/zc_ref_rate)*.5*((double)zcQ); //freq in hz
       // fcI = get_rate() / (2.0 *((double) zcI + 1.0));
       // fcQ = get_rate() / (2.0 *((double) zcQ + 1.0));
     }
