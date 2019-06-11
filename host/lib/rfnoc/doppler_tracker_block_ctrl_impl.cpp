@@ -45,6 +45,8 @@ public:
     static const boost::uint32_t SR_OFFSET = 195;
     static const boost::uint32_t SR_CALIBRATE = 196;
     static const boost::uint32_t SR_ZC_SUM_LEN = 197;
+    static const boost::uint32_t SR_ZC_REF_RATE = 198;
+
 
     /* Timekeeper readback registers */
     static const boost::uint32_t RB_SUM_LEN              = 0;
@@ -52,6 +54,8 @@ public:
     static const boost::uint32_t RB_CYCLES_PER_SEC  = 2;
     static const boost::uint32_t RB_ZC                 = 3;
     static const boost::uint32_t RB_THRESH_OFFSET      = 4;
+    static const boost::uint32_t RB_ZC_INST           = 5;
+    static const boost::uint32_t RB_ZC_REF_RATE       = 6;
 
 
     static const boost::uint32_t DEFAULT_SPP = 64;
@@ -64,7 +68,7 @@ public:
         set_zc_threshold(100,100);
         set_zc_offset(0,0);
         set_rate(125.0e6); //ce_clock rate changed
-
+        // reference rate used in ZC block for calculating doppler frequency from ZC count (1e9 Hz) by default
     }
     void set_mavg_len(uint32_t val)
     {
@@ -112,7 +116,20 @@ public:
       sr_write(SR_ZC_SUM_LEN, val);
     }
     void set_rate(double rate){
+      set_tick_rate(rate);
+      set_zc_ref_rate(rate);
+    }
+    // only set sampling rate of radio
+    void set_tick_rate(double rate){
       _tick_rate = rate;
+    }
+    // only set reference rate used in FPGA block for doppler calculation
+    void set_zc_ref_rate(double rate){
+      uint32_t rate32 = uint32_t(std::round(std::abs(rate)));
+      sr_write(SR_ZC_REF_RATE, rate32);
+      _zc_ref_rate = get_zc_ref_rate();
+      if (_zc_ref_rate != rate)
+        std::cerr<<"dopplertracker_block::set_zc_ref_rate() rate read from block: "<<_zc_ref_rate<<" does not equal requested rate: "<<rate<<std::endl;
     }
 
     uint64_t get_mavg_len()
@@ -140,6 +157,11 @@ public:
     uint64_t get_zc_count()
     {
       uint64_t val = boost::uint64_t(user_reg_read64(RB_ZC));
+      return val;
+    }
+    uint64_t get_zc_count_inst()
+    {
+      uint64_t val = boost::uint64_t(user_reg_read64(RB_ZC_INST));
       return val;
     }
     void get_zc_count(int32_t &zcI,int32_t &zcQ){
@@ -172,11 +194,22 @@ public:
        return _tick_rate;
     }
 
+    double get_tick_rate(){
+       return _tick_rate;
+    }
+    double get_zc_ref_rate(){
+      uint64_t val = boost::uint64_t(user_reg_read64(SR_ZC_REF_RATE));
+      return double(val);
+    }
+
     void get_zc_doppler_freq(double &fcI,double &fcQ){
       int32_t zcI,zcQ;
       get_zc_count(zcI,zcQ);
-      fcI = get_rate() / (2.0 *((double) zcI + 1.0));
-      fcQ = get_rate() / (2.0 *((double) zcQ + 1.0));
+      double zc_ref_rate = (double)_zc_ref_rate;
+      fzcI = (get_rate()/zc_ref_rate)*.5*((double)zcI); //freq in hz
+      fzcQ = (get_rate()/zc_ref_rate)*.5*((double)zcQ); //freq in hz
+      // fcI = get_rate() / (2.0 *((double) zcI + 1.0));
+      // fcQ = get_rate() / (2.0 *((double) zcQ + 1.0));
     }
 
     void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ){
@@ -189,6 +222,7 @@ public:
 private:
     const std::string _item_type;
     double _tick_rate;
+    uint32_t _zc_ref_rate;
     int _spp;
 };
 

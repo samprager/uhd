@@ -47,18 +47,23 @@ public:
     virtual void run_calibration(uint32_t len) = 0;
     virtual void set_zcsum_len(uint32_t val) = 0;
     virtual void set_rate(double rate) = 0;
+    virtual void set_tick_rate(double rate) = 0;
+    virtual void set_zc_ref_rate(double rate) = 0;
 
     virtual uint64_t get_mavg_len() = 0;
     virtual uint64_t get_mavg_div() = 0;
     virtual uint64_t get_cycles_per_sec() = 0;
     virtual void get_cycles_per_sec(int32_t &zcpsI,int32_t &zcpsQ) = 0;
     virtual uint64_t get_zc_count() = 0;
+    virtual uint64_t get_zc_count_inst() = 0;
     virtual void get_zc_count(int32_t &zcI,int32_t &zcQ) = 0;
     virtual void get_counts(int32_t &zcI,int32_t &zcQ,int32_t &zcpsI,int32_t &zcpsQ) = 0;
     virtual uint64_t get_zc_thresh_offset() = 0;
     virtual uint32_t get_zc_threshold() = 0;
     virtual uint32_t get_zc_offset() = 0;
     virtual double get_rate() = 0;
+    virtual double get_tick_rate() = 0;
+    virtual double get_zc_ref_rate() = 0;
     virtual void get_zc_doppler_freq(double &fcI,double &fcQ) = 0;
     virtual void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ) = 0;
 
