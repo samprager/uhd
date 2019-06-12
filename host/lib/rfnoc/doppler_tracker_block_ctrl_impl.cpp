@@ -198,7 +198,7 @@ public:
        return _tick_rate;
     }
     double get_zc_ref_rate(){
-      uint64_t val = boost::uint64_t(user_reg_read64(SR_ZC_REF_RATE));
+      uint64_t val = boost::uint64_t(user_reg_read64(RB_ZC_REF_RATE));
       return double(val);
     }
 
