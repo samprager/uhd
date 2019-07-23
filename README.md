@@ -82,3 +82,11 @@ __tools/__
 Additional tools, mainly for debugging purposes. See the readme-file
 in that directory for more details on the individual tools.
 
+## E310/E312 SDK UHD Installation
+
+When installing/cross-compiling UHD for the E310/E312 from within the SDK, the cmake and build commands are:
+```
+cmake -DCMAKE_TOOLCHAIN_FILE=../host/cmake/Toolchains/oe-sdk_cross.cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_E300=ON -DENABLE_GPSDO=ON ../
+make -j4
+sudo make install DESTDIR=~/e312_cross
+```

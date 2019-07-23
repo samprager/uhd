@@ -1,0 +1,98 @@
+<!--This defines one NoC-Block.-->
+<nocblock>
+  <name>TofsyncMatchedFilter</name>
+  <blockname>TofsyncMatchedFilter</blockname>
+  <!--There can be several of these:-->
+  <ids>
+    <id revision="0">FF71</id>
+  </ids>
+  <!-- Registers -->
+  <registers>
+    <setreg>
+      <name>FFT_SIZE</name>
+      <address>132</address>
+    </setreg>
+    <setreg>
+      <name>FFT_DIRECTION</name>
+      <address>134</address>
+    </setreg>
+    <setreg>
+      <name>IFFT_SIZE</name>
+      <address>142</address>
+    </setreg>
+    <setreg>
+      <name>IFFT_DIRECTION</name>
+      <address>144</address>
+    </setreg>
+  </registers>
+  <!-- Args -->
+  <args>
+    <arg>
+      <name>fft_size</name>
+      <type>double</type>
+      <value>11</value>
+      <check>GE($fft_size, 0.0) AND LE($fft_size, 32767.0)</check>
+      <check_message>Invalid fft size.</check_message>
+      <action>
+        SR_WRITE("FFT_SIZE", IROUND($fft_size))
+      </action>
+    </arg>
+    <arg>
+      <name>fft_direction</name>
+      <type>double</type>
+      <value>1</value>
+      <check>GE($fft_direction, 0.0) AND LE($fft_direction, 100.0)</check>
+      <check_message>Invalid fft_direction.</check_message>
+      <action>
+        SR_WRITE("FFT_DIRECTION", IROUND($fft_direction))
+      </action>
+    </arg>
+    <arg>
+      <name>ifft_size</name>
+      <type>double</type>
+      <value>12</value>
+      <check>GE($ifft_size, 0.0) AND LE($ifft_size, 32767.0)</check>
+      <check_message>Invalid ifft size.</check_message>
+      <action>
+        SR_WRITE("IFFT_SIZE", IROUND($ifft_size))
+      </action>
+    </arg>
+    <arg>
+      <name>ifft_direction</name>
+      <type>double</type>
+      <value>0</value>
+      <check>GE($ifft_direction, 0.0) AND LE($ifft_direction, 100.0)</check>
+      <check_message>Invalid ifft_direction.</check_message>
+      <action>
+        SR_WRITE("IFFT_DIRECTION", IROUND($ifft_direction))
+      </action>
+    </arg>
+  </args>
+  <ports>
+    <sink>
+      <name>in0</name>
+      <type>sc16</type>
+    </sink>
+    <source>
+      <name>out0</name>
+      <type>sc16</type>
+    </source>
+  </ports>
+  <!--<components>-->
+    <!--<component>-->
+      <!--<key revision="1">nocshell</key>-->
+    <!--</component>-->
+    <!--<component srbase="0">-->
+      <!--[>Will look for a component with this key:<]-->
+      <!--<key revision="1">componentname</key>-->
+    <!--</component>-->
+  <!--</components>-->
+  <!--<connection>-->
+    <!--<source port="0">nocshell</source>-->
+    <!--<sink port="0">componentname</sink>-->
+  <!--</connection>-->
+  <!--<connection>-->
+    <!--<source port="0">componentname</source>-->
+    <!--<sink port="0">nocshell</sink>-->
+  <!--</connection>-->
+</nocblock>

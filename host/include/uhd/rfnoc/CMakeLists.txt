@@ -45,6 +45,8 @@ IF(ENABLE_RFNOC)
         window_block_ctrl.hpp
         wavegen_block_ctrl.hpp
         dma_fifo_block_ctrl.hpp
+        tofsync_gain_block_ctrl.hpp
+        tofsync_matchedfilter_block_ctrl.hpp
         DESTINATION ${INCLUDE_DIR}/uhd/rfnoc
         COMPONENT headers
     )
