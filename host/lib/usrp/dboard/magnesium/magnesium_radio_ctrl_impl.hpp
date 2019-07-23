@@ -4,10 +4,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-//
-// Driver for the N310/N300 daughterboard ("Magnesium")
-//
-
 #ifndef INCLUDED_LIBUHD_RFNOC_MAGNESIUM_RADIO_CTRL_IMPL_HPP
 #define INCLUDED_LIBUHD_RFNOC_MAGNESIUM_RADIO_CTRL_IMPL_HPP
 
@@ -26,9 +22,7 @@
 namespace uhd {
     namespace rfnoc {
 
-/*! \brief RFNoC block / daughterboard driver for a "Magnesium" daughterboard.
- *
- * This daughterboard is used on the USRP N310 and N300.
+/*! \brief Provide access to an Magnesium radio.
  */
 class magnesium_radio_ctrl_impl : public radio_ctrl_impl, public rpc_block_ctrl
 {
@@ -147,6 +141,10 @@ public:
 
     size_t get_chan_from_dboard_fe(const std::string &fe, const direction_t dir);
     std::string get_dboard_fe_from_chan(const size_t chan, const direction_t dir);
+
+    //! Disable concurrency in set_rpc_client(). This is a workaround for a
+    // thread-unsafety bug and should get deleted at some point in the future!
+    static std::mutex _set_rpc_lock; // FIXME remove this
 
     void set_rpc_client(
         uhd::rpc_client::sptr rpcc,

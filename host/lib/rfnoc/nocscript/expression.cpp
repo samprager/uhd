@@ -1,25 +1,36 @@
 //
 // Copyright 2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "expression.hpp"
 #include "function_table.hpp"
 #include <uhd/utils/cast.hpp>
 #include <boost/format.hpp>
+#include <boost/assign.hpp>
 #include <boost/algorithm/string.hpp>
 
 using namespace uhd::rfnoc::nocscript;
 
-std::map<expression::type_t, std::string> expression::type_repr{
-    {TYPE_INT, "INT"},
-    {TYPE_DOUBLE, "DOUBLE"},
-    {TYPE_STRING, "STRING"},
-    {TYPE_BOOL, "BOOL"},
-    {TYPE_INT_VECTOR, "INT_VECTOR"}
-};
+std::map<expression::type_t, std::string> expression::type_repr = boost::assign::map_list_of
+    (TYPE_INT, "INT")
+    (TYPE_DOUBLE, "DOUBLE")
+    (TYPE_STRING, "STRING")
+    (TYPE_BOOL, "BOOL")
+    (TYPE_INT_VECTOR, "INT_VECTOR")
+;
 
 /********************************************************************
  * Literal expressions (constants)

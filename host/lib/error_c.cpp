@@ -1,8 +1,18 @@
 //
 // Copyright 2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/error.h>
@@ -35,14 +45,11 @@ uhd_error error_from_uhd_exception(const uhd::exception* e){
 }
 
 // Store the error string in a single place in library
-// Note: Don't call _c_global_error_string() directly, it needs to be locked
-// for thread-safety. Use set_c_global_error_string() and
-// get_c_global_error_string() instead.
 UHD_SINGLETON_FCN(std::string, _c_global_error_string)
 
 static boost::mutex _error_c_mutex;
 
-std::string get_c_global_error_string(){
+const std::string& get_c_global_error_string(){
     boost::mutex::scoped_lock lock(_error_c_mutex);
     return _c_global_error_string();
 }
@@ -59,9 +66,8 @@ uhd_error uhd_get_last_error(
     size_t strbuffer_len
 ){
     try{
-        auto error_str = get_c_global_error_string();
         memset(error_out, '\0', strbuffer_len);
-        strncpy(error_out, error_str.c_str(), strbuffer_len);
+        strncpy(error_out, _c_global_error_string().c_str(), strbuffer_len);
     }
     catch(...){
         return UHD_ERROR_UNKNOWN;

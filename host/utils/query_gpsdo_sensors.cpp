@@ -1,8 +1,18 @@
 //
 // Copyright 2012,2014-2016 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/utils/paths.hpp>
@@ -15,12 +25,11 @@
 #include <boost/format.hpp>
 #include <iostream>
 #include <complex>
+#include <boost/thread.hpp>
 #include <string>
 #include <cmath>
 #include <ctime>
 #include <cstdlib>
-#include <chrono>
-#include <thread>
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -53,7 +62,7 @@ int query_clock_sensors(const std::string &args) {
       std::cout << boost::format("%s\n%s\n") % gga_string.to_pp_string() % rmc_string.to_pp_string();
       std::cout << boost::format("\nPrinting GPS servo status:\n");
       std::cout << boost::format("%s\n\n") % servo_string.to_pp_string();
-  } catch (const uhd::lookup_error &) {
+  } catch (uhd::lookup_error &e) {
       std::cout << "NMEA strings not implemented for this device." << std::endl;
   }
   std::cout << boost::format("GPS Epoch time: %.5f seconds\n") % clock->get_sensor("gps_time").to_real();
@@ -130,7 +139,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
   if(std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end()) {
       uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked",0);
       for (size_t i = 0; not ref_locked.to_bool() and i < 100; i++) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          boost::this_thread::sleep(boost::posix_time::milliseconds(100));
           ref_locked = usrp->get_mboard_sensor("ref_locked",0);
       }
       if(not ref_locked.to_bool()) {
@@ -161,21 +170,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
   print_notes();
 
-  // The TCXO has a long warm up time, so wait up to 30 seconds for sensor data
-  // to show up
-  std::cout << "Waiting for the GPSDO to warm up..." << std::flush;
-  auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-  while (std::chrono::steady_clock::now() < end) {
+  // The TCXO has a long warm up time, so wait up to 30 seconds for sensor data to show up
+  std::cout << "Waiting for the GPSDO to warm up..." << std::endl;
+  for (size_t i = 0; i < 300; i++) {
       try {
-          usrp->get_mboard_sensor("gps_locked", 0);
+          usrp->get_mboard_sensor("gps_locked",0);
           break;
       } catch (std::exception &) {}
-      std::this_thread::sleep_for(std::chrono::milliseconds(250));
-      std::cout << "." << std::flush;
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
   }
-  std::cout << std::endl;
   try {
-      usrp->get_mboard_sensor("gps_locked", 0);
+      usrp->get_mboard_sensor("gps_locked",0);
   } catch (std::exception &) {
       std::cout << "No response from GPSDO in 30 seconds" << std::endl;
       return EXIT_FAILURE;
@@ -202,15 +207,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
   if(pps_seconds != gps_seconds) {
       std::cout << "\nTrying to align the device time to GPS time..."
                 << std::endl;
-
-      gps_time = usrp->get_mboard_sensor("gps_time");
-
       //set the device time to the GPS time
       //getting the GPS time returns just after the PPS edge, so just add a
       //second and set the device time at the next PPS edge
       usrp->set_time_next_pps(uhd::time_spec_t(gps_time.to_int() + 1.0));
       //allow some time to make sure the PPS has come…
-      std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1100));
       //…then ask
       gps_seconds = usrp->get_mboard_sensor("gps_time").to_int();
       pps_seconds = usrp->get_time_last_pps().to_ticks(1.0);

@@ -1,8 +1,18 @@
 //
 // Copyright 2012,2014,20160 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/utils/thread.hpp>
@@ -10,13 +20,12 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
+#include <boost/thread/thread.hpp>
 #include <boost/math/special_functions/round.hpp>
 #include <iostream>
 #include <complex>
 #include <utility>
 #include <vector>
-#include <chrono>
-#include <thread>
 
 static const double SAMP_RATE = 1e6;
 
@@ -149,7 +158,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
         if(type == "TX") usrp->set_tx_freq(freq,chan);
         else usrp->set_rx_freq(freq,chan);
 
-        std::this_thread::sleep_for(std::chrono::microseconds(long(1000)));
+        boost::this_thread::sleep(boost::posix_time::microseconds(long(1000)));
         double actual_freq = (type == "TX") ? usrp->get_tx_freq(chan)
                                             : usrp->get_rx_freq(chan);
 
@@ -186,7 +195,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
                 if (is_locked) {
                     break;
                 }
-                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                boost::this_thread::sleep(boost::posix_time::microseconds(1000));
             }
             if(is_locked){
                 if(verbose) std::cout << boost::format("LO successfully locked at %s frequency %s.")
@@ -207,7 +216,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
                 if(type == "TX") usrp->set_tx_gain(gain,chan);
                 else usrp->set_rx_gain(gain,chan);
 
-                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                boost::this_thread::sleep(boost::posix_time::microseconds(1000));
 
                 double actual_gain = (type == "TX") ? usrp->get_tx_gain(chan)
                                                     : usrp->get_rx_gain(chan);
@@ -411,7 +420,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //Setting clock source
     usrp->set_clock_source(ref);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
 
     std::vector<std::string> sensor_names = usrp->get_mboard_sensor_names(0);
     if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {

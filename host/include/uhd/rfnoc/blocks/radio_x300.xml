@@ -32,12 +32,17 @@
   </args>
   <ports>
     <sink>
-      <name>in</name>
+      <name>in0</name>
       <type>sc16</type>
       <!--<vlen>$spp</vlen>-->
       <!--<pkt_size>%vlen</pkt_size>-->
     </sink>
-
+    <sink>
+      <name>in1</name>
+      <type>sc16</type>
+      <!--<vlen>$spp</vlen>-->
+      <!--<pkt_size>%vlen</pkt_size>-->
+    </sink>
     <source>
       <name>out0</name>
       <type>sc16</type>

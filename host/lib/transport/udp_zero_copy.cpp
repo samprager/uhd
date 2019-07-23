@@ -1,8 +1,18 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "udp_common.hpp"
@@ -11,12 +21,11 @@
 #include <uhd/transport/buffer_pool.hpp>
 
 #include <uhd/utils/log.hpp>
-#include <uhdlib/utils/atomic.hpp>
+#include <uhd/utils/atomic.hpp>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/thread/thread.hpp> //sleep
 #include <vector>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -117,7 +126,7 @@ public:
             if (ret == ssize_t(size())) break;
             if (ret == -1 and errno == ENOBUFS)
             {
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
+                boost::this_thread::sleep(boost::posix_time::microseconds(1));
                 continue; //try to send again
             }
             if (ret == -1)
@@ -166,8 +175,7 @@ public:
         _send_buffer_pool(buffer_pool::make(xport_params.num_send_frames, xport_params.send_frame_size)),
         _next_recv_buff_index(0), _next_send_buff_index(0)
     {
-        UHD_LOGGER_TRACE("UDP")
-            << boost::format("Creating UDP transport to %s:%s") % addr % port;
+        UHD_LOGGER_TRACE("UDP") << boost::format("Creating udp transport for %s %s") % addr % port ;
 
         #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
@@ -182,11 +190,7 @@ public:
         _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
         _socket->open(asio::ip::udp::v4());
         _socket->connect(receiver_endpoint);
-        _sock_fd = _socket->native_handle();
-
-        UHD_LOGGER_TRACE("UDP")
-            << boost::format("Local UDP socket endpoint: %s:%s")
-            % get_local_addr() % get_local_port();
+        _sock_fd = _socket->native();
 
         //allocate re-usable managed receive buffers
         for (size_t i = 0; i < get_num_recv_frames(); i++){
@@ -240,16 +244,7 @@ public:
 
     size_t get_num_send_frames(void) const {return _num_send_frames;}
     size_t get_send_frame_size(void) const {return _send_frame_size;}
-
-    uint16_t get_local_port(void) const
-    {
-        return _socket->local_endpoint().port();
-    }
-
-    std::string get_local_addr(void) const
-    {
-        return _socket->local_endpoint().address().to_string();
-    }
+    uint16_t get_local_port(void) const {return _socket->local_endpoint().port();}
 
 private:
     //memory management -> buffers and fifos
@@ -285,12 +280,10 @@ template<typename Opt> static size_t resize_buff_helper(
     //resize the buffer if size was provided
     if (target_size > 0){
         actual_size = udp_trans->resize_buff<Opt>(target_size);
-        UHD_LOGGER_TRACE("UDP")
-            << boost::format("Target/actual %s sock buff size: %d/%d bytes")
-               % name
-               % target_size
-               % actual_size
-        ;
+        UHD_LOGGER_DEBUG("UDP") << boost::format(
+            "Target %s sock buff size: %d bytes\n"
+            "Actual %s sock buff size: %d bytes"
+        ) % name % target_size % name % actual_size ;
         if (actual_size < target_size) UHD_LOGGER_WARNING("UDP") << boost::format(
             "The %s buffer could not be resized sufficiently.\n"
             "Target sock buff size: %d bytes.\n"

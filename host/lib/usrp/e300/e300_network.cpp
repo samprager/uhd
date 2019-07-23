@@ -1,8 +1,18 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "e300_network.hpp"
@@ -10,6 +20,8 @@
 #ifdef E300_NATIVE
 
 #include "e300_impl.hpp"
+
+#include "ad9361_ctrl.hpp"
 
 #include "e300_sensor_manager.hpp"
 #include "e300_fifo_config.hpp"
@@ -23,15 +35,12 @@
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/paths.hpp>
 
-#include <uhdlib/usrp/common/ad9361_ctrl.hpp>
-
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/make_shared.hpp>
 
 #include <fstream>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -124,7 +133,7 @@ static void e300_send_tunnel(
             if (not buff) continue;
 
             //step 2 - recv from socket
-            while (not wait_for_recv_ready(recver->native_handle(), 100) and *running){}
+            while (not wait_for_recv_ready(recver->native(), 100) and *running){}
             if (not *running) break;
             const size_t num_bytes = recver->receive_from(asio::buffer(buff->cast<void *>(), buff->size()), _rx_endpoint);
             if (E300_NETWORK_DEBUG) UHD_LOGGER_INFO("E300") << name << " got " << num_bytes;
@@ -631,7 +640,7 @@ network_server_impl::network_server_impl(const uhd::device_addr_t &device_addr)
     ad9361_params::sptr client_settings = boost::make_shared<e300_ad9361_client_t>();
     _codec_ctrl = ad9361_ctrl::make_spi(client_settings, spi::make(E300_SPIDEV_DEVICE), 1);
     // This is horrible ... why do I have to sleep here?
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     _sensor_manager = e300_sensor_manager::make_local(_global_regs);
 }
 

@@ -1,9 +1,25 @@
 //
 // Copyright 2014 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+#include <iostream>
+
+#include <boost/format.hpp>
+#include <boost/program_options.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <uhd/device.hpp>
 #include <uhd/exception.hpp>
@@ -12,13 +28,6 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-
-#include <boost/format.hpp>
-#include <boost/program_options.hpp>
-
-#include <iostream>
-#include <chrono>
-#include <thread>
 
 namespace po = boost::program_options;
 
@@ -103,7 +112,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for(size_t i = 0; i < num_tests; i++){
         //Wait random time before querying
         uint16_t wait_time = rand() % max_interval;
-        std::this_thread::sleep_for(std::chrono::milliseconds(wait_time));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(wait_time));
 
         //Get all times before output
         std::vector<time_t> usrp_times(usrp->get_num_mboards());

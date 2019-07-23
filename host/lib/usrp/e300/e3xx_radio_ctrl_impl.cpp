@@ -91,41 +91,14 @@ UHD_RFNOC_RADIO_BLOCK_CONSTRUCTOR(e3xx_radio_ctrl)
         regs::sr_addr(regs::FP_GPIO),
         regs::RB_FP_GPIO
     );
-    for (const auto& attr : usrp::gpio_atr::gpio_attr_map) {
-        switch (attr.first) {
-        case usrp::gpio_atr::GPIO_SRC:
-            _tree->create<std::vector<std::string>>(fs_path("gpio") / "INT0" / attr.second)
-                 .set(std::vector<std::string>(32, usrp::gpio_atr::default_attr_value_map.at(attr.first)))
-                 .add_coerced_subscriber([this](const std::vector<std::string>&){
-                    throw uhd::runtime_error("This device does not support setting the GPIO_SRC attribute.");
-                 });
-            break;
-        case usrp::gpio_atr::GPIO_CTRL:
-        case usrp::gpio_atr::GPIO_DDR:
-            _tree->create<std::vector<std::string>>(fs_path("gpio") / "INT0" / attr.second)
-                 .set(std::vector<std::string>(32, usrp::gpio_atr::default_attr_value_map.at(attr.first)))
-                 .add_coerced_subscriber([this, fp_gpio, attr](const std::vector<std::string> str_val){
-                    uint32_t val = 0;
-                    for(size_t i = 0 ; i < str_val.size() ; i++){
-                        val += usrp::gpio_atr::gpio_attr_value_pair.at(attr.second).at(str_val[i])<<i;
-                    }
-                    fp_gpio->set_gpio_attr(attr.first, val);
-                 });
-            break;
-        case usrp::gpio_atr::GPIO_READBACK:
-            _tree->create<uint8_t>(fs_path("gpio") / "INT0" / "READBACK")
-                .set_publisher([this, fp_gpio](){
-                    return fp_gpio->read_gpio();
-                 });
-            break;
-        default:
-            _tree->create<uint32_t>(fs_path("gpio") / "INT0" / attr.second)
-                 .set(0)
-                 .add_coerced_subscriber([this, fp_gpio, attr](const uint32_t val){
-                     fp_gpio->set_gpio_attr(attr.first, val);
-                 });
-            }
+    BOOST_FOREACH(const usrp::gpio_atr::gpio_attr_map_t::value_type attr, usrp::gpio_atr::gpio_attr_map)
+    {
+        _tree->create<uint32_t>(fs_path("gpio") / "INT0" / attr.second)
+            .add_coerced_subscriber(boost::bind(&usrp::gpio_atr::gpio_atr_3000::set_gpio_attr, fp_gpio, attr.first, _1))
+            .set(0);
     }
+    _tree->create<uint8_t>(fs_path("gpio") / "INT0" / "READBACK")
+        .set_publisher(boost::bind(&usrp::gpio_atr::gpio_atr_3000::read_gpio, fp_gpio));
 
     ////////////////////////////////////////////////////////////////////
     // Tick rate
@@ -147,12 +120,12 @@ e3xx_radio_ctrl_impl::~e3xx_radio_ctrl_impl()
         _tree->remove(fs_path("tx_dsps") / i);
         _tree->remove(fs_path("rx_dsps") / i);
     }
-    for (const auto attr : usrp::gpio_atr::gpio_attr_map) {
-        const auto gpio_fs_path = fs_path("gpio") / "INT0" / attr.second;
-        if (_tree->exists(gpio_fs_path)) {
-            _tree->remove(gpio_fs_path);
-        }
+    BOOST_FOREACH(const usrp::gpio_atr::gpio_attr_map_t::value_type attr, usrp::gpio_atr::gpio_attr_map)
+    {
+        _tree->remove(fs_path("gpio") / "INT0" / attr.second);
     }
+    _tree->remove(fs_path("gpio") / "INT0" / "READBACK");
+
 }
 
 /****************************************************************************
@@ -182,7 +155,7 @@ double e3xx_radio_ctrl_impl::set_rate(double rate)
  */
 void e3xx_radio_ctrl_impl::set_rx_antenna(const std::string &ant, const size_t chan)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    boost::mutex::scoped_lock lock(_mutex);
     if (ant != "TX/RX" and ant != "RX2")
         throw uhd::value_error("Unknown RX antenna option: " + ant);
 
@@ -286,7 +259,7 @@ std::string e3xx_radio_ctrl_impl::get_dboard_fe_from_chan(const size_t chan, con
 void e3xx_radio_ctrl_impl::setup_radio(uhd::usrp::ad9361_ctrl::sptr safe_codec_ctrl)
 {
     {
-        std::lock_guard<std::mutex> lock(_mutex);
+        boost::mutex::scoped_lock lock(_mutex);
         if (_codec_ctrl) {
             throw std::runtime_error("Attempting to set up radio twice!");
         }
@@ -296,6 +269,7 @@ void e3xx_radio_ctrl_impl::setup_radio(uhd::usrp::ad9361_ctrl::sptr safe_codec_c
     // Create timed interface
     ////////////////////////////////////////////////////////////////////
     _codec_ctrl = safe_codec_ctrl;
+    _codec_ctrl->set_timed_spi(_spi, 1);
     _codec_mgr = uhd::usrp::ad936x_manager::make(_codec_ctrl, _get_num_radios());
 
     ////////////////////////////////////////////////////////////////////
@@ -307,12 +281,16 @@ void e3xx_radio_ctrl_impl::setup_radio(uhd::usrp::ad9361_ctrl::sptr safe_codec_c
     // Loopback test
     for (size_t chan = 0; chan < _get_num_radios(); chan++) {
         _codec_mgr->loopback_self_test(
-            [this, chan](const uint32_t value){
-                this->sr_write(regs::CODEC_IDLE, value, chan);
-            },
-            [this, chan](){
-                return this->user_reg_read64(regs::RB_CODEC_READBACK, chan);
-            }
+            boost::bind(
+                static_cast< void (block_ctrl_base::*)(const uint32_t, const uint32_t, const size_t) >(&block_ctrl_base::sr_write),
+                this,
+                regs::CODEC_IDLE, _1, chan
+            ),
+            boost::bind(
+                static_cast< uint64_t (block_ctrl_base::*)(const uint32_t, const size_t port) >(&block_ctrl_base::user_reg_read64),
+                this,
+                regs::RB_CODEC_READBACK, chan
+            )
         );
     }
 
@@ -384,7 +362,7 @@ void e3xx_radio_ctrl_impl::_setup_radio_channel(const size_t chan)
 
 void e3xx_radio_ctrl_impl::_reset_radio(void)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    boost::mutex::scoped_lock lock(_mutex);
     _misc.radio_rst = 1;
     _update_gpio_state();
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
@@ -669,7 +647,7 @@ void e3xx_radio_ctrl_impl::_update_gpio_state(void)
 
 void e3xx_radio_ctrl_impl::_update_enables(void)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    boost::mutex::scoped_lock lock(_mutex);
     UHD_RFNOC_BLOCK_TRACE() << "e3xx_radio_ctrl_impl::_update_enables() " << std::endl;
     if (not _codec_ctrl) {
         UHD_LOGGER_WARNING("E300") << "Attempting to access CODEC controls before setting up the radios." << std::endl;
@@ -723,7 +701,7 @@ void e3xx_radio_ctrl_impl::_update_enables(void)
 
 void e3xx_radio_ctrl_impl::_update_time_source(const std::string &source)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    boost::mutex::scoped_lock lock(_mutex);
     UHD_LOGGER_DEBUG("E300") << boost::format("Setting time source to %s") % source << std::endl;
     if (source == "none" or source == "internal") {
         _misc.pps_sel = global_regs::PPS_INT;

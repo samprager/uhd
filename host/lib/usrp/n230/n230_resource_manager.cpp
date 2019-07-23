@@ -1,8 +1,18 @@
 //
 // Copyright 2013 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "n230_resource_manager.hpp"
@@ -15,12 +25,11 @@
 #include <uhd/utils/platform.hpp>
 #include <uhd/utils/paths.hpp>
 #include <boost/format.hpp>
+#include <boost/thread.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/make_shared.hpp>
 #include "n230_fw_defs.h"
 #include "n230_fw_host_iface.h"
-#include <chrono>
-#include <thread>
 
 #define IF_DATA_I_MASK  0xFFF00000
 #define IF_DATA_Q_MASK  0x0000FFF0
@@ -207,7 +216,7 @@ n230_resource_manager::n230_resource_manager(
             _gps_uart = n230_uart::make(gps_uart_xport, uhd::htonx(gps_uart_sid.get()));
             _gps_uart->set_baud_divider(fpga::BUS_CLK_RATE/fpga::GPSDO_UART_BAUDRATE);
             _gps_uart->write_uart("\n"); //cause the baud and response to be setup
-            std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for a little propagation
+            boost::this_thread::sleep(boost::posix_time::seconds(1)); //allow for a little propagation
             _gps_ctrl = gps_ctrl::make(_gps_uart);
         } catch(std::exception &e) {
             UHD_LOGGER_ERROR("N230") << "An error occurred making GPSDO control: " << e.what() ;
@@ -284,7 +293,7 @@ void n230_resource_manager::_claimer_loop()
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_time), time(NULL));
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_src), get_process_hash());
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(N230_CLAIMER_TIMEOUT_IN_MS / 2));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(N230_CLAIMER_TIMEOUT_IN_MS / 2));
 }
 
 void n230_resource_manager::_initialize_radio(size_t instance)
@@ -445,7 +454,7 @@ void n230_resource_manager::_reset_codec_digital_interface()
     _core_ctrl->poke32(fpga::sr_addr(fpga::SR_CORE_CLK_DELAY), fpga::CODEC_CLK_DELAY);
 
     _core_radio_ctrl_reg.write(fpga::core_radio_ctrl_reg_t::CODEC_ARST, 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     _core_radio_ctrl_reg.write(fpga::core_radio_ctrl_reg_t::CODEC_ARST, 0);
 }
 
@@ -471,7 +480,7 @@ bool n230_resource_manager::_radio_data_loopback_self_test(wb_iface::sptr iface)
         const uint32_t word32 = uint32_t(hash) & (IF_DATA_I_MASK | IF_DATA_Q_MASK);
         iface->poke32(fpga::sr_addr(fpga::SR_RADIO_CODEC_IDLE), word32);
         iface->peek64(fpga::rb_addr(fpga::RB_RADIO_CODEC_DATA)); //block until request completes
-        std::this_thread::sleep_for(std::chrono::microseconds(100)); //wait for loopback to propagate through codec
+        boost::this_thread::sleep(boost::posix_time::microseconds(100)); //wait for loopback to propagate through codec
         const uint64_t rb_word64 = iface->peek64(fpga::rb_addr(fpga::RB_RADIO_CODEC_DATA));
         const uint32_t rb_tx = uint32_t(rb_word64 >> 32);
         const uint32_t rb_rx = uint32_t(rb_word64 & 0xffffffff);

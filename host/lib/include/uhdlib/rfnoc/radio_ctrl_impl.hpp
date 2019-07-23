@@ -205,12 +205,11 @@ protected: // TODO see what's protected and what's private
     inline bool _is_streamer_active(uhd::direction_t dir, const size_t chan) const {
         switch (dir) {
         case uhd::TX_DIRECTION:
-            return _tx_streamer_active.count(chan) ? _tx_streamer_active.at(chan) : false;
+            return _tx_streamer_active.at(chan);
         case uhd::RX_DIRECTION:
-            return _rx_streamer_active.count(chan) ? _rx_streamer_active.at(chan) : false;
+            return _rx_streamer_active.at(chan);
         case uhd::DX_DIRECTION:
-            return (_tx_streamer_active.count(chan) and _rx_streamer_active.count(chan)) ?
-                _rx_streamer_active.at(chan) and _tx_streamer_active.at(chan) : false;
+            return _rx_streamer_active.at(chan) and _tx_streamer_active.at(chan);
         default:
             return false;
         }
@@ -223,9 +222,6 @@ protected: // TODO see what's protected and what's private
 
     std::mutex _mutex;
 
-    size_t _num_tx_channels;
-    size_t _num_rx_channels;
-
 private:
     /************************************************************************
      * Peripherals
@@ -237,7 +233,8 @@ private:
     };
     std::map<size_t, radio_perifs_t> _perifs;
 
-
+    size_t _num_tx_channels;
+    size_t _num_rx_channels;
 
     // Cached values
     double _tick_rate;

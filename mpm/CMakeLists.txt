@@ -18,12 +18,6 @@ ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 LIST(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
 SET(UHD_HOST_ROOT ${CMAKE_SOURCE_DIR}/../host)
-########################################################################
-# Setup Python API
-########################################################################
-SET(PYTHON_ADDITIONAL_VERSIONS 3.4 3.5)
-FIND_PACKAGE(PythonInterp 3 REQUIRED)
-FIND_PACKAGE(PythonLibs 3 REQUIRED)
 # Now, we can also include CMake modules from UHD:
 LIST(INSERT CMAKE_MODULE_PATH 0 ${UHD_HOST_ROOT}/cmake/Modules)
 
@@ -36,8 +30,6 @@ INCLUDE(MPMVersion)
 ########################################################################
 # useful macros
 ########################################################################
-INCLUDE(MPMComponent) # enable components
-
 MACRO(USRP_PERIPHS_APPEND_SOURCES)
     SET(usrp_periphs_sources ${usrp_periphs_sources} PARENT_SCOPE)
     LIST(APPEND usrp_periphs_sources ${ARGV})
@@ -99,6 +91,12 @@ MESSAGE(STATUS "Boost include directories: ${Boost_INCLUDE_DIRS}")
 MESSAGE(STATUS "Boost library directories: ${Boost_LIBRARY_DIRS}")
 MESSAGE(STATUS "Boost libraries: ${Boost_LIBRARIES}")
 
+########################################################################
+# Setup Python API
+########################################################################
+SET(PYTHON_ADDITIONAL_VERSIONS 3.4 3.5)
+FIND_PACKAGE(PythonInterp 3)
+FIND_PACKAGE(PythonLibs 3)
 
 ########################################################################
 # Install Dirs
@@ -125,32 +123,9 @@ SET(PKG_MAN_DIR share/man/man1)
 ########################################################################
 # Setup library configuration
 ########################################################################
-SET(CMAKE_CXX_STANDARD 14)
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-Wno-psabi" _has_no_psabi)
-if(_has_no_psabi)
-    MESSAGE(STATUS "Disabling psABI warnings.")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
-endif(_has_no_psabi)
-SET(MPM_ALL_DEVICES n3xx tests)
+SET(CMAKE_CXX_STANDARD 11)
 SET(MPM_DEVICE "n3xx" CACHE STRING "Choose an MPM device to build")
-SET_PROPERTY(CACHE MPM_DEVICE PROPERTY STRINGS ${MPM_ALL_DEVICES})
-# Validate MPM_DEVICE
-list(FIND MPM_ALL_DEVICES ${MPM_DEVICE} mpm_device_check)
-if(mpm_device_check EQUAL -1)
-    message(FATAL_ERROR "MPM_DEVICE must be one of ${MPM_ALL_DEVICES}! \
-        Specify -DMPM_DEVICE=<device> on the command line or set MPM_DEVICE using a CMake GUI.")
-endif()
-
-# Request required components for MPM_DEVICE
-IF(MPM_DEVICE STREQUAL "n3xx")
-    SET(ENABLE_MYKONOS ON)
-    SET(ENABLE_MAGNESIUM ON)
-ENDIF()
-
-MPM_REGISTER_COMPONENT("LibMPM" ENABLE_LIBMPM ON "Boost_FOUND" OFF ON)
-MPM_REGISTER_COMPONENT("Mykonos" ENABLE_MYKONOS ON "ENABLE_LIBMPM" OFF OFF)
-MPM_REGISTER_COMPONENT("Magnesium" ENABLE_MAGNESIUM ON "ENABLE_MYKONOS" OFF OFF)
+SET_PROPERTY(CACHE MPM_DEVICE PROPERTY STRINGS n3xx tests)
 
 ADD_SUBDIRECTORY(include)
 INCLUDE_DIRECTORIES(
@@ -202,4 +177,3 @@ IF(MPM_VERSION_DEVEL AND NOT MPM_GIT_BRANCH STREQUAL "maint")
     MESSAGE(STATUS "******************************************************")
 ENDIF(MPM_VERSION_DEVEL AND NOT MPM_GIT_BRANCH STREQUAL "maint")
 MESSAGE(STATUS "Building version: ${MPM_VERSION}")
-MESSAGE(STATUS "Building for device: ${MPM_DEVICE}")

@@ -1,16 +1,27 @@
 //
 // Copyright 2015-2016 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <cmath>
-#include <stdint.h>
 
 #include <gps.h>
 
+#include <boost/assign/list_of.hpp>
 #include <boost/bind.hpp>
+#include <stdint.h>
 #include "boost/date_time/gregorian/gregorian.hpp"
 #include <boost/format.hpp>
 #include <boost/thread/shared_mutex.hpp>
@@ -52,13 +63,9 @@ public:
         boost::thread t(boost::bind(&gpsd_iface_impl::_thread_fcn ,this));
         _bthread.swap(t);
 
-        _sensors = {
-            "gps_locked",
-            "gps_time",
-            "gps_position",
-            "gps_gpgga",
-            "gps_gprmc"
-        };
+
+        _sensors = boost::assign::list_of<std::string>("gps_locked")("gps_time") \
+            ("gps_position")("gps_gpgga")("gps_gprmc").to_container(_sensors);
     }
 
     virtual ~gpsd_iface_impl(void)

@@ -1,12 +1,21 @@
 //
 // Copyright 2011-2012,2014 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "soft_time_ctrl.hpp"
-#include <uhdlib/utils/system_time.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread/condition_variable.hpp>
@@ -50,7 +59,7 @@ public:
      ******************************************************************/
     void set_time(const time_spec_t &time){
         boost::mutex::scoped_lock lock(_update_mutex);
-        _time_offset = uhd::get_system_time() - time;
+        _time_offset = time_spec_t::get_system_time() - time;
     }
 
     time_spec_t get_time(void){
@@ -60,7 +69,7 @@ public:
 
     UHD_INLINE time_spec_t time_now(void){
         //internal get time without scoped lock
-        return uhd::get_system_time() - _time_offset;
+        return time_spec_t::get_system_time() - _time_offset;
     }
 
     UHD_INLINE void sleep_until_time(

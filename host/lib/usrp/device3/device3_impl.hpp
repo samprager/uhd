@@ -1,8 +1,18 @@
 //
 // Copyright 2014-2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 // Declares the device3_impl class which is a layer between device3 and
@@ -21,7 +31,7 @@
 #include <uhd/types/direction.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/device3.hpp>
-#include <uhdlib/rfnoc/xports.hpp>
+#include "xports.hpp"
 
 namespace uhd { namespace usrp {
 
@@ -163,6 +173,9 @@ protected:
     /***********************************************************************
      * Members
      **********************************************************************/
+    //! A counter, designed to create unique SIDs
+    size_t _sid_framer;
+
     // TODO: Maybe move these to private
     uhd::dict<std::string, boost::weak_ptr<uhd::rx_streamer> > _rx_streamers;
     uhd::dict<std::string, boost::weak_ptr<uhd::tx_streamer> > _tx_streamers;

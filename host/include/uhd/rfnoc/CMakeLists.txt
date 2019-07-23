@@ -1,8 +1,18 @@
 #
 # Copyright 2014-2016 Ettus Research LLC
-# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
 IF(ENABLE_RFNOC)
@@ -34,7 +44,6 @@ IF(ENABLE_RFNOC)
         siggen_block_ctrl.hpp
         window_block_ctrl.hpp
         wavegen_block_ctrl.hpp
-        pulse_cir_avg_block_ctrl.hpp
         dma_fifo_block_ctrl.hpp
         DESTINATION ${INCLUDE_DIR}/uhd/rfnoc
         COMPONENT headers

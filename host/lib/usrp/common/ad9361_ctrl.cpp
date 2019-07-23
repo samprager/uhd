@@ -1,20 +1,30 @@
 //
 // Copyright 2012-2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "ad9361_ctrl.hpp"
 #include <uhd/types/ranges.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/types/serial.hpp>
-#include <uhdlib/usrp/common/ad9361_ctrl.hpp>
+#include <cstring>
 #include <boost/format.hpp>
 #include <boost/utility.hpp>
 #include <boost/function.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
-#include <cstring>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -83,10 +93,22 @@ class ad9361_ctrl_impl : public ad9361_ctrl
 {
 public:
     ad9361_ctrl_impl(ad9361_params::sptr client_settings, ad9361_io::sptr io_iface):
-        _device(client_settings, io_iface)
+        _device(client_settings, io_iface), _safe_spi(io_iface), _timed_spi(io_iface)
     {
         _device.initialize();
     }
+
+    void set_timed_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num)
+    {
+        _timed_spi = boost::make_shared<ad9361_io_spi>(spi_iface, slave_num);
+        _use_timed_spi();
+    }
+
+    void set_safe_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num)
+    {
+        _safe_spi = boost::make_shared<ad9361_io_spi>(spi_iface, slave_num);
+    }
+
     double set_gain(const std::string &which, const double value)
     {
         boost::lock_guard<boost::mutex> lock(_mutex);
@@ -122,6 +144,10 @@ public:
     double set_clock_rate(const double rate)
     {
         boost::lock_guard<boost::mutex> lock(_mutex);
+
+        // Changing clock rate will disrupt AD9361's sample clock
+        _use_safe_spi();
+
         //clip to known bounds
         const meta_range_t clock_rate_range = ad9361_ctrl::get_clock_rate_range();
         const double clipped_rate = clock_rate_range.clip(rate);
@@ -135,6 +161,8 @@ public:
 
         double return_rate = _device.set_clock_rate(clipped_rate);
 
+        _use_timed_spi();
+
         return return_rate;
     }
 
@@ -142,18 +170,12 @@ public:
     void set_active_chains(bool tx1, bool tx2, bool rx1, bool rx2)
     {
         boost::lock_guard<boost::mutex> lock(_mutex);
+
+        // If both RX chains are disabled then the AD9361's sample clock is disabled
+        _use_safe_spi();
         _device.set_active_chains(tx1, tx2, rx1, rx2);
-    }
+        _use_timed_spi();
 
-    //! set which timing mode to use - 1R1T, 2R2T
-    void set_timing_mode(const std::string &timing_mode)
-    {
-        boost::lock_guard<boost::mutex> lock(_mutex);
-
-        if ((timing_mode != "2R2T") && (timing_mode != "1R1T")) {
-            throw uhd::assertion_error("ad9361_ctrl: Timing mode not supported");
-        }
-        _device.set_timing_mode((timing_mode == "2R2T")? ad9361_device_t::TIMING_MODE_2R2T : ad9361_device_t::TIMING_MODE_1R1T);
     }
 
     //! tune the given frontend, return the exact value
@@ -221,24 +243,10 @@ public:
 
     double set_bw_filter(const std::string &which, const double bw)
     {
+        boost::lock_guard<boost::mutex> lock(_mutex);
+
         ad9361_device_t::direction_t direction = _get_direction_from_antenna(which);
-        double actual_bw = bw;
-
-        {
-            boost::lock_guard<boost::mutex> lock(_mutex);
-            actual_bw = _device.set_bw_filter(direction, bw);
-        }
-
-        const double min_bw = ad9361_device_t::AD9361_MIN_BW;
-        const double max_bw = ad9361_device_t::AD9361_MAX_BW;
-        if (bw < min_bw or bw > max_bw)
-        {
-            UHD_LOGGER_WARNING("AD936X") << boost::format(
-                    "The requested bandwidth %f MHz is out of range (%f - %f MHz).\n"
-                    "The bandwidth has been forced to %f MHz.\n"
-            ) % (bw/1e6) % (min_bw/1e6) % (max_bw/1e6) % (actual_bw/1e6);
-        }
-        return actual_bw;
+        return _device.set_bw_filter(direction, bw);
     }
 
     std::vector<std::string> get_filter_names(const std::string &which)
@@ -299,7 +307,17 @@ private:
         return ad9361_device_t::CHAIN_1;
     }
 
+    void _use_safe_spi() {
+        _device.set_io_iface(_safe_spi);
+    }
+
+    void _use_timed_spi() {
+        _device.set_io_iface(_timed_spi);
+    }
+
     ad9361_device_t         _device;
+    ad9361_io::sptr         _safe_spi;      // SPI core that uses an always available clock
+    ad9361_io::sptr         _timed_spi;     // SPI core that has a dependency on the AD9361's sample clock (i.e. radio clk)
     boost::mutex            _mutex;
 };
 

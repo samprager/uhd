@@ -31,7 +31,7 @@ namespace uhd {
 /*! \brief Block controller for the standard copy RFNoC block.
  *
  */
-class UHD_RFNOC_API wavegen_block_ctrl : public source_block_ctrl_base, public sink_block_ctrl_base
+class UHD_API wavegen_block_ctrl : public source_block_ctrl_base, public sink_block_ctrl_base
 {
 public:
     UHD_RFNOC_BLOCK_OBJECT(wavegen_block_ctrl)

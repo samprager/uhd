@@ -1,8 +1,18 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/utils/thread.hpp>
@@ -16,8 +26,6 @@
 #include <csignal>
 #include <vector>
 #include <cstdlib>
-#include <chrono>
-#include <thread>
 
 namespace po = boost::program_options;
 namespace asio = boost::asio;
@@ -119,7 +127,7 @@ private:
         wait_for_thread.notify_one();    // notify constructor that this thread has started
         std::vector<char> buff(insane_mtu);
         while (not boost::this_thread::interruption_requested()){
-            if (wait_for_recv_ready(_server_socket->native_handle())){
+            if (wait_for_recv_ready(_server_socket->native())){
                 boost::mutex::scoped_lock lock(_endpoint_mutex);
                 const size_t len = _server_socket->receive_from(asio::buffer(&buff.front(), buff.size()), _endpoint);
                 lock.unlock();
@@ -145,7 +153,7 @@ private:
         wait_for_thread.notify_one();    // notify constructor that this thread has started
         std::vector<char> buff(insane_mtu);
         while (not boost::this_thread::interruption_requested()){
-            if (wait_for_recv_ready(_client_socket->native_handle())){
+            if (wait_for_recv_ready(_client_socket->native())){
                 const size_t len = _client_socket->receive(asio::buffer(&buff.front(), buff.size()));
                 boost::mutex::scoped_lock lock(_endpoint_mutex);
                 _server_socket->send_to(asio::buffer(&buff.front(), len), _endpoint);
@@ -207,7 +215,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
         while (not stop_signal_called){
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(100));
         }
     }
 

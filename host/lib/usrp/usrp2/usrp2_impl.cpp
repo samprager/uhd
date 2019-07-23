@@ -1,12 +1,23 @@
 //
-// Copyright 2010-2012,2014,2017 Ettus Research, A National Instruments Company
+// Copyright 2010-2012,2014 Ettus Research LLC
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "usrp2_impl.hpp"
 #include "fw_common.h"
-#include <uhdlib/usrp/common/apply_corrections.hpp>
+#include "apply_corrections.hpp"
 #include <uhd/utils/log.hpp>
 
 #include <uhd/exception.hpp>
@@ -19,6 +30,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
+#include <boost/assign/list_of.hpp>
 #include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio.hpp> //used for htonl and ntohl
 #include <boost/thread.hpp>
@@ -461,8 +473,7 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
         ////////////////////////////////////////////////////////////////
         _tree->create<mboard_eeprom_t>(mb_path / "eeprom")
             .set(_mbc[mb].iface->mb_eeprom)
-            .add_coerced_subscriber(
-                boost::bind(&usrp2_impl::set_mb_eeprom, this, mb, _1));
+            .add_coerced_subscriber(boost::bind(&usrp2_impl::set_mb_eeprom, this, mb, _1));
 
         ////////////////////////////////////////////////////////////////
         // create clock control objects
@@ -621,44 +632,21 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
         // create tx dsp control objects
         ////////////////////////////////////////////////////////////////
         _mbc[mb].tx_dsp = tx_dsp_core_200::make(
-            _mbc[mb].wbiface,
-            U2_REG_SR_ADDR(SR_TX_DSP),
-            U2_REG_SR_ADDR(SR_TX_CTRL),
-            USRP2_TX_ASYNC_SID
+            _mbc[mb].wbiface, U2_REG_SR_ADDR(SR_TX_DSP), U2_REG_SR_ADDR(SR_TX_CTRL), USRP2_TX_ASYNC_SID
         );
         _mbc[mb].tx_dsp->set_link_rate(USRP2_LINK_RATE_BPS);
-        { // This scope can be removed once we're able to do named captures
-        auto this_tx_dsp = _mbc[mb].tx_dsp; // This can then also go away
         _tree->access<double>(mb_path / "tick_rate")
-            .add_coerced_subscriber([this_tx_dsp](const double rate){
-                this_tx_dsp->set_tick_rate(rate);
-            })
-        ;
+            .add_coerced_subscriber(boost::bind(&tx_dsp_core_200::set_tick_rate, _mbc[mb].tx_dsp, _1));
         _tree->create<meta_range_t>(mb_path / "tx_dsps/0/rate/range")
-            .set_publisher([this_tx_dsp](){
-                return this_tx_dsp->get_host_rates();
-            })
-        ;
+            .set_publisher(boost::bind(&tx_dsp_core_200::get_host_rates, _mbc[mb].tx_dsp));
         _tree->create<double>(mb_path / "tx_dsps/0/rate/value")
             .set(1e6) //some default
-            .set_coercer([this_tx_dsp](const double rate){
-                return this_tx_dsp->set_host_rate(rate);
-            })
-            .add_coerced_subscriber([this, mb](const double rate){
-                this->update_tx_samp_rate(mb, 0, rate);
-            })
-        ;
-        } // End of non-C++14 scope (to release reference to this_tx_dsp)
+            .set_coercer(boost::bind(&tx_dsp_core_200::set_host_rate, _mbc[mb].tx_dsp, _1))
+            .add_coerced_subscriber(boost::bind(&usrp2_impl::update_tx_samp_rate, this, mb, 0, _1));
         _tree->create<double>(mb_path / "tx_dsps/0/freq/value")
-            .set_coercer([this, mb](const double rate){
-                return this->set_tx_dsp_freq(mb, rate);
-            })
-        ;
+            .set_coercer(boost::bind(&tx_dsp_core_200::set_freq, _mbc[mb].tx_dsp, _1));
         _tree->create<meta_range_t>(mb_path / "tx_dsps/0/freq/range")
-            .set_publisher([this, mb](){
-                return this->get_tx_dsp_freq_range(mb);
-            })
-        ;
+            .set_publisher(boost::bind(&tx_dsp_core_200::get_freq_range, _mbc[mb].tx_dsp));
 
         //setup dsp flow control
         const double ups_per_sec = device_args_i.cast<double>("ups_per_sec", 20);
@@ -698,12 +686,9 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
         _tree->create<std::string>(mb_path / "clock_source/value")
             .add_coerced_subscriber(boost::bind(&usrp2_impl::update_clock_source, this, mb, _1))
             .set("internal");
-        std::vector<std::string> clock_sources{"internal", "external", "mimo"};
-        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()) {
-            clock_sources.push_back("gpsdo");
-        }
-        _tree->create<std::vector<std::string>>(mb_path / "clock_source/options")
-            .set(clock_sources);
+        std::vector<std::string> clock_sources = boost::assign::list_of("internal")("external")("mimo");
+        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()) clock_sources.push_back("gpsdo");
+        _tree->create<std::vector<std::string> >(mb_path / "clock_source/options").set(clock_sources);
         //plug timed commands into tree here
         switch(_mbc[mb].iface->get_rev()){
         case usrp2_iface::USRP_N200:
@@ -750,7 +735,7 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
 
         //create a new dboard interface and manager
         _mbc[mb].dboard_manager = dboard_manager::make(
-            rx_db_eeprom, tx_db_eeprom, gdb_eeprom,
+            rx_db_eeprom.id, tx_db_eeprom.id, gdb_eeprom.id,
             make_usrp2_dboard_iface(_mbc[mb].wbiface, _mbc[mb].iface/*i2c*/, _mbc[mb].spiface, _mbc[mb].clock),
             _tree->subtree(mb_path / "dboards/A")
         );
@@ -807,6 +792,10 @@ usrp2_impl::~usrp2_impl(void){UHD_SAFE_CALL(
     }
 )}
 
+void usrp2_impl::set_mb_eeprom(const std::string &mb, const uhd::usrp::mboard_eeprom_t &mb_eeprom){
+    mb_eeprom.commit(*(_mbc[mb].iface), USRP2_EEPROM_MAP_KEY);
+}
+
 void usrp2_impl::set_db_eeprom(const std::string &mb, const std::string &type, const uhd::usrp::dboard_eeprom_t &db_eeprom){
     if (type == "rx") db_eeprom.store(*_mbc[mb].iface, USRP2_I2C_ADDR_RX_DB);
     if (type == "tx") db_eeprom.store(*_mbc[mb].iface, USRP2_I2C_ADDR_TX_DB);
@@ -833,49 +822,6 @@ void usrp2_impl::set_tx_fe_corrections(const std::string &mb, const double lo_fr
     if(not _ignore_cal_file){
         apply_tx_fe_corrections(this->get_tree()->subtree("/mboards/" + mb), "A", lo_freq);
     }
-}
-
-double usrp2_impl::set_tx_dsp_freq(
-    const std::string &mb,
-    const double freq_
-) {
-    double new_freq = freq_;
-    const double tick_rate =
-        _tree->access<double>("/mboards/"+mb+"/tick_rate").get();
-
-    //calculate the DAC shift (multiples of rate)
-    const int sign = boost::math::sign(new_freq);
-    const int zone = std::min(boost::math::iround(new_freq/tick_rate), 2);
-    const double dac_shift = sign*zone*tick_rate;
-    new_freq -= dac_shift; //update FPGA DSP target freq
-    UHD_LOG_TRACE("USRP2",
-        "DSP Tuning: Requested " + std::to_string(freq_/1e6) + " MHz, Using "
-        "Nyquist zone " + std::to_string(sign*zone) + ", leftover DSP tuning: "
-        + std::to_string(new_freq/1e6) + " MHz.");
-
-    //set the DAC shift (modulation mode)
-    if (zone == 0) {
-        _mbc[mb].codec->set_tx_mod_mode(0); //no shift
-    } else {
-        _mbc[mb].codec->set_tx_mod_mode(sign*4/zone); //DAC interp = 4
-    }
-
-    return _mbc[mb].tx_dsp->set_freq(new_freq) + dac_shift; //actual freq
-}
-
-meta_range_t usrp2_impl::get_tx_dsp_freq_range(const std::string &mb)
-{
-    const double dac_rate =
-        _tree->access<double>("/mboards/" + mb + "/tick_rate").get()
-        * _mbc[mb].codec->get_tx_interpolation();
-    const auto dsp_range_step = _mbc[mb].tx_dsp->get_freq_range().step();
-    // The DSP tuning rate is the entire range of the DAC clock rate. The step
-    // size is determined by the FPGA IP, however.
-    return meta_range_t(
-        -dac_rate / 2,
-        +dac_rate / 2,
-        dsp_range_step
-    );
 }
 
 #include <boost/math/special_functions/round.hpp>

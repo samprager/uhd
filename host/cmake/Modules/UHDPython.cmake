@@ -1,8 +1,18 @@
 #
 # Copyright 2010-2011 Ettus Research LLC
-# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
 IF(NOT DEFINED INCLUDED_UHD_PYTHON_CMAKE)
@@ -22,20 +32,11 @@ IF(PYTHON_EXECUTABLE)
 ELSE(PYTHON_EXECUTABLE)
 
     #use the built-in find script
-    IF(ENABLE_PYTHON3)
-        FIND_PACKAGE(PythonInterp 3.0)
-    ELSE(ENABLE_PYTHON3)
-        FIND_PACKAGE(PythonInterp 2.0)
-    ENDIF(ENABLE_PYTHON3)
+    FIND_PACKAGE(PythonInterp)
 
     #and if that fails use the find program routine
     IF(NOT PYTHONINTERP_FOUND)
-        IF(ENABLE_PYTHON3)
-            FIND_PROGRAM(PYTHON_EXECUTABLE NAMES python3 python3.5 python3.6)
-        ELSE(ENABLE_PYTHON3)
-            FIND_PROGRAM(PYTHON_EXECUTABLE NAMES python2 python2.7)
-        ENDIF(ENABLE_PYTHON3)
-
+        FIND_PROGRAM(PYTHON_EXECUTABLE NAMES python python2.7 python2.6)
         IF(PYTHON_EXECUTABLE)
             SET(PYTHONINTERP_FOUND TRUE)
         ENDIF(PYTHON_EXECUTABLE)
@@ -59,7 +60,6 @@ MACRO(PYTHON_CHECK_MODULE desc mod cmd have)
     EXECUTE_PROCESS(
         COMMAND ${PYTHON_EXECUTABLE} -c "
 #########################################
-from distutils.version import LooseVersion
 try: import ${mod}
 except: exit(1)
 try: assert ${cmd}

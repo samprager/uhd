@@ -45,45 +45,78 @@ static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
 
-void receive_worker(uhd::rx_streamer::sptr rx_stream,const std::string &file, boost::mutex &rx_mutex,unsigned long long &num_total_samps, unsigned long long num_requested_samples, double rx_timeout, double seconds_in_future, double pri, size_t samps_per_buff){
-//for single thread receiving in a loop
-    num_total_samps = 0;
-    // size_t samps_per_buff = (size_t) num_requested_samples*npulses;
-    // size_t samps_per_buff = 32768;//16384;
-    // if (num_requested_samples > samps_per_buff){
-    //   samps_per_buff = (size_t) num_requested_samples;
-    // }
+template<typename samp_type> void recv_to_file(
+    uhd::rfnoc::wavegen_block_ctrl::sptr wavegen_ctrl,
+    uhd::rx_streamer::sptr rx_stream,
+    const std::string &file,
+    size_t samps_per_buff,
+    double prf,
+    int num_pulses,
+    bool mode_manual,
+    unsigned long long num_requested_samples,
+    double time_requested = 0.0,
+    bool bw_summary = false,
+    bool stats = false,
+    bool continue_on_bad_packet = false
+) {
+    unsigned long long num_total_samps = 0;
+
     uhd::rx_metadata_t md;
-
-    std::vector<std::complex<short>> buff(samps_per_buff);
-
-
-    bool overflow_message = true;
-    bool continue_on_bad_packet = true;
-
-
-    //setup streaming
-
-    double timeout = rx_timeout + seconds_in_future;
-
-    //boost::this_thread::sleep(boost::posix_time::seconds(seconds_in_future));
-
+    std::vector<samp_type> buff(samps_per_buff);
     std::ofstream outfile;
     if (not file.empty()) {
         outfile.open(file.c_str(), std::ofstream::binary);
     }
+    bool overflow_message = true;
 
-    while(num_total_samps != (num_requested_samples)){
-        rx_mutex.lock();
-        size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, timeout);
-        rx_mutex.unlock();
+    //setup streaming
+    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
+        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
+    );
+    stream_cmd.num_samps = num_requested_samples;
+    stream_cmd.stream_now = true;
+    stream_cmd.time_spec = uhd::time_spec_t();
+    std::cout << "Issuing start stream cmd" << std::endl;
+    // This actually goes to the null source; the processing block
+    // should propagate it.
+    rx_stream->issue_stream_cmd(stream_cmd);
+    std::cout << "Done" << std::endl;
 
-        timeout = rx_timeout+pri; // smaller timeout for subsequent packets
+    boost::system_time start = boost::get_system_time();
+    unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
+    boost::posix_time::time_duration ticks_diff;
+    boost::system_time last_update = start;
+    unsigned long long last_update_samps = 0;
 
+    boost::posix_time::time_duration pulse_diff;
+    boost::system_time last_pulse = start;
+    int pulse_count = 0;
+
+    while(
+        not stop_signal_called
+        and (num_requested_samples != num_total_samps or num_requested_samples == 0)
+    ) {
+
+        boost::system_time now = boost::get_system_time();
+
+        if (mode_manual){
+        pulse_diff = now - last_pulse;
+        double pulse_diff_sec = (double)pulse_diff.total_microseconds() / 1000000.0;
+        if (((pulse_count<num_pulses)||(num_requested_samples == 0))&&(pulse_diff_sec >= prf)) {
+          wavegen_ctrl->send_pulse();
+          std::cout << boost::format("\tpulse_count: %i/%i. pulse_diff: %f sec.") % pulse_count % num_pulses % pulse_diff_sec << std::endl;
+          last_pulse = now;
+          pulse_count++;
+        }
+      }
+
+
+        size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-            std::cerr << boost::format("Timeout while streaming") << std::endl;
-            break;
+            std::cout << boost::format("Timeout while streaming") << std::endl;
+            //break;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
             if (overflow_message){
@@ -103,239 +136,47 @@ void receive_worker(uhd::rx_streamer::sptr rx_stream,const std::string &file, bo
                 throw std::runtime_error(error);
             }
         }
-
         num_total_samps += num_rx_samps;
 
         if (outfile.is_open()) {
-            outfile.write((const char*)&buff.front(), num_rx_samps*sizeof(short));
+            outfile.write((const char*)&buff.front(), num_rx_samps*sizeof(samp_type));
         }
 
+        if (bw_summary) {
+            last_update_samps += num_rx_samps;
+            boost::posix_time::time_duration update_diff = now - last_update;
+            if (update_diff.ticks() > boost::posix_time::time_duration::ticks_per_second()) {
+                double t = (double)update_diff.ticks() / (double)boost::posix_time::time_duration::ticks_per_second();
+                double r = (double)last_update_samps / t;
+                std::cout << boost::format("\t%f Msps") % (r/1e6) << std::endl;
+                last_update_samps = 0;
+                last_update = now;
+            }
+        }
+
+
+        ticks_diff = now - start;
+        if (ticks_requested > 0){
+            if ((unsigned long long)ticks_diff.ticks() > ticks_requested)
+                break;
+        }
     }
+
+    stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+    std::cout << "Issuing stop stream cmd" << std::endl;
+    rx_stream->issue_stream_cmd(stream_cmd);
+    std::cout << "Done" << std::endl;
+
     if (outfile.is_open())
         outfile.close();
-}
 
-template<typename samp_type> void recv_to_file(
-    uhd::rfnoc::wavegen_block_ctrl::sptr wavegen_ctrl,
-    uhd::rfnoc::radio_ctrl::sptr radio_ctrl,
-    uhd::rx_streamer::sptr rx_stream,
-    const std::string &file,
-    size_t samps_per_buff,
-    double pri,
-    int npulses,
-    int num_pulses_rx,
-    unsigned long pulselen,
-    bool mode_manual,
-    bool fwd_cmd,
-    double seconds_in_future,
-    double time_requested = 0.0,
-    bool bw_summary = false,
-    bool stats = false,
-    bool continue_on_bad_packet = false
-) {
-    unsigned long long num_requested_samples = pulselen;
-    unsigned long long num_total_samps = 0;
-    //size_t samps_per_buff = 10000;
-    // size_t samps_per_buff = (size_t) num_requested_samples*npulses;
-
-    uhd::rx_metadata_t md;
-
-    bool overflow_message = true;
-
-    //setup streaming
-    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
-        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
-    );
-    stream_cmd.num_samps = num_requested_samples;
-
-    boost::thread_group rx_thread;
-    boost::mutex rx_mutex;
-
-    if (seconds_in_future <= 0 and pri <= 0){
-      for (int i = 0; i<npulses;i++){
-        stream_cmd.stream_now = true;
-        stream_cmd.time_spec = uhd::time_spec_t();
-        if (mode_manual == 1)
-          wavegen_ctrl->send_pulse();
-        if (fwd_cmd == 0){
-            rx_mutex.lock();
-            rx_stream->issue_stream_cmd(stream_cmd);
-            rx_mutex.unlock();
-        }
-        if (i==0)       rx_thread.create_thread(boost::bind(receive_worker, rx_stream,boost::ref(file),boost::ref(rx_mutex),boost::ref(num_total_samps),num_requested_samples*num_pulses_rx,3.0,seconds_in_future,pri,samps_per_buff));
-
-      }
+    if (stats){
+        std::cout << std::endl;
+        double t = (double)ticks_diff.ticks() / (double)boost::posix_time::time_duration::ticks_per_second();
+        std::cout << boost::format("Received %d samples in %f seconds") % num_total_samps % t << std::endl;
+        double r = (double)num_total_samps / t;
+        std::cout << boost::format("%f Msps") % (r/1e6) << std::endl;
     }
-    else {
-        uhd::time_spec_t timenow;
-        try{
-            timenow =  radio_ctrl->get_time_now();
-        }
-        catch(const std::exception &e)
-        {
-            std::cout << boost::format("[initRxStream()] Error calling get_time_now %s") % e.what() << std::endl;
-            timenow =  wavegen_ctrl->get_time_now();
-        }
-
-        uhd::time_spec_t time_spec = uhd::time_spec_t(seconds_in_future)+timenow;
-        stream_cmd.stream_now = false;
-        // tell tx to wait to transmit additional number of ticks
-        uint64_t rx_tick_offset = 0;
-        double waverate = wavegen_ctrl->get_rate();
-
-        for (int i=0; i<npulses;i++){
-          stream_cmd.time_spec = time_spec;
-          uint64_t tx_ticks = time_spec.to_ticks(waverate)+rx_tick_offset;
-          if ((i==0)&&(mode_manual == 1)) //only send once
-              wavegen_ctrl->send_pulses(tx_ticks,npulses);
-          if (fwd_cmd == 0){
-              rx_mutex.lock();
-             rx_stream->issue_stream_cmd(stream_cmd);
-              rx_mutex.unlock();
-          }
-          time_spec = uhd::time_spec_t(pri)+time_spec;
-
-          if (i==0) rx_thread.create_thread(boost::bind(receive_worker,rx_stream, boost::ref(file),boost::ref(rx_mutex),boost::ref(num_total_samps),num_requested_samples*num_pulses_rx,3.0,seconds_in_future,pri,samps_per_buff));
-        }
-    }
-
-    rx_thread.join_all();
-
-    // if (seconds_in_future <= 0){
-    //     stream_cmd.stream_now = true;
-    //     stream_cmd.time_spec = uhd::time_spec_t();
-    //     std::cout << "Sending Pulse" << std::endl;
-    //
-    //     wavegen_ctrl->send_pulse();
-    //     if (fwd_cmd == 0){
-    //         std::cout << "Issuing start stream cmd" << std::endl;
-    //
-    //         rx_stream->issue_stream_cmd(stream_cmd);
-    //     }
-    //     // std::cout<<"[initRxStream()] immediate pulse sent"<<std::endl;
-    // }
-    // else {
-    //     wavegen_ctrl->set_time_next_pps(uhd::time_spec_t(0.0));
-    //     radio_ctrl->set_time_next_pps(uhd::time_spec_t(0.0));
-    //     wavegen_ctrl->set_time_now(uhd::time_spec_t(0.0));
-    //     radio_ctrl->set_time_now(uhd::time_spec_t(0.0));
-    //
-    //     uhd::time_spec_t time_spec = uhd::time_spec_t(seconds_in_future);
-    //     stream_cmd.stream_now = false;
-    //     stream_cmd.time_spec = time_spec;
-    //     // tell tx to wait to transmit additional 200 ticks
-    //     uint64_t tx_ticks = time_spec.to_ticks(wavegen_ctrl->get_rate());
-    //     wavegen_ctrl->send_pulse(tx_ticks);
-    //     if (fwd_cmd == 0){
-    //         std::cout << "Issuing start stream cmd" << std::endl;
-    //         rx_stream->issue_stream_cmd(stream_cmd);
-    //     }
-    //     // std::cout<<"[initRxStream()] timed pulse sent with ticks: "<<time_spec.to_ticks(_wavegen_ctrl->get_rate())<<std::endl;
-    // }
-    //
-    // stream_cmd.stream_now = true;
-    // stream_cmd.time_spec = uhd::time_spec_t();
-    // std::cout << "Issuing start stream cmd" << std::endl;
-    // // This actually goes to the null source; the processing block
-    // // should propagate it.
-    // rx_stream->issue_stream_cmd(stream_cmd);
-    // std::cout << "Done" << std::endl;
-    //
-    // boost::system_time start = boost::get_system_time();
-    // unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
-    // boost::posix_time::time_duration ticks_diff;
-    // boost::system_time last_update = start;
-    // unsigned long long last_update_samps = 0;
-    //
-    // boost::posix_time::time_duration pulse_diff;
-    // boost::system_time last_pulse = start;
-    // int pulse_count = 0;
-    //
-    // while(
-    //     not stop_signal_called
-    //     and (num_requested_samples != num_total_samps or num_requested_samples == 0)
-    // ) {
-    //
-    //     boost::system_time now = boost::get_system_time();
-    //
-    //     if (mode_manual){
-    //     pulse_diff = now - last_pulse;
-    //     double pulse_diff_sec = (double)pulse_diff.total_microseconds() / 1000000.0;
-    //     if (((pulse_count<num_pulses)||(num_requested_samples == 0))&&(pulse_diff_sec >= prf)) {
-    //       wavegen_ctrl->send_pulse();
-    //       std::cout << boost::format("\tpulse_count: %i/%i. pulse_diff: %f sec.") % pulse_count % num_pulses % pulse_diff_sec << std::endl;
-    //       last_pulse = now;
-    //       pulse_count++;
-    //     }
-    //   }
-    //
-    //
-    //     size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0);
-    //
-    //     if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-    //         std::cout << boost::format("Timeout while streaming") << std::endl;
-    //         //break;
-    //     }
-    //     if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
-    //         if (overflow_message){
-    //             overflow_message = false;
-    //             std::cerr << "Got an overflow indication. If writing to disk, your\n"
-    //                          "write medium may not be able to keep up.\n";
-    //         }
-    //         continue;
-    //     }
-    //     if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
-    //         std::string error = str(boost::format("Receiver error: %s") % md.strerror());
-    //         if (continue_on_bad_packet){
-    //             std::cerr << error << std::endl;
-    //             continue;
-    //         }
-    //         else {
-    //             throw std::runtime_error(error);
-    //         }
-    //     }
-    //     num_total_samps += num_rx_samps;
-    //
-    //     if (outfile.is_open()) {
-    //         outfile.write((const char*)&buff.front(), num_rx_samps*sizeof(samp_type));
-    //     }
-    //
-    //     if (bw_summary) {
-    //         last_update_samps += num_rx_samps;
-    //         boost::posix_time::time_duration update_diff = now - last_update;
-    //         if (update_diff.ticks() > boost::posix_time::time_duration::ticks_per_second()) {
-    //             double t = (double)update_diff.ticks() / (double)boost::posix_time::time_duration::ticks_per_second();
-    //             double r = (double)last_update_samps / t;
-    //             std::cout << boost::format("\t%f Msps") % (r/1e6) << std::endl;
-    //             last_update_samps = 0;
-    //             last_update = now;
-    //         }
-    //     }
-    //
-    //
-    //     ticks_diff = now - start;
-    //     if (ticks_requested > 0){
-    //         if ((unsigned long long)ticks_diff.ticks() > ticks_requested)
-    //             break;
-    //     }
-    // }
-    //
-    // stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
-    // std::cout << "Issuing stop stream cmd" << std::endl;
-    // rx_stream->issue_stream_cmd(stream_cmd);
-    // std::cout << "Done" << std::endl;
-    //
-    // if (outfile.is_open())
-    //     outfile.close();
-    //
-    // if (stats){
-    //     std::cout << std::endl;
-    //     double t = (double)ticks_diff.ticks() / (double)boost::posix_time::time_duration::ticks_per_second();
-    //     std::cout << boost::format("Received %d samples in %f seconds") % num_total_samps % t << std::endl;
-    //     double r = (double)num_total_samps / t;
-    //     std::cout << boost::format("%f Msps") % (r/1e6) << std::endl;
-    // }
 }
 
 
@@ -396,8 +237,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     std::string args, file, format, ant, ref, wirefmt, streamargs,radio_args, awg_policy, awg_source, wavegenid, blockid, blockid2, blockid3, blockid4;
     size_t total_num_samps, spb, radio_id, radio_chan;
     double rate, total_time, setup_time, block_rate,awg_sample_len,awg_prf, freq, gain, bw, tuning_word;
-    bool fwd_cmd, fwd_time;
-    uint32_t policynum;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -410,7 +249,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
         ("time", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
-        ("spb", po::value<size_t>(&spb)->default_value(32768), "samples per buffer")
+        ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("streamargs", po::value<std::string>(&streamargs)->default_value(""), "stream args")
         ("sizemap", "track packet size and display breakdown on exit")
         ("block_rate", po::value<double>(&block_rate)->default_value(200e6), "The clock rate of the processing block.")
@@ -423,9 +262,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
         ("awglen", po::value<double>(&awg_sample_len)->default_value(64), "total number samples to load into waveform generator")
         ("policy", po::value<std::string>(&awg_policy)->default_value("manual"), "AWG Operational mode: manual or auto ")
-        ("fwd_cmd", po::value<bool>(&fwd_cmd)->default_value(false), "AWG forward RX commmand to radio: 0 or 1 ")
-        ("fwd_time", po::value<bool>(&fwd_time)->default_value(true), "AWG forward tx timestamp to radio : 0 or 1 ")
-        ("policynum", po::value<uint32_t>(&policynum), "AWG uint32 policy number")
         ("source", po::value<std::string>(&awg_source)->default_value("awg"), "AWG Source Select: awg or chirp ")
         ("prf", po::value<double>(&awg_prf)->default_value(1), "AWG Radar PRF in seconds")
         ("tuneword", po::value<double>(&tuning_word)->default_value(1), "AWG Radar Tuning Word Coefficient")
@@ -443,7 +279,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("int-n", "tune USRP with integer-N tuning")
 
 
-        ("wavegenid", po::value<std::string>(&wavegenid)->default_value("wavegen"), "The block ID for the source.")
+        ("wavegenid", po::value<std::string>(&wavegenid)->default_value("wavegen"), "The block ID for the null source.")
         ("blockid", po::value<std::string>(&blockid)->default_value("FIFO"), "The block ID for the processing block.")
         ("blockid2", po::value<std::string>(&blockid2)->default_value("FIFO_1"), "Optional: The block ID for the 2nd processing block.")
         ("blockid3", po::value<std::string>(&blockid3)->default_value("DmaFIFO"), "Optional: The block ID for the 3rd processing block.")
@@ -580,7 +416,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         radio_ctrl->set_rx_antenna(ant, radio_chan);
     }
 
-    boost::this_thread::sleep(boost::posix_time::seconds((long)setup_time)); //allow for some setup time
+    boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
 
     //check Ref and LO Lock detect
     if (not vm.count("skip-lo")){
@@ -714,7 +550,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
     int num_pulses = (int)ceil((double)total_num_samps/awg_sample_len);
 
-    boost::uint32_t total_rx_samples = num_awg_samples+256;
+    boost::uint32_t total_rx_samples = num_awg_samples+32;
     wavegen_ctrl->set_rx_len(total_rx_samples);
 
     std::cout << "Checking Total RX sample Length"<<std::endl;
@@ -741,24 +577,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         wavegen_ctrl->set_policy_auto();
         std::cout << "AWG Policy set to: "<<wavegen_ctrl->get_policy()<<std::endl;
         mode_manual = false;
-    }
-    if(fwd_cmd){
-        wavegen_ctrl->set_policy_fwd_cmd();
-    }
-    else{
-        wavegen_ctrl->set_policy_no_cmd();
-    }
-    if(fwd_time){
-        wavegen_ctrl->set_policy_fwd_time();
-    }
-    else{
-        wavegen_ctrl->set_policy_use_time();
-    }
-    if (vm.count("policynum")>0){
-        wavegen_ctrl->set_policy(policynum);
-        fwd_cmd = (bool)(0x00000001&(policynum >> 2));
-        mode_manual = (bool)(0x00000001&(policynum));
-        fwd_time = (bool)(0x00000001&(policynum>>1));
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -817,12 +635,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //wavegen_ctrl->send_pulse();
 
-
-double seconds_in_future = .1;
-int num_pulses_rx = num_pulses;
-
 #define recv_to_file_args() \
-        (wavegen_ctrl, radio_ctrl,rx_stream, file, spb, awg_prf, num_pulses, num_pulses_rx, total_rx_samples,mode_manual,fwd_cmd, seconds_in_future,total_time, bw_summary, stats, continue_on_bad_packet)
+        (wavegen_ctrl, rx_stream, file, spb, awg_prf, num_pulses, mode_manual, total_num_samps, total_time, bw_summary, stats, continue_on_bad_packet)
     //recv to file
     if (format == "fc64") recv_to_file<std::complex<double> >recv_to_file_args();
     else if (format == "fc32") recv_to_file<std::complex<float> >recv_to_file_args();

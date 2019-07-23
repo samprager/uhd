@@ -1,8 +1,18 @@
 //
 // Copyright 2013 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/types/wb_iface.hpp>
@@ -17,8 +27,7 @@
 #include <uhd/transport/nirio/niriok_proxy.h>
 #include "x300_regs.hpp"
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <chrono>
-#include <thread>
+#include <boost/thread/thread.hpp>
 
 using namespace uhd;
 using namespace uhd::niusrprio;
@@ -211,7 +220,7 @@ public:
         boost::posix_time::time_duration elapsed;
 
         do {
-            std::this_thread::sleep_for(std::chrono::microseconds(500)); //Avoid flooding the bus
+            boost::this_thread::sleep(boost::posix_time::microsec(500)); //Avoid flooding the bus
             elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
             nirio_status_chain(_drv_proxy->peek(PCIE_ZPU_STATUS_REG(0), reg_data), status);
         } while (
@@ -239,7 +248,7 @@ protected:
         nirio_status_chain(_drv_proxy->poke(PCIE_ZPU_DATA_REG(addr), data), status);
         if (nirio_status_not_fatal(status)) {
             do {
-                std::this_thread::sleep_for(std::chrono::microseconds(50)); //Avoid flooding the bus
+                boost::this_thread::sleep(boost::posix_time::microsec(50)); //Avoid flooding the bus
                 elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
                 nirio_status_chain(_drv_proxy->peek(PCIE_ZPU_STATUS_REG(addr), reg_data), status);
             } while (
@@ -264,7 +273,7 @@ protected:
         nirio_status_chain(_drv_proxy->poke(PCIE_ZPU_READ_REG(addr), PCIE_ZPU_READ_START), status);
         if (nirio_status_not_fatal(status)) {
             do {
-                std::this_thread::sleep_for(std::chrono::microseconds(50)); //Avoid flooding the bus
+                boost::this_thread::sleep(boost::posix_time::microsec(50)); //Avoid flooding the bus
                 elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
                 nirio_status_chain(_drv_proxy->peek(PCIE_ZPU_STATUS_REG(addr), reg_data), status);
             } while (

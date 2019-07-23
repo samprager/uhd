@@ -1,8 +1,18 @@
 //
 // Copyright 2013-2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "e300_impl.hpp"
@@ -187,7 +197,7 @@ device_addrs_t e300_find(const device_addr_t &multi_dev_hint)
                 const mboard_eeprom_t eeprom = eeprom_manager.get_mb_eeprom();
                 new_addr["name"] = eeprom["name"];
                 new_addr["serial"] = eeprom["serial"];
-                new_addr["product"] = eeprom_manager.get_mb_type_string();
+                new_addr["product"] = eeprom["product"];
             } catch (...) {
                 // set these values as empty string, so the device may still be found
                 // and the filters below can still operate on the discovered device
@@ -223,7 +233,7 @@ device_addrs_t e300_find(const device_addr_t &multi_dev_hint)
             const mboard_eeprom_t eeprom = eeprom_manager.get_mb_eeprom();
             new_addr["name"] = eeprom["name"];
             new_addr["serial"] = eeprom["serial"];
-            new_addr["product"] = eeprom_manager.get_mb_type_string();
+            new_addr["product"] = eeprom["product"];
         } catch (...) {
             // set these values as empty string, so the device may still be found
             // and the filters below can still operate on the discovered device
@@ -308,14 +318,7 @@ e300_impl::e300_impl(const uhd::device_addr_t &device_addr)
         _do_not_reload = device_addr.has_key("no_reload_fpga");
         if (not _do_not_reload) {
             std::string fpga_image;
-
-            // need to re-read product ID code because of conversion into string in find function
-            e300_eeprom_manager eeprom_manager(i2c::make_i2cdev(E300_I2CDEV_DEVICE));
-            const mboard_eeprom_t eeprom = eeprom_manager.get_mb_eeprom();
-            device_addr_t device_addr_cp(device_addr.to_string());
-            device_addr_cp["product"] = eeprom["product"];
-
-            get_e3x0_fpga_images(device_addr_cp,
+            get_e3x0_fpga_images(device_addr,
                                  fpga_image,
                                  _idle_image);
             common::load_fpga_image(fpga_image);
@@ -625,7 +628,7 @@ std::string e300_impl::_get_version_hash(void)
         = _global_regs->peek32(global_regs::RB32_CORE_GITHASH);
     return str(boost::format("%7x%s")
         % (git_hash & 0x0FFFFFFF)
-        % ((git_hash & 0xF0000000) ? "-dirty" : ""));
+        % ((git_hash & 0xF000000) ? "-dirty" : ""));
 }
 
 

@@ -8,8 +8,6 @@
 #ifndef MAX287X_HPP_INCLUDED
 #define MAX287X_HPP_INCLUDED
 
-#include "max2870_regs.hpp"
-#include "max2871_regs.hpp"
 #include <uhd/exception.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/types/ranges.hpp>
@@ -18,11 +16,12 @@
 #include <uhd/utils/safe_call.hpp>
 #include <boost/assign.hpp>
 #include <boost/function.hpp>
+#include <boost/thread.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <vector>
-#include <chrono>
-#include <thread>
 #include <stdint.h>
+#include <vector>
+#include "max2870_regs.hpp"
+#include "max2871_regs.hpp"
 
 /**
  * MAX287x interface
@@ -916,7 +915,7 @@ void max287x<max287x_regs_t>::commit()
 
     if (_delay_after_write)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(20));
         _delay_after_write = false;
     }
 }

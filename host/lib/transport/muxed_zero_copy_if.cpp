@@ -1,8 +1,18 @@
 //
 // Copyright 2016 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/transport/muxed_zero_copy_if.hpp>
@@ -14,8 +24,6 @@
 #include <boost/thread.hpp>
 #include <boost/thread/locks.hpp>
 #include <map>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -212,7 +220,7 @@ private:
                 if (not _process_next_buffer()) {
                     //Be a good citizen and yield if no packet is processed
                     static const size_t MIN_DUR = 1;
-                    std::this_thread::sleep_for(std::chrono::nanoseconds(MIN_DUR));
+                    boost::this_thread::sleep_for(boost::chrono::nanoseconds(MIN_DUR));
                     //We call sleep(MIN_DUR) above instead of yield() to ensure that we
                     //relinquish the current scheduler time slot.
                     //yield() is a hint to the scheduler to end the time

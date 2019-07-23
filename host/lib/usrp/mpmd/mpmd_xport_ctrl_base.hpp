@@ -20,7 +20,6 @@ class mpmd_xport_ctrl_base
 {
 public:
     using uptr = std::unique_ptr<mpmd_xport_ctrl_base>;
-    virtual ~mpmd_xport_ctrl_base() {}
 
     /*! This is the final step of a make_transport() sequence
      *

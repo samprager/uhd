@@ -1,12 +1,22 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
-#include <uhdlib/usrp/common/async_packet_handler.hpp>
+#include "validate_subdev_spec.hpp"
+#include "async_packet_handler.hpp"
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 #include "usrp2_impl.hpp"
@@ -26,8 +36,6 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
 #include <iostream>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -386,7 +394,7 @@ void usrp2_impl::program_stream_dest(
             std::memcpy(send_buff->cast<void *>(), &stream_ctrl, sizeof(stream_ctrl));
             send_buff->commit(sizeof(stream_ctrl));
             send_buff.reset();
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(300));
             managed_recv_buffer::sptr recv_buff = xport->get_recv_buff(0.0);
             if (recv_buff and recv_buff->size() >= sizeof(uint32_t)){
                 const uint32_t result = uhd::ntohx(recv_buff->cast<const uint32_t *>()[0]);

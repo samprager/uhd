@@ -1,7 +1,18 @@
 //
-// Copyright 2010-2011,2017 Ettus Research, A National Instruments Company
+// Copyright 2010-2011 Ettus Research LLC
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "dboard_ctor_args.hpp"
@@ -33,19 +44,11 @@ dboard_iface::sptr dboard_base::get_iface(void){
 }
 
 dboard_id_t dboard_base::get_rx_id(void){
-    return _impl->args.rx_eeprom.id;
+    return _impl->args.rx_id;
 }
 
 dboard_id_t dboard_base::get_tx_id(void){
-    return _impl->args.tx_eeprom.id;
-}
-
-dboard_eeprom_t dboard_base::get_rx_eeprom(void){
-    return _impl->args.rx_eeprom;
-}
-
-dboard_eeprom_t dboard_base::get_tx_eeprom(void){
-    return _impl->args.tx_eeprom;
+    return _impl->args.tx_id;
 }
 
 property_tree::sptr dboard_base::get_rx_subtree(void){

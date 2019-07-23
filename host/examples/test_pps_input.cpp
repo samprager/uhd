@@ -1,8 +1,18 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include <uhd/utils/thread.hpp>
@@ -10,10 +20,9 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
+#include <boost/thread.hpp>
 #include <iostream>
 #include <complex>
-#include <chrono>
-#include <thread>
 
 namespace po = boost::program_options;
 
@@ -53,7 +62,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //sleep off if gpsdo detected and time next pps already set
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
 
     //set time source if specified
     if (not time_source.empty()) usrp->set_time_source(time_source);

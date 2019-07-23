@@ -1,8 +1,18 @@
 //
 // Copyright 2010-2012,2014 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "usrp1_impl.hpp"
@@ -15,6 +25,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/paths.hpp>
 #include <boost/format.hpp>
+#include <boost/assign/list_of.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
@@ -29,10 +40,9 @@ const uint16_t USRP1_VENDOR_ID  = 0xfffe;
 const uint16_t USRP1_PRODUCT_ID = 0x0002;
 static const boost::posix_time::milliseconds REENUMERATION_TIMEOUT_MS(3000);
 
-const std::vector<usrp1_impl::dboard_slot_t> usrp1_impl::_dboard_slots{
-    usrp1_impl::DBOARD_SLOT_A,
-    usrp1_impl::DBOARD_SLOT_B
-};
+const std::vector<usrp1_impl::dboard_slot_t> usrp1_impl::_dboard_slots = boost::assign::list_of
+    (usrp1_impl::DBOARD_SLOT_A)(usrp1_impl::DBOARD_SLOT_B)
+;
 
 /***********************************************************************
  * Discovery
@@ -101,8 +111,7 @@ static device_addrs_t usrp1_find(const device_addr_t &hint)
             catch(const uhd::exception &){continue;} //ignore claimed
 
             fx2_ctrl::sptr fx2_ctrl = fx2_ctrl::make(control);
-            const mboard_eeprom_t mb_eeprom =
-                usrp1_impl::get_mb_eeprom(fx2_ctrl);
+            const mboard_eeprom_t mb_eeprom(*fx2_ctrl, USRP1_EEPROM_MAP_KEY);
             device_addr_t new_addr;
             new_addr["type"] = "usrp1";
             new_addr["name"] = mb_eeprom["name"];
@@ -209,8 +218,7 @@ usrp1_impl::usrp1_impl(const device_addr_t &device_addr){
     ////////////////////////////////////////////////////////////////////
     // setup the mboard eeprom
     ////////////////////////////////////////////////////////////////////
-    //const mboard_eeprom_t mb_eeprom(*_fx2_ctrl, USRP1_EEPROM_MAP_KEY);
-    const mboard_eeprom_t mb_eeprom = this->get_mb_eeprom(_fx2_ctrl);
+    const mboard_eeprom_t mb_eeprom(*_fx2_ctrl, USRP1_EEPROM_MAP_KEY);
     _tree->create<mboard_eeprom_t>(mb_path / "eeprom")
         .set(mb_eeprom)
         .add_coerced_subscriber(boost::bind(&usrp1_impl::set_mb_eeprom, this, _1));
@@ -444,6 +452,10 @@ bool usrp1_impl::has_tx_halfband(void){
 /***********************************************************************
  * Properties callback methods below
  **********************************************************************/
+void usrp1_impl::set_mb_eeprom(const uhd::usrp::mboard_eeprom_t &mb_eeprom){
+    mb_eeprom.commit(*_fx2_ctrl, USRP1_EEPROM_MAP_KEY);
+}
+
 void usrp1_impl::set_db_eeprom(const std::string &db, const std::string &type, const uhd::usrp::dboard_eeprom_t &db_eeprom){
     if (type == "rx") db_eeprom.store(*_fx2_ctrl, (db == "A")? (I2C_ADDR_RX_A) : (I2C_ADDR_RX_B));
     if (type == "tx") db_eeprom.store(*_fx2_ctrl, (db == "A")? (I2C_ADDR_TX_A) : (I2C_ADDR_TX_B));

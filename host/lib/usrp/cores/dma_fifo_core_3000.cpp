@@ -1,17 +1,25 @@
 //
 // Copyright 2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "dma_fifo_core_3000.hpp"
 #include <uhd/exception.hpp>
+#include <boost/thread/thread.hpp> //sleep
 #include <uhd/utils/soft_register.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhdlib/usrp/cores/dma_fifo_core_3000.hpp>
-#include <boost/format.hpp>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 
@@ -32,7 +40,6 @@ protected:
         static const uint32_t RB_BIST_STATUS     = 1;
         static const uint32_t RB_BIST_XFER_CNT   = 2;
         static const uint32_t RB_BIST_CYC_CNT    = 3;
-        static const uint32_t RB_BUS_CLK_RATE    = 4;
 
         rb_addr_reg_t(uint32_t base):
             soft_reg32_wo_t(base + 0)
@@ -207,14 +214,6 @@ public:
             return (static_cast<double>(xfer_cnt)/cyc_cnt);
         }
 
-        double get_bus_clk_rate() {
-            uint32_t bus_clk_rate = 0;
-            boost::lock_guard<boost::mutex> lock(_mutex);
-            _addr_reg.write(rb_addr_reg_t::ADDR, rb_addr_reg_t::RB_BUS_CLK_RATE);
-            bus_clk_rate = _iface->peek32(_rb_addr);
-            return (static_cast<double>(bus_clk_rate));
-        }
-
     private:
         wb_iface::sptr  _iface;
         rb_addr_reg_t   _addr_reg;
@@ -316,7 +315,7 @@ public:
         _bist_ctrl_reg.write(bist_ctrl_reg_t::GO, 1);
 
         if (!finite) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(timeout_ms));
         }
 
         _wait_for_bist_done(timeout_ms, !finite);
@@ -327,12 +326,11 @@ public:
         return _fifo_readback.get_bist_status().error;
     }
 
-    virtual double get_bist_throughput() {
+    virtual double get_bist_throughput(double fifo_clock_rate) {
         if (_has_ext_bist) {
             _wait_for_bist_done(1000);
             static const double BYTES_PER_CYC = 8;
-            double bus_clk_rate = _fifo_readback.get_bus_clk_rate();
-            return _fifo_readback.get_xfer_ratio() * bus_clk_rate * BYTES_PER_CYC;
+            return _fifo_readback.get_xfer_ratio() * fifo_clock_rate * BYTES_PER_CYC;
         } else {
             throw uhd::not_implemented_error(
                 "dma_fifo_core_3000: Throughput counter only available on FPGA images with extended BIST enabled");
@@ -346,7 +344,7 @@ private:
         boost::posix_time::time_duration elapsed;
 
         while (_fifo_readback.is_fifo_busy()) {
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            boost::this_thread::sleep(boost::posix_time::microsec(1000));
             elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
             if (elapsed.total_milliseconds() > 100) break;
         }
@@ -362,7 +360,7 @@ private:
                 _bist_ctrl_reg.write(bist_ctrl_reg_t::GO, 0);
                 force_stop = false;
             }
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            boost::this_thread::sleep(boost::posix_time::microsec(1000));
             elapsed = boost::posix_time::microsec_clock::local_time() - start_time;
             if (elapsed.total_milliseconds() > timeout_ms) break;
         }

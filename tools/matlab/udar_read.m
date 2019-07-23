@@ -68,7 +68,7 @@ for i=1:numel(trials)
 %             trials(i).(key) = s{2}{j};
 %         end
 %     end
-
+    
     
     indC = strfind(s{1},'AWG Waveform Len');
     ind = find(not(cellfun('isempty', indC)));
@@ -146,26 +146,6 @@ for i=1:numel(trials)
     end
     
     indC = strfind(s{1},'Timestamp');
-    ind = find(not(cellfun('isempty', indC)));
-    if (ind>0)
-        armtime = s{2}{ind(1)};
-        trials(i).armtime = armtime;
-        if (numel(ind)>1)
-            if(contains(s{2}{ind(2)},'Filename'))
-                vitatimes = zeros(numel(s{1})-ind(2),1);
-                pulsenames = {};
-
-                for ii=(ind(2)+1):numel(s{1})
-                    vitatimes(ii-ind(2))=str2double(s{1}{ii});
-                    pulsenames = {pulsenames{:},s{2}{ii}};
-                end
-                trials(i).vitatimes=vitatimes;
-                trials(i).pulsenames=pulsenames;
-            end
-        end
-    end
-    
-    indC = strfind(s{1},'Vita Timestamps');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
         armtime = s{2}{ind(1)};

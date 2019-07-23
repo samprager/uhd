@@ -1,13 +1,25 @@
 //
-// Copyright 2014-2018 Ettus Research, a National Instruments Company
+// Copyright 2014-2015 Ettus Research LLC
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <boost/format.hpp>
+#include <boost/bind.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/rfnoc/null_block_ctrl.hpp>
-#include <boost/format.hpp>
 
 using namespace uhd::rfnoc;
 
@@ -18,16 +30,12 @@ public:
     {
         // Register hooks for line_rate:
         _tree->access<int>(_root_path / "args" / 0 /  "line_rate" / "value")
-            .add_coerced_subscriber([this](const int delay){
-                this->set_line_delay_cycles(delay);
-            })
+            .add_coerced_subscriber(boost::bind(&null_block_ctrl_impl::set_line_delay_cycles, this, _1))
             .update()
         ;
         // Register hooks for bpp:
         _tree->access<int>(_root_path / "args" / 0 /  "bpp" / "value")
-            .add_coerced_subscriber([this](const int bpp){
-                this->set_bytes_per_packet(bpp);
-            })
+            .add_coerced_subscriber(boost::bind(&null_block_ctrl_impl::set_bytes_per_packet, this, _1))
             .update()
         ;
     }
@@ -47,10 +55,8 @@ public:
         int cycs_between_lines = clock_rate / rate - 1;
         if (cycs_between_lines > 0xFFFF) {
             cycs_between_lines = 0xFFFF;
-            UHD_LOGGER_WARNING(unique_id())
-                << str(boost::format("Requested rate %f is larger than possible "
-                                     "with the current clock rate (%.2f MHz).")
-                       % rate % (clock_rate / 1e6))
+            UHD_LOGGER_WARNING("RFNOC")
+                << str(boost::format("null_block_ctrl: Requested rate %f is larger than possible with the current clock rate (%.2f MHz).") % rate % (clock_rate / 1e6))
                 << std::endl;
         }
         cycs_between_lines = std::max(0, cycs_between_lines);

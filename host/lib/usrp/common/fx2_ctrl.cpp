@@ -1,23 +1,32 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <uhdlib/usrp/common/fx2_ctrl.hpp>
+#include "fx2_ctrl.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/transport/usb_control.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/thread/thread.hpp>
 #include <stdint.h>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <cstring>
-#include <chrono>
-#include <thread>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -138,7 +147,7 @@ public:
         usrp_control_write(FX2_FIRMWARE_LOAD, 0xe600, 0, &reset_y, 1);
         usrp_control_write(FX2_FIRMWARE_LOAD, 0xe600, 0, &reset_n, 1);
         //wait for things to settle
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
     }
 
     void usrp_load_firmware(std::string filestring, bool force)
@@ -195,7 +204,7 @@ public:
                 file.close();
 
                 //wait for things to settle
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
                 if (load_img_msg) UHD_LOGGER_INFO("FX2") << "Firmware loaded";
                 return;
             }
@@ -303,7 +312,7 @@ public:
             }
             addr += pagesize;
             len -= pagesize;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(100));
         }
         file.close();
         if (load_img_msg) UHD_LOGGER_INFO("FX2") << "EEPROM image loaded";

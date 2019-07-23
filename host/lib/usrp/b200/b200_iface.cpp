@@ -1,29 +1,38 @@
 //
 // Copyright 2012-2013 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "b200_iface.hpp"
 
+#include "../../utils/ihex.hpp"
 #include <uhd/config.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
-#include <uhdlib/utils/ihex.hpp>
-
 #include <boost/functional/hash.hpp>
+#include <boost/thread/thread.hpp>
+#include <stdint.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/format.hpp>
-#include <libusb.h>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <cstring>
 #include <iomanip>
-#include <chrono>
-#include <thread>
-#include <stdint.h>
+#include <libusb.h>
 
 //! libusb_error_name is only in newer API
 #ifndef HAVE_LIBUSB_ERROR_NAME
@@ -226,7 +235,7 @@ public:
         /* Success! Let the system settle. */
         // TODO: Replace this with a polling loop in the FX3, or find out
         // what the actual, correct timeout value is.
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     }
 
     void reset_fx3(void) {
@@ -432,7 +441,7 @@ public:
                 return fx3_state;
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
             wait_count++;
         } while(fx3_state != FX3_STATE_FPGA_READY);
@@ -457,7 +466,7 @@ public:
                 return fx3_state;
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
             wait_count++;
         } while(fx3_state != FX3_STATE_CONFIGURING_FPGA);
@@ -506,7 +515,7 @@ public:
                 return fx3_state;
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 
             wait_count++;
         } while(fx3_state != FX3_STATE_RUNNING);

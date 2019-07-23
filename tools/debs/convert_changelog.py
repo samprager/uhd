@@ -77,7 +77,13 @@ if __name__ == "__main__":
     lines_in = f.readlines()
     f.close()
 
-    lines_out = []
+    # Output file
+    if os.path.exists(os.path.normpath(options.output_file)):
+        g = open(options.output_file, "r")
+        lines_out = g.readlines()
+        g.close()
+    else:
+        lines_out = []
 
     g = open(options.output_file, "w")
 
@@ -107,9 +113,6 @@ if __name__ == "__main__":
         else:
             # Actual changes
             new_lines_out += ["  " + line]
-    # Final footer
-    new_lines_out += ["\n"]
-    new_lines_out += [get_footer(options.uploader_name, options.uploader_email)]
 
     new_lines_out += lines_out
     for line in new_lines_out:

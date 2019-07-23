@@ -1,8 +1,18 @@
 //
 // Copyright 2010-2012,2014-2015 Ettus Research LLC
-// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0-or-later
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "wavetable.hpp"
@@ -96,7 +106,7 @@ template<typename samp_type> void recv_to_file(
     const std::string &file,
     size_t samps_per_buff,
     int num_requested_samples,
-    double settling_time,
+    float settling_time,
     std::vector<size_t> rx_channel_nums
 ){
     int num_total_samps = 0;
@@ -126,7 +136,7 @@ template<typename samp_type> void recv_to_file(
     UHD_ASSERT_THROW(outfiles.size() == buffs.size());
     UHD_ASSERT_THROW(buffs.size() == rx_channel_nums.size());
     bool overflow_message = true;
-    double timeout = settling_time + 0.1f; //expected settling time + padding for first recv
+    float timeout = settling_time + 0.1f; //expected settling time + padding for first recv
 
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
@@ -198,7 +208,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string rx_args, file, type, rx_ant, rx_subdev, rx_channels;
     size_t total_num_samps, spb;
     double rx_rate, rx_freq, rx_gain, rx_bw;
-    double settling;
+    float settling;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -209,7 +219,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type in file: double, float, or short")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
-        ("settling", po::value<double>(&settling)->default_value(double(0.2)), "settling time (seconds) before receiving")
+        ("settling", po::value<float>(&settling)->default_value(float(0.2)), "settling time (seconds) before receiving")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
         ("tx-rate", po::value<double>(&tx_rate), "rate of transmit outgoing samples")
         ("rx-rate", po::value<double>(&rx_rate), "rate of receive incoming samples")
@@ -251,10 +261,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
     uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
 
-    //always select the subdevice first, the channel mapping affects the other settings
-    if (vm.count("tx-subdev")) tx_usrp->set_tx_subdev_spec(tx_subdev);
-    if (vm.count("rx-subdev")) rx_usrp->set_rx_subdev_spec(rx_subdev);
-
     //detect which channels to use
     std::vector<std::string> tx_channel_strings;
     std::vector<size_t> tx_channel_nums;
@@ -280,6 +286,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     tx_usrp->set_clock_source(ref);
     rx_usrp->set_clock_source(ref);
+
+    //always select the subdevice first, the channel mapping affects the other settings
+    if (vm.count("tx-subdev")) tx_usrp->set_tx_subdev_spec(tx_subdev);
+    if (vm.count("rx-subdev")) rx_usrp->set_rx_subdev_spec(rx_subdev);
 
     std::cout << boost::format("Using TX Device: %s") % tx_usrp->get_pp_string() << std::endl;
     std::cout << boost::format("Using RX Device: %s") % rx_usrp->get_pp_string() << std::endl;
@@ -405,7 +415,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     md.start_of_burst = true;
     md.end_of_burst   = false;
     md.has_time_spec  = true;
-    md.time_spec = uhd::time_spec_t(0.5); //give us 0.5 seconds to fill the tx buffers
+    md.time_spec = uhd::time_spec_t(0.1); //give us 0.1 seconds to fill the tx buffers
 
     //Check Ref and LO Lock detect
     std::vector<std::string> tx_sensor_names, rx_sensor_names;
