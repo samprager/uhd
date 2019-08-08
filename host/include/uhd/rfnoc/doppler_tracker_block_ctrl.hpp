@@ -45,11 +45,14 @@ public:
     virtual void set_zc_offset(int16_t i_val,int16_t q_val) = 0;
     virtual void set_zc_offset(int32_t val) = 0;
     virtual void run_calibration(uint32_t len) = 0;
+    virtual void autocal_enable(bool val) = 0;
     virtual void set_zcsum_len(uint32_t val) = 0;
     virtual void set_rate(double rate) = 0;
     virtual void set_tick_rate(double rate) = 0;
     virtual void set_zc_ref_rate(double rate) = 0;
+    virtual void set_ppx(double ppx, double duty = 25) = 0;
 
+    virtual uint32_t get_ppx() = 0;
     virtual uint64_t get_mavg_len() = 0;
     virtual uint64_t get_mavg_div() = 0;
     virtual uint64_t get_cycles_per_sec() = 0;

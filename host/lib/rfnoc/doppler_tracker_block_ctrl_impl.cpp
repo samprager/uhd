@@ -46,6 +46,9 @@ public:
     static const boost::uint32_t SR_CALIBRATE = 196;
     static const boost::uint32_t SR_ZC_SUM_LEN = 197;
     static const boost::uint32_t SR_ZC_REF_RATE = 198;
+    static const boost::uint32_t SR_CAL_MODE = 199;
+    static const boost::uint32_t SR_PPX_RATE = 200;
+    static const boost::uint32_t SR_PPX_DUTY = 201;
 
 
     /* Timekeeper readback registers */
@@ -104,6 +107,11 @@ public:
     {
       sr_write(SR_CALIBRATE, len);
     }
+    void autocal_enable(bool val)
+    {
+      sr_write(SR_CAL_MODE, uint32_t(val));
+    }
+
     void set_zcsum_len(uint32_t val)
     {
       if (val > 255) {
@@ -132,6 +140,19 @@ public:
         std::cerr<<"dopplertracker_block::set_zc_ref_rate() rate read from block: "<<_zc_ref_rate<<" does not equal requested rate: "<<rate<<std::endl;
     }
 
+    void set_ppx(double ppx, double duty){
+      uint32_t xcount = uint32_t(get_rate()/ppx);
+      uint32_t xduty_log2 = uint32_t(std::log2(100/duty));
+      sr_write(SR_PPX_DUTY, xduty_log2);
+      sr_write(SR_PPX_RATE, xcount);
+      _pps = uint32_t(get_rate())/xcount;
+
+    }
+
+    uint32_t get_ppx()
+    {
+      return _pps;
+    }
     uint64_t get_mavg_len()
     {
       uint64_t val = boost::uint64_t(user_reg_read64(RB_SUM_LEN));
@@ -224,6 +245,7 @@ private:
     double _tick_rate;
     uint32_t _zc_ref_rate;
     int _spp;
+    uint32_t _ppx;
 };
 
 UHD_RFNOC_BLOCK_REGISTER(doppler_tracker_block_ctrl,"DopplerTracker");
