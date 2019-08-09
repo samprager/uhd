@@ -50,6 +50,9 @@ elseif(numel(trials)<2)
     dfc = Bs;
     BWtotal = Bs;
     upfac = 1;
+    if (nargout>5)
+        varargout{1} = [trials.freq];
+    end
     return;
 end
 
@@ -109,8 +112,10 @@ end
 bweff = bweffavg;
 dfc = (Bs/1.0)*(bweff);
 
-BWspread = (trials(end).freq- trials(1).freq)+Bs;
-BWtotal = (numel(trials)-1)*dfc+Bs;
+% BWspread = (trials(end).freq- trials(1).freq)+Bs;
+BWspread = (trials(end).freq- trials(1).freq)+Bs*.98;
+% BWtotal = (numel(trials)-1)*dfc+Bs;
+BWtotal = (numel(trials)-1)*dfc+Bs*.98;
 BWtotal = min([BWtotal,BWspread]);
 
 if (nargout>5)
