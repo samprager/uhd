@@ -585,7 +585,6 @@ e300_impl::e300_impl(const uhd::device_addr_t &device_addr)
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").set(tx_spec);
 
     // Added by SP to expose low level registers and stuff in the dev tree.
-    const fs_path rf_fe_codec_path = fs_path("codecs") / chan;
     _tree->create<uhd::usrp::ad9361_ctrl::sptr>(mb_path / "codecs" / "codec_ctrl").set(codec_ctrl);
     _tree->create<uhd::spi_iface::sptr>(mb_path / "codecs" / "timed_spi").set(codec_ctrl->get_timed_spi());
     _tree->create<uhd::spi_iface::sptr>(mb_path / "codecs" / "safe_spi").set(codec_ctrl->get_safe_spi());
