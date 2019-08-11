@@ -63,6 +63,10 @@ public:
     size_t get_chan_from_dboard_fe(const std::string &fe, const direction_t);
     std::string get_dboard_fe_from_chan(const size_t chan, const direction_t);
 
+    // uhd::usrp::ad9361_ctrl::sptr get_codec_ctrl() { return _codec_ctrl};
+    // uhd::usrp::ad936x_manager::sptr get_codec_mgr() { return _codec_mgr};
+    // spi_core_3000::sptr get_spi() { return _spi};
+
     /************************************************************************
      * RFIC setup and control
      ***********************************************************************/
