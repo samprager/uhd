@@ -512,3 +512,12 @@ boost::uint32_t radio_ctrl_impl::my_get_fp_gpio_readback(const size_t chan)
     boost::uint32_t result = user_reg_read32(regs::RB_FP_GPIO, chan);
     return result;
 }
+
+uhd::spi_iface::sptr get_codec_timed_spi()
+{
+    return {};
+}
+uhd::spi_iface::sptr get_codec_safe_spi()
+{
+    return {};
+}

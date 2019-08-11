@@ -24,6 +24,7 @@
 #include "spi_core_3000.hpp"
 #include "e300_global_regs.hpp"
 #include <uhd/usrp/gpio_defs.hpp>
+#include <uhd/types/serial.hpp>
 
 namespace uhd {
     namespace rfnoc {
@@ -73,6 +74,15 @@ public:
     /*! Set up the radio. No API calls may be made before this one.
      */
     void setup_radio(uhd::usrp::ad9361_ctrl::sptr safe_codec_ctrl);
+
+    uhd::spi_iface::sptr get_codec_timed_spi()
+    {
+        return _codec_ctrl->get_timed_spi();
+    }
+    uhd::spi_iface::sptr get_codec_safe_spi()
+    {
+        return _codec_ctrl->get_safe_spi();
+    }
 
 private:
     void _setup_radio_channel(const size_t chan);

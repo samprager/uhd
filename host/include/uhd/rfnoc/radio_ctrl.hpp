@@ -20,6 +20,7 @@
 
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/direction.hpp>
+#include <uhd/types/serial.hpp>
 #include <uhd/rfnoc/source_block_ctrl_base.hpp>
 #include <uhd/rfnoc/sink_block_ctrl_base.hpp>
 #include <uhd/rfnoc/rate_node_ctrl.hpp>
@@ -342,7 +343,7 @@ public:
      */
     virtual double get_rx_lo_freq(const std::string &name, const size_t chan) = 0;
 
-    /*! 
+    /*!
      * Set the time source for this radio.
      *
      * May affect other radio blocks.
@@ -411,6 +412,10 @@ public:
     virtual void my_set_fp_gpio_reg_ddr(boost::uint32_t value, const size_t chan) = 0;
     virtual void my_set_fp_gpio_reg_atr_disable(boost::uint32_t value, const size_t chan) = 0;
     virtual boost::uint32_t my_get_fp_gpio_readback(const size_t chan) = 0;
+
+    // Custom functions to get underlying codec io objects (only for e312)
+    virtual uhd::spi_iface::sptr get_codec_timed_spi() = 0;
+    virtual uhd::spi_iface::sptr get_codec_safe_spi() = 0;
 
 }; /* class radio_ctrl */
 

@@ -109,6 +109,15 @@ public:
         _safe_spi = boost::make_shared<ad9361_io_spi>(spi_iface, slave_num);
     }
 
+    uhd::spi_iface::sptr get_timed_spi()
+    {
+        return _timed_spi;
+    }
+    uhd::spi_iface::sptr get_safe_spi()
+    {
+        return _safe_spi;
+    }
+
     double set_gain(const std::string &which, const double value)
     {
         boost::lock_guard<boost::mutex> lock(_mutex);
