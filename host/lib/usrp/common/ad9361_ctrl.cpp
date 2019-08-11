@@ -72,6 +72,11 @@ public:
         _spi_iface->write_spi(_slave_num, config, wr_word, AD9361_SPI_NUM_BITS);
     }
 
+    virtual uhd::spi_iface::sptr get_spi_iface()
+    {
+      return _spi_iface;
+    }
+
 private:
     uhd::spi_iface::sptr    _spi_iface;
     uint32_t         _slave_num;
@@ -111,11 +116,11 @@ public:
 
     uhd::spi_iface::sptr get_timed_spi()
     {
-        return _timed_spi;
+        return _timed_spi->get_spi_iface();
     }
     uhd::spi_iface::sptr get_safe_spi()
     {
-        return _safe_spi;
+        return _safe_spi->get_spi_iface();
     }
 
     double set_gain(const std::string &which, const double value)

@@ -54,6 +54,9 @@ public:
     virtual void set_timed_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num) = 0;
     virtual void set_safe_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num) = 0;
 
+    virtual uhd::spi_iface::sptr get_timed_spi() = 0;
+    virtual uhd::spi_iface::sptr get_safe_spi() = 0;
+
     //! Get a list of gain names for RX or TX
     static std::vector<std::string> get_gain_names(const std::string &/*which*/)
     {
