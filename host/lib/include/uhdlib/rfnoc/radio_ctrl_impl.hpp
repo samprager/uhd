@@ -137,6 +137,9 @@ public:
     virtual void my_set_fp_gpio_reg_atr_disable(boost::uint32_t value, const size_t chan);
     virtual boost::uint32_t my_get_fp_gpio_readback(const size_t chan);
 
+    // Custom functions to get underlying codec io objects (only for e312)
+    virtual uhd::spi_iface::sptr get_codec_timed_spi();
+    virtual uhd::spi_iface::sptr get_codec_safe_spi();
 
 protected: // TODO see what's protected and what's private
     void _register_loopback_self_test(size_t chan);
