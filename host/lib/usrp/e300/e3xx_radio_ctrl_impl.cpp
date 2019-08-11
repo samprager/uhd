@@ -366,7 +366,7 @@ void e3xx_radio_ctrl_impl::_setup_radio_channel(const size_t chan)
         = fs_path("dboards") / "A" / "codec";
     _tree->create<uhd::usrp::ad9361_ctrl::sptr>(rf_fe_codec_path / "codec_ctrl").set(_codec_ctrl);
     _tree->create<uhd::usrp::ad936x_manager::sptr>(rf_fe_codec_path / "codec_mgr").set(_codec_mgr);
-    _tree->create<uhd:spi_iface::sptr>(rf_fe_codec_path / "spi").set(_spi);
+    _tree->create<uhd::spi_iface::sptr>(rf_fe_codec_path / "spi").set(_spi);
 
     // For reference: this is how _codec_ctrl sets _timed_spi as the devices io_iface (with peek/poke) in void set_timed_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num):
       // _timed_spi = boost::make_shared<ad9361_io_spi>(_spi, 1);
