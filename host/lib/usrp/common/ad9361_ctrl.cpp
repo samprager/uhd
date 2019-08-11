@@ -116,11 +116,11 @@ public:
 
     uhd::spi_iface::sptr get_timed_spi()
     {
-        return _timed_spi->get_spi_iface();
+        return (boost::static_pointer_cast<ad9361_io_spi>(_timed_spi))->get_spi_iface();
     }
     uhd::spi_iface::sptr get_safe_spi()
     {
-        return _safe_spi->get_spi_iface();
+        return (boost::static_pointer_cast<ad9361_io_spi>(_safe_spi))->get_spi_iface();
     }
 
     double set_gain(const std::string &which, const double value)
