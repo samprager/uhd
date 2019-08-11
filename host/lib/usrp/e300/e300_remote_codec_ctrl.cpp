@@ -38,8 +38,12 @@ public:
 
     void set_timed_spi(uhd::spi_iface::sptr, uint32_t ) {};
     void set_safe_spi(uhd::spi_iface::sptr, uint32_t ) {};
-    uhd::spi_iface::sptr get_timed_spi() {return {}};
-    uhd::spi_iface::sptr get_safe_spi() {return {}};
+    uhd::spi_iface::sptr get_timed_spi() {
+      return {};
+    }
+    uhd::spi_iface::sptr get_safe_spi() {
+      return {};
+    }
 
 
     double set_gain(const std::string &which, const double value)
