@@ -776,8 +776,9 @@ void ad9361_device_t::_calibrate_rf_dc_offset()
             break;
         }
         count++;
-        boost::this_thread::sleep(boost::posix_time::milliseconds(50));
-    }
+        // boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+}
 
     _io_iface->poke8(0x18b, 0x8d); // Enable RF DC tracking
 }
