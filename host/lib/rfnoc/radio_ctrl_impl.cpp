@@ -513,11 +513,11 @@ boost::uint32_t radio_ctrl_impl::my_get_fp_gpio_readback(const size_t chan)
     return result;
 }
 
-uhd::spi_iface::sptr get_codec_timed_spi()
+uhd::spi_iface::sptr radio_ctrl_impl::get_codec_timed_spi()
 {
     return {};
 }
-uhd::spi_iface::sptr get_codec_safe_spi()
+uhd::spi_iface::sptr radio_ctrl_impl::get_codec_safe_spi()
 {
     return {};
 }
