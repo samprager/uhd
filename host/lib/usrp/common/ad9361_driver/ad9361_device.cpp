@@ -896,7 +896,8 @@ void ad9361_device_t::_tx_quadrature_cal_routine() {
             break;
         }
         count++;
-        boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+        // boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(2));
     }
 }
 
