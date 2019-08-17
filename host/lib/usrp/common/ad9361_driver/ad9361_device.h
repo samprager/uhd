@@ -140,6 +140,8 @@ public:
      */
     double get_average_temperature(const double cal_offset = -30.0, const size_t num_samples = 3);
 
+    /* Added by SP. This will completely turn off all tuning calibration */
+    void set_cal_on(const bool on);
     /* Turn on/off AD9361's RX DC offset correction */
     void set_dc_offset_auto(direction_t direction, const bool on);
 
@@ -281,6 +283,7 @@ private:    //Members
     boost::recursive_mutex  _mutex;
     bool _use_dc_offset_tracking;
     bool _use_iq_balance_tracking;
+    bool _cal_is_on;
 };
 
 }}  //namespace

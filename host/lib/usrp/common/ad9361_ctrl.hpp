@@ -132,6 +132,9 @@ public:
         throw uhd::runtime_error("ad9361_ctrl::set_dc_offset this feature is not supported on this device.");
     }
 
+    //! Added by SP. This will completely turn off all tuning calibration
+    virtual void set_cal_on(const bool on) = 0;
+
     //! enable or disable the BB/RF DC tracking feature
     virtual void set_dc_offset_auto(const std::string &which, const bool on) = 0;
 

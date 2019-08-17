@@ -69,6 +69,7 @@ class ad936x_manager_impl : public ad936x_manager
             _codec_ctrl->set_gain(rx_fe, DEFAULT_GAIN);
             _codec_ctrl->set_bw_filter(rx_fe, DEFAULT_BANDWIDTH);
             _codec_ctrl->tune(rx_fe, DEFAULT_FREQ);
+            _codec_ctrl->set_cal_on(true);
             _codec_ctrl->set_dc_offset_auto(rx_fe, DEFAULT_AUTO_DC_OFFSET);
             _codec_ctrl->set_iq_balance_auto(rx_fe, DEFAULT_AUTO_IQ_BALANCE);
             _codec_ctrl->set_agc(rx_fe, DEFAULT_AGC_ENABLE);
@@ -253,6 +254,10 @@ class ad936x_manager_impl : public ad936x_manager
         // Frontend corrections
         if(dir == RX_DIRECTION)
         {
+            subtree->create<bool>("cal_on/enable" )
+                .set(true)
+                .add_coerced_subscriber(boost::bind(&ad9361_ctrl::set_cal_on, _codec_ctrl, _1))
+            ;
             subtree->create<bool>("dc_offset/enable" )
                 .set(ad936x_manager::DEFAULT_AUTO_DC_OFFSET)
                 .add_coerced_subscriber(boost::bind(&ad9361_ctrl::set_dc_offset_auto, _codec_ctrl, key, _1))
@@ -305,4 +310,3 @@ ad936x_manager::sptr ad936x_manager::make(
         new ad936x_manager_impl(codec_ctrl, n_frontends)
     );
 }
-

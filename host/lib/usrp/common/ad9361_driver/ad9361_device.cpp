@@ -1550,6 +1550,7 @@ void ad9361_device_t::initialize()
     _rx2_gain = 0;
     _tx1_gain = 0;
     _tx2_gain = 0;
+    _cal_is_on = true;
     _use_dc_offset_tracking = true;
     _use_iq_balance_tracking = true;
     _rx1_agc_mode = GAIN_MODE_SLOW_AGC;
@@ -2055,24 +2056,26 @@ double ad9361_device_t::tune(direction_t direction, const double value)
      * from the previous Tx or Rx calibration point. Leave out single shot
      * Rx quadrature unless Rx quad-cal is disabled.
      */
-    if (std::abs(last_cal_freq - tune_freq) > AD9361_CAL_VALID_WINDOW) {
-        /* Run the calibration algorithms. */
-        if (direction == RX) {
-            _calibrate_rf_dc_offset();
-            if (!_use_iq_balance_tracking)
-                _calibrate_rx_quadrature();
-            if (_use_dc_offset_tracking)
-                _configure_bb_dc_tracking();
+    if (_cal_is_on){
+      if (std::abs(last_cal_freq - tune_freq) > AD9361_CAL_VALID_WINDOW) {
+          /* Run the calibration algorithms. */
+          if (direction == RX) {
+              _calibrate_rf_dc_offset();
+              if (!_use_iq_balance_tracking)
+                  _calibrate_rx_quadrature();
+              if (_use_dc_offset_tracking)
+                  _configure_bb_dc_tracking();
 
-            _last_rx_cal_freq = tune_freq;
-        } else {
-            _calibrate_tx_quadrature();
-            _last_tx_cal_freq = tune_freq;
-        }
+              _last_rx_cal_freq = tune_freq;
+          } else {
+              _calibrate_tx_quadrature();
+              _last_tx_cal_freq = tune_freq;
+          }
 
-        /* Rx IQ tracking can be disabled on Rx or Tx re-calibration */
-        if (_use_iq_balance_tracking)
-            _configure_rx_iq_tracking();
+          /* Rx IQ tracking can be disabled on Rx or Tx re-calibration */
+          if (_use_iq_balance_tracking)
+              _configure_rx_iq_tracking();
+      }
     }
 
     /* If we were in the FDD state, return it now. */
@@ -2238,6 +2241,13 @@ double ad9361_device_t::get_average_temperature(const double cal_offset, const s
     return d_temp;
 }
 
+/*
+Added by SP. This completely turns on/off all calibrations when tuning
+*/
+void ad9361_device_t::set_cal_on(const bool on)
+{
+    _cal_is_on = on;
+}
 /*
  * Enable/Disable DC offset tracking
  *
