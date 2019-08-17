@@ -251,6 +251,9 @@ static void e300_codec_ctrl_tunnel(
             case codec_xact_t::ACTION_SET_BW:
                 out->bw = _codec_ctrl->set_bw_filter(which_str, in->bw);
                 break;
+            case codec_xact_t::ACTION_SET_CAL_ON:
+                _codec_ctrl->set_cal_on(in->use_cal == 1);
+                break;
             default:
                 UHD_LOGGER_INFO("E300") << "Got unknown request?!";
                 //Zero out actions to fail this request on client

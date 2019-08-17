@@ -36,6 +36,7 @@ public:
             double          rssi;
             double          temp;
             double          bw;
+            uint32_t use_cal;
             uint32_t use_dc_correction;
             uint32_t use_iq_correction;
             uint32_t use_agc;
@@ -57,6 +58,7 @@ public:
         static const uint32_t ACTION_SET_AGC_MODE        = 20;
         static const uint32_t ACTION_SET_BW              = 21;
         static const uint32_t ACTION_GET_FREQ            = 22;
+        static const uint32_t ACTION_SET_CAL_ON          = 35;
 
         //Values for "which"
         static const uint32_t CHAIN_NONE = 0;

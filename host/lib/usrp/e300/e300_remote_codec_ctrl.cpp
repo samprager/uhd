@@ -154,6 +154,16 @@ public:
         return sensor_value_t("temp", _retval.temp, "C");
     }
 
+    void set_cal_on(const bool on)
+    {
+        _clear();
+        _args.action = uhd::htonx<uint32_t>(transaction_t::ACTION_SET_CAL_ON);
+        _args.which  = uhd::htonx<uint32_t>(transaction_t::CHAIN_NONE);  /*Unused*/
+        _args.use_cal = on ? 1 : 0;
+
+        _transact();
+    }
+
     void set_dc_offset_auto(const std::string &which, const bool on)
     {
         _clear();
