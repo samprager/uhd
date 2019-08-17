@@ -239,7 +239,7 @@ public:
         return sensor_value_t("temp", _device.get_average_temperature(), "C");
     }
 
-    void void set_cal_on(const bool on)
+    void set_cal_on(const bool on)
     {
       boost::lock_guard<boost::mutex> lock(_mutex);
       _device.set_cal_on(on);
