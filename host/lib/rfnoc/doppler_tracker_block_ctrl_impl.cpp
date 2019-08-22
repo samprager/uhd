@@ -71,6 +71,8 @@ public:
         set_zc_threshold(100,100);
         set_zc_offset(0,0);
         set_rate(125.0e6); //ce_clock rate changed
+        set_ce_rate(125.0e6); // block still on radio clk
+        set_ppx(1,25); // 1pps, 25% duty cycle
         // reference rate used in ZC block for calculating doppler frequency from ZC count (1e9 Hz) by default
     }
     void set_mavg_len(uint32_t val)
@@ -140,8 +142,14 @@ public:
         std::cerr<<"dopplertracker_block::set_zc_ref_rate() rate read from block: "<<_zc_ref_rate<<" does not equal requested rate: "<<rate<<std::endl;
     }
 
+    // clk rate of the ce_clk running the bloick. used for ppx.
+    void set_ce_rate(double rate){
+      _ce_rate = rate;
+    }
+
+    // set ppx (pulses per X), where ppx is in Hz (20 -> 20 pulses per sec)
     void set_ppx(double ppx, double duty){
-      uint32_t xcount = uint32_t(get_rate()/ppx);
+      uint32_t xcount = uint32_t(get_ce_rate()/ppx);
       uint32_t xduty_log2 = uint32_t(std::log2(100/duty));
       sr_write(SR_PPX_DUTY, xduty_log2);
       sr_write(SR_PPX_RATE, xcount);
@@ -222,6 +230,9 @@ public:
       uint64_t val = boost::uint64_t(user_reg_read64(RB_ZC_REF_RATE));
       return double(val);
     }
+    double get_ce_rate(){
+      return _ce_rate;
+    }
 
     void get_zc_doppler_freq(double &fcI,double &fcQ){
       int32_t zcI,zcQ;
@@ -242,6 +253,7 @@ public:
 
 private:
     const std::string _item_type;
+    double _ce_rate;
     double _tick_rate;
     uint32_t _zc_ref_rate;
     int _spp;

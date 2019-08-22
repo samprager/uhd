@@ -50,6 +50,7 @@ public:
     virtual void set_rate(double rate) = 0;
     virtual void set_tick_rate(double rate) = 0;
     virtual void set_zc_ref_rate(double rate) = 0;
+    virtual void set_ce_rate(double rate) = 0;
     virtual void set_ppx(double ppx, double duty = 25) = 0;
 
     virtual uint32_t get_ppx() = 0;
@@ -67,6 +68,7 @@ public:
     virtual double get_rate() = 0;
     virtual double get_tick_rate() = 0;
     virtual double get_zc_ref_rate() = 0;
+    virtual double get_ce_rate() = 0;
     virtual void get_zc_doppler_freq(double &fcI,double &fcQ) = 0;
     virtual void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ) = 0;
 
