@@ -153,13 +153,13 @@ public:
       uint32_t xduty_log2 = uint32_t(std::log2(100/duty));
       sr_write(SR_PPX_DUTY, xduty_log2);
       sr_write(SR_PPX_RATE, xcount);
-      _pps = uint32_t(get_rate())/xcount;
+      _ppx = uint32_t(get_rate())/xcount;
 
     }
 
     uint32_t get_ppx()
     {
-      return _pps;
+      return _ppx;
     }
     uint64_t get_mavg_len()
     {
