@@ -49,6 +49,7 @@ public:
     static const boost::uint32_t SR_CAL_MODE = 199;
     static const boost::uint32_t SR_PPX_RATE = 200;
     static const boost::uint32_t SR_PPX_DUTY = 201;
+    static const boost::uint32_t SR_MAVG_MODE = 202;
 
 
     /* Timekeeper readback registers */
@@ -66,6 +67,7 @@ public:
     UHD_RFNOC_BLOCK_CONSTRUCTOR(doppler_tracker_block_ctrl),
         _item_type("sc16") // We only support sc16 in this block
     {
+        set_mavg_mode(0);
         set_mavg_len(1);
         set_zcsum_len(1);
         set_zc_threshold(100,100);
@@ -86,6 +88,11 @@ public:
       UHD_RFNOC_BLOCK_TRACE() << "dopplertracker_block::set_mavg_len()" << std::endl;
       sr_write(SR_SUM_LEN, val);
       sr_write(SR_DIVISOR, val);
+    }
+    void set_mavg_mode(bool val)
+    {
+      sr_write(SR_MAVG_MODE, uint32_t(val));
+      _mavg_mode = val;
     }
     void set_zc_threshold(int16_t i_val,int16_t q_val)
     {
@@ -171,6 +178,10 @@ public:
       uint64_t val = boost::uint64_t(user_reg_read64(RB_DIVISOR));
       return val;
     }
+    bool get_mavg_mode()
+    {
+      return _mavg_mode;
+    }
     uint64_t get_cycles_per_sec()
     {
       uint64_t val = boost::uint64_t(user_reg_read64(RB_CYCLES_PER_SEC));
@@ -238,8 +249,11 @@ public:
       int32_t zcI,zcQ;
       get_zc_count(zcI,zcQ);
       double zc_ref_rate = (double)_zc_ref_rate;
-      fcI = (get_rate()/zc_ref_rate)*.5*((double)zcI); //freq in hz
-      fcQ = (get_rate()/zc_ref_rate)*.5*((double)zcQ); //freq in hz
+      bool zc_mavg_mode = get_mavg_mode();
+      // fcI = (get_rate()/zc_ref_rate)*.5*((double)zcI); //freq in hz
+      // fcQ = (get_rate()/zc_ref_rate)*.5*((double)zcQ); //freq in hz
+      fcI = (zc_mavg_mode==1) ? (get_rate()/zc_ref_rate)*.5*((double)zcI) : (.5*get_rate()/((double)zcI)); //freq in hz
+      fcQ = (zc_mavg_mode==1) ? (get_rate()/zc_ref_rate)*.5*((double)zcQ) : (.5*get_rate()/((double)zcQ)); //freq in hz
       // fcI = get_rate() / (2.0 *((double) zcI + 1.0));
       // fcQ = get_rate() / (2.0 *((double) zcQ + 1.0));
     }
@@ -247,8 +261,8 @@ public:
     void get_zcps_doppler_freq(double &fcpsI,double &fcpsQ){
       int32_t zcpsI,zcpsQ;
       get_cycles_per_sec(zcpsI,zcpsQ);
-      fcpsI = (double) zcpsI;
-      fcpsQ = (double) zcpsQ;
+      fcpsI = (double) zcpsI*get_ppx();
+      fcpsQ = (double) zcpsQ*get_ppx();
     }
 
 private:
@@ -258,6 +272,7 @@ private:
     uint32_t _zc_ref_rate;
     int _spp;
     uint32_t _ppx;
+    bool _mavg_mode;
 };
 
 UHD_RFNOC_BLOCK_REGISTER(doppler_tracker_block_ctrl,"DopplerTracker");

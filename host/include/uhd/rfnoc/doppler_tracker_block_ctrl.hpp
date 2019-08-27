@@ -40,6 +40,7 @@ public:
      * Your block configuration here
     */
     virtual void set_mavg_len(uint32_t val) = 0;
+    virtual void set_mavg_mode(bool val) = 0;
     virtual void set_zc_threshold(int16_t i_val,int16_t q_val) = 0;
     virtual void set_zc_threshold(uint32_t val) = 0;
     virtual void set_zc_offset(int16_t i_val,int16_t q_val) = 0;
@@ -56,6 +57,7 @@ public:
     virtual uint32_t get_ppx() = 0;
     virtual uint64_t get_mavg_len() = 0;
     virtual uint64_t get_mavg_div() = 0;
+    virtual bool get_mavg_mode() = 0;
     virtual uint64_t get_cycles_per_sec() = 0;
     virtual void get_cycles_per_sec(int32_t &zcpsI,int32_t &zcpsQ) = 0;
     virtual uint64_t get_zc_count() = 0;
