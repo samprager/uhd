@@ -42,10 +42,19 @@ errorMsg = 'Value must be numeric scalar between 0 and 1';
 validationFcn = @(x) assert(isnumeric(x) && isscalar(x) && (x>=0) && (x<=1),errorMsg);
 addOptional(p,paramName,defaultVal,validationFcn);
 
+paramName = 'BW';
+defaultVal = 0;
+errorMsg = 'Value must be numeric scalar'; 
+validationFcn = @(x) assert(isnumeric(x) && isscalar(x),errorMsg);
+addOptional(p,paramName,defaultVal,validationFcn);
+
 parse(p,varargin{:})
 inparams = p.Results;
 
 bwpercent = inparams.fracBW;
+
+bw = inparams.BW;
+
 
 Nd = numel(d);
 n = (0:Nd-1)-Nd/2;
@@ -55,13 +64,23 @@ f = n*fs/(Nd);
 
 dfft = fftshift(fft(ifftshift(d)));
 dphase = unwrap(angle(dfft));
-    
-d_obw = obw(d,fs)*bwpercent/.99;
+
+if (bw==0)
+    d_obw = obw(d,fs)*bwpercent/.99;
+else
+    d_obw = bw*bwpercent;
+end
 
 [~,imin]=min(abs(f+d_obw/2));
 [~,imax]=min(abs(f-d_obw/2));
 fobw = f(imin:imax);
+
+% moving average lenght 4...
 dphase_obw = dphase(imin:imax);
+
+% b = ones(1,4)./4;
+% a = 1;
+% dphase_obw = filter(b,a,dphase_obw);
 
 A = [ones(Nd,1),f(:)];
 A_obw = [ones(numel(fobw),1),fobw(:)];
