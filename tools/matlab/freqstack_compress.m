@@ -155,7 +155,7 @@ if (nargin>5)
             tx_win = tx_rect;
             tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strcmp(varargin{6},'chebwin'))
+        elseif(strcmp(varargin{6},'chebwin') || strcmp(varargin{6},'chebyshev'))
             tx_win = tx_rect;
             tx_win2 = chebwin(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;

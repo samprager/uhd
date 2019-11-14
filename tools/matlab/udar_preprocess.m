@@ -213,7 +213,9 @@ for i=1:numel(trialsout)
     end
     if (wave_data)
 %         trials(i).data = trials(i).ref;
-        reftrials(i).data = trialsout(i).ref;
+        refdatatmp = reftrials(i).data;
+        reftrials(i).data = (trialsout(i).ref./max(abs(trialsout(i).ref))).*movmean(abs(refdatatmp),50);
+        reftrials(i).data = reftrials(i).data - mean(reftrials(i).data) + mean(refdatatmp);
     end
 
 end

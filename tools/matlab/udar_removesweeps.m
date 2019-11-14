@@ -10,7 +10,7 @@ function udar_removesweeps(outdir,sweepinds)
 %
 %
 % Example: 
-%    udar_removesweeps('~/.x300_client/outputs/mytest/,[10,15])
+%    udar_removesweeps('~/.x300_client/outputs/mytest/',[10,15])
 %
 % Other m-files required: none
 % Subfunctions: none
