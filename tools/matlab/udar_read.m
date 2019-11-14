@@ -191,7 +191,23 @@ for i=1:numel(trials)
         armtime = s{2}{ind(1)};
         trials(i).armtime = armtime;
     end
-
+    
+    trials(i).rxcal = 0;
+    indC = strfind(s{1},'RX Cal CH');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        rxcal = str2double(s{2}{ind(1)});
+        trials(i).rxcal = rxcal;
+    end
+    
+    trials(i).txcal = 0;
+    indC = strfind(s{1},'TX Cal CH');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        txcal = str2double(s{2}{ind(1)});
+        trials(i).txcal = txcal;
+    end
+    
     indC = strfind(s{1},'gps_time');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
