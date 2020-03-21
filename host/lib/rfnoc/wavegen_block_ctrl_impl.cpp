@@ -203,7 +203,6 @@ public:
         int partial_spp = (int)samples.size() % spp;
 
         boost::uint32_t wfrm_hdr1 = 0;
-        boost::uint32_t wfrm_hdr2 = 0;
         wfrm_hdr1 |= boost::uint32_t(wfrm_header.cmd) << 16;
         wfrm_hdr1 |= boost::uint32_t(wfrm_header.id);
 
