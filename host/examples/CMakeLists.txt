@@ -38,6 +38,7 @@ if(ENABLE_RFNOC)
         rfnoc_radio_loopback.cpp
         replay_samples_from_file.cpp
         benchmark_streamer.cpp
+        rfnoc_wavegen_ce_rx.cpp
     )
 endif(ENABLE_RFNOC)
 
