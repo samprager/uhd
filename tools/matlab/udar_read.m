@@ -224,13 +224,88 @@ for i=1:numel(trials)
         trials(i).gps_vec = [v{:}];
     end
 
+%     eg3. $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh
+% 1    = UTC of Position
+% 2    = Latitude
+% 3    = N or S
+% 4    = Longitude
+% 5    = E or W
+% 6    = GPS quality indicator (0=invalid; 1=GPS fix; 2=Diff. GPS fix)
+% 7    = Number of satellites in use [not those in view]
+% 8    = Horizontal dilution of position
+% 9    = Antenna altitude above/below mean sea level (geoid)
+% 10   = Meters  (Antenna height unit)
+% 11   = Geoidal separation (Diff. between WGS-84 earth ellipsoid and
+%        mean sea level.  -=geoid is below WGS-84 ellipsoid)
+% 12   = Meters  (Units of geoidal separation)
+% 13   = Age in seconds since last update from diff. reference station
+% 14   = Diff. reference station ID#
+% 15   = Checksum
+
+    indC = strfind(s{1},'gps_gpgga');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        gps_gpgga = s{2}{ind(1)};
+        trials(i).gps_gpgga = gps_gpgga;
+    end
+   
+% eg4. $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
+% 1    = UTC of position fix
+% 2    = Data status (V=navigation receiver warning)
+% 3    = Latitude of fix
+% 4    = N or S
+% 5    = Longitude of fix
+% 6    = E or W
+% 7    = Speed over ground in knots
+% 8    = Track made good in degrees True
+% 9    = UT date
+% 10   = Magnetic variation degrees (Easterly var. subtracts from true course)
+% 11   = E or W
+% 12   = Checksum
+
+    indC = strfind(s{1},'gps_gprmc');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        gps_gprmc = s{2}{ind(1)};
+        v = textscan(gps_gprmc,'%s','Delimiter',',');
+        v = v{:};
+        if (numel(v)>=8)
+            gps_vel = str2double(v{8})*0.514444; % convert from knots to m/s
+            trials(i).gps_vel = gps_vel;
+        end
+        trials(i).gps_gprmc = gps_gprmc;
+    end
+    
     indC = strfind(s{1},'IMU');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
         imu = s{2}{ind(1)};
         trials(i).imu = imu;
     end
-
+    
+    indC = strfind(s{1},'Lidar');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        % bug because lidar data has extra : in timestamp
+        nextstr = str2num(s{1}{ind(1)+1});
+%         if(isnumeric(s{1}{ind(1)+1}))
+        if(numel(nextstr)==1)
+            lidar = [s{2}{ind(1)},':',s{1}{ind(1)+1},':',s{2}{ind(1)+1}];
+        else
+            lidar = s{2}{ind(1)};
+        end
+        trials(i).lidarstr = lidar;
+        if (contains(lidar,'n/a'))
+        else
+            v = textscan(lidar,'%s  %f m %f V %f %%)');
+            if (numel(v)==4)
+                trials(i).lidar = {v{1},[v{2:end}]};
+            else
+                trials(i).lidar = v;
+            end
+        end
+    end
+    
     indC = strfind(s{1},'Device');
     ind = find(not(cellfun('isempty', indC)));
     if (ind>0)
@@ -295,6 +370,17 @@ for i=1:numel(trials)
             trials(i).toflocal_mtx = reshape(toflocal_mtx,sqrt(numel(toflocal_mtx)),sqrt(numel(toflocal_mtx))).';
         end
     end
+    indC = strfind(s{1},'RF Phase Err Matrix');
+    ind = find(not(cellfun('isempty', indC)));
+    trials(i).phase_err_mtx = [];
+    if (ind>0)
+        phase_err_mtx = s{2}{ind(1)};
+        if(numel(phase_err_mtx)>2)
+            phase_err_mtx = textscan(phase_err_mtx(2:end-1),'%f',Inf,'Delimiter',';');
+            phase_err_mtx = [phase_err_mtx{:}];
+            trials(i).phase_err_mtx = reshape(phase_err_mtx,sqrt(numel(phase_err_mtx)),sqrt(numel(phase_err_mtx))).';
+        end
+    end  
     indC = strfind(s{1},'Freq Slopes');
     ind = find(not(cellfun('isempty', indC)));
     trials(i).fslopes = [];
@@ -332,6 +418,15 @@ for i=1:numel(trials)
         if (numel(mp2_str)>0)
             mp2 = textscan(mp2_str,'%f');
             trials(i).tof_maxpeak2 = [mp2{:}].';
+        end
+    end
+    indC = strfind(s{1},'Decoding Errors');
+    ind = find(not(cellfun('isempty', indC)));
+    if (ind>0)
+        dec_errs_str = s{2}{ind(1)};
+        if (numel(dec_errs_str)>0)
+            dec_errs = textscan(dec_errs_str,'%f');
+            trials(i).dec_errs = [dec_errs{:}].';
         end
     end
     % replace tofsync with matrix value if empty
