@@ -230,8 +230,11 @@ end
 %     D(i,:) = shift(dfft,dfn(i)*numel(dfft)/fs2);
 % 
 % end
+D0 = (D~=0);
+D0 = sum(D0,1);
+data_u = fftshift(ifft(ifftshift(sum(D,1)./D0)));
 
-data_u = fftshift(ifft(ifftshift(sum(D,1))));
+% data_u = fftshift(ifft(ifftshift(sum(D,1))));
 
 % t_tx = linspace(-Tp/2,Tp/2+tau,numel(data_u));
 dTp = Tp/numel(data_u);
@@ -245,38 +248,44 @@ if (nargin>5)
         d_tx = fftshift(ifft(ifftshift(rect(ftemp,-1*(dfn(end)+Bs/2),dfn(end)+Bs/2,1))));
     else
         tx_rect =  rect(t_tx,t_tx(1),t_tx(end-ntau),1);
-        if(strfind(varargin{6},'hamming'))
+        if(contains(varargin{6},'hamming'))
             tx_win = tx_rect;
             tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strfind(varargin{6},'chebwin'))
+        elseif(contains(varargin{6},'chebwin') || contains(varargin{6},'chebyshev'))
             tx_win = tx_rect;
             tx_win2 = chebwin(numel(tx_win(tx_win~=0))).';
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strfind(varargin{6},'tukey'))
+        elseif(contains(varargin{6},'tukey'))
             tx_win = tx_rect;
             tx_win2 = tukeywin(numel(tx_win(tx_win~=0)),.2).';
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strfind(varargin{6},'hann'))
+        elseif(contains(varargin{6},'hann'))
         % hann window
             tx_win = tx_rect;
             k_win = .5;
             Nwin = numel(tx_win(tx_win~=0));
             tx_win2 = k_win-(1-k_win)*cos(2*pi*(0:(Nwin-1))/(Nwin-1));
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strfind(varargin{6},'blackman-harris'))
+        elseif(contains(varargin{6},'blackman-harris'))
         % blackman-harris window
             tx_win = tx_rect;
             a_0=0.35875;a_1=0.48829; a_2=0.14128;a_3=0.01168;
             Nwin = numel(tx_win(tx_win~=0));
             tx_win2 = a_0-a_1*cos(2*pi*(0:(Nwin-1))/(Nwin-1))+a_2*cos(4*pi*(0:(Nwin-1))/(Nwin-1))-a_3*cos(6*pi*(0:(Nwin-1))/(Nwin-1));
             tx_win(tx_win~=0)=tx_win2;
-        elseif(strfind(varargin{6},'hpf'))
+        elseif(contains(varargin{6},'hpf'))
         % high pass filter
             tx_win = tx_rect;
             tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
             tx_win2(ceil(end/2):end)=1;
             tx_win(tx_win~=0)=tx_win2;  
+        elseif(contains(varargin{6},'lpf'))
+        % low pass filter
+            tx_win = tx_rect;
+            tx_win2 = getHamming(numel(tx_win(tx_win~=0))).';
+            tx_win2(1:ceil(end/2))=1;
+            tx_win(tx_win~=0)=tx_win2; 
         elseif(contains(varargin{6},'kaiser'))
             tx_win = tx_rect;
             Nwin = numel(tx_win(tx_win~=0));
