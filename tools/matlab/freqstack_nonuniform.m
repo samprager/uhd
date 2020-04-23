@@ -232,6 +232,7 @@ end
 % end
 D0 = (D~=0);
 D0 = sum(D0,1);
+D0(D0<1)=1;
 data_u = fftshift(ifft(ifftshift(sum(D,1)./D0)));
 
 % data_u = fftshift(ifft(ifftshift(sum(D,1))));

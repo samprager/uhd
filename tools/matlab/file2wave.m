@@ -3,11 +3,13 @@ function varargout = file2wave(varargin)
 if (nargin ==1)
     fname = varargin{1};
     format = 'int16';
-    scale_out = double(intmax(format));
+%     scale_out = double(intmax(format));
+    scale_out = 0;
 elseif (nargin ==2)
     fname = varargin{1};
     format = varargin{2};
-    scale_out = double(intmax(format));
+%     scale_out = double(intmax(format));
+    scale_out = 0;
 elseif (nargin ==3)
     fname = varargin{1};
     format = varargin{2};
@@ -30,7 +32,11 @@ else
     Q = data(1:2:end)';
 end
 
-scale = scale_out/double(intmax(format));
+if (scale_out==0)
+    scale = 1;
+else
+    scale = scale_out/double(intmax(format));
+end
 
 I = scale*I;
 Q = scale*Q;
