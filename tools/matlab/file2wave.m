@@ -18,28 +18,38 @@ else
     error('file2wave(): Unrecognized argument list. Usage: file2wave(fname,(format),(scale))');
 end
 
-fileID = fopen(fname,'r');
-data=fread(fileID,format);
-fclose(fileID);
-
 [d, base, ext] = fileparts(fname);
 
-if (strcmp(ext,'.dat')|| strcmp(ext,'.ref'))
-    I = data(1:2:end)';
-    Q = data(2:2:end)';
+if (strcmp(ext,'.csv')|| strcmp(ext,'.txt'))
+    A = csvread(fname);
+%     fileID = fopen(fname);
+%     A = textscan(fileID,'%d','Delimiter',',');
+%     A = A{:};
+    I = A(1:2:end);
+    Q = A(2:2:end);
 else
-    I = data(2:2:end)';
-    Q = data(1:2:end)';
-end
+    
+    fileID = fopen(fname,'r');
+    data=fread(fileID,format);
+    fclose(fileID);
 
-if (scale_out==0)
-    scale = 1;
-else
-    scale = scale_out/double(intmax(format));
-end
+    if (strcmp(ext,'.dat')|| strcmp(ext,'.ref'))
+        I = data(1:2:end)';
+        Q = data(2:2:end)';
+    else
+        I = data(2:2:end)';
+        Q = data(1:2:end)';
+    end
 
-I = scale*I;
-Q = scale*Q;
+    if (scale_out==0)
+        scale = 1;
+    else
+        scale = scale_out/double(intmax(format));
+    end
+
+    I = scale*I;
+    Q = scale*Q;
+end
 
 if (nargout == 0)
     hold on; plot(I); plot(Q); legend('I','Q'); hold off;

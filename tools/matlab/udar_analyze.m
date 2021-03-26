@@ -63,10 +63,12 @@ Bs = obw(trials(1).ref,fs)*(1.0/.99);
 upfac = ceil(numel(trials)*(Bs)/fs);
 
 bweffavg = 0;
+bweffavg_rec = 0;
 % bwlims = [freqs-bw/2;freqs+bw/2]
 bwlims = circshift(diag(freqs-Bs/2,1),-1,2)+diag(freqs+Bs/2,-1);
 % bweffs = [bweffavg];
 navg=0;
+navg_rec = 0;
 for i=2:numel(trials)
     f1max = freqs(i-1)+Bs/2;
     f2min = freqs(i)-Bs/2;
@@ -74,6 +76,8 @@ for i=2:numel(trials)
     if (foverlap>0)
         bweffavg = bweffavg+(Bs-foverlap)/Bs;
         navg = navg+1;
+        bweffavg_rec = bweffavg_rec+(Bs-foverlap)/Bs;
+        navg_rec = navg_rec+1;
     else
         % bands are spaced out
         bweffavg = bweffavg+(Bs-foverlap)/Bs;
@@ -87,6 +91,12 @@ if (navg==0)
 else
     bweffavg = bweffavg/navg;
 end
+
+if (navg_rec==0) 
+    bweffavg_rec = bweffavg;
+else
+    bweffavg_rec = bweffavg_rec/navg_rec;
+end
 % figure(500);hold on; plot(bweffs); title('bweffs');
 
 freq_rec = freqs;
@@ -96,10 +106,12 @@ for i=2:numel(trials)
     foverlap = f1max-f2min;
     if (foverlap<0)
         if (debugmode<=1)
-            freq_rec(i:end) = freq_rec(i:end) + foverlap - (1-bweffavg)*Bs;
+%             freq_rec(i:end) = freq_rec(i:end) + foverlap - (1-bweffavg)*Bs;
+            freq_rec(i:end) = freq_rec(i:end) + foverlap - (1-bweffavg_rec)*Bs;
         else
             nsteps = round((freq_rec(i)-freq_rec(i-1))/Bs);
-            freq_rec(i:end) = freq_rec(i:end)-(nsteps-1+(1-bweffavg))*Bs;
+%             freq_rec(i:end) = freq_rec(i:end)-(nsteps-1+(1-bweffavg))*Bs;
+            freq_rec(i:end) = freq_rec(i:end)-(nsteps-1+(1-bweffavg_rec))*Bs;
         end
     end
     
